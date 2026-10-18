@@ -1,0 +1,144 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://orbital.local/schema/orbital.action.v1.schema.json",
+  "title": "Orbital app action",
+  "description": "POST /v1/sections/{id}/actions. A tap in the app that the section's owner feed applies to its own source: it reads GET .../actions?status=pending and answers POST .../actions/results. Any dotted type works; the ones listed get an instant optimistic patch.",
+  "type": "object",
+  "required": [
+    "type"
+  ],
+  "properties": {
+    "schema": {
+      "const": "orbital.action.v1"
+    },
+    "type": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9_]*(\\.[a-z0-9_]+)+$",
+      "examples": [
+        "task.set_done",
+        "task.add",
+        "insight.snooze",
+        "server.restart"
+      ]
+    },
+    "item_id": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$"
+    },
+    "block_id": {
+      "type": "string"
+    },
+    "node_id": {
+      "type": "string"
+    },
+    "tab_id": {
+      "type": "string"
+    },
+    "source": {
+      "enum": [
+        "tap",
+        "notification",
+        "form",
+        "button"
+      ]
+    },
+    "value": {
+      "type": "object"
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "type": {
+            "const": "task.set_done"
+          }
+        }
+      },
+      "then": {
+        "required": [
+          "item_id"
+        ],
+        "properties": {
+          "value": {
+            "required": [
+              "done"
+            ],
+            "properties": {
+              "done": {
+                "type": "boolean"
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "type": {
+            "const": "task.add"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "value": {
+            "required": [
+              "title"
+            ],
+            "properties": {
+              "title": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 200
+              },
+              "due": {
+                "type": "string",
+                "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+              },
+              "remind_days": {
+                "type": "array",
+                "maxItems": 12,
+                "items": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 120
+                }
+              },
+              "note": {
+                "type": "string",
+                "maxLength": 2000
+              },
+              "group": {
+                "type": "string",
+                "maxLength": 64
+              }
+            }
+          }
+        }
+      }
+    }
+  ],
+  "examples": [
+    {
+      "schema": "orbital.action.v1",
+      "type": "task.set_done",
+      "item_id": "renew-cert",
+      "block_id": "todo",
+      "value": {
+        "done": true
+      }
+    },
+    {
+      "schema": "orbital.action.v1",
+      "type": "server.restart",
+      "item_id": "restart-web",
+      "block_id": "actions",
+      "value": {
+        "service": "web"
+      },
+      "source": "button"
+    }
+  ]
+}

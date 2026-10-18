@@ -1,0 +1,446 @@
+{
+  "schema": "orbital.section.v1",
+  "id": "weather",
+  "title": "Weather",
+  "subtitle": "Home · updated hourly",
+  "icon": "cloud.sun.fill",
+  "order": 4,
+  "accent": "#F59E0B",
+  "layout": "tabs",
+  "summary": "68° · rain until 4 PM",
+  "revision": 12,
+  "updated_at": "@now-4m",
+  "space": "home",
+  "blocks": [
+    {
+      "type": "callout",
+      "id": "advisory",
+      "tone": "warning",
+      "title": "Wind advisory tonight",
+      "text": "Gusts up to 35 mph after 9 PM. Bring in the patio cushions."
+    }
+  ],
+  "tabs": [
+    {
+      "id": "today",
+      "title": "Today",
+      "icon": "sun.max",
+      "blocks": [
+        {
+          "type": "hero",
+          "id": "now-hero",
+          "eyebrow": "Right now",
+          "title": "68° and clearing",
+          "subtitle": "Light rain until about 4 PM, then sun. Wind 8 mph from the west.",
+          "image": {
+            "src": "/v1/media/weather-sky.jpg",
+            "alt": "Clouds breaking up over hills"
+          },
+          "actions": [
+            {
+              "id": "week",
+              "label": "See the week",
+              "style": "secondary",
+              "action": {
+                "type": "open",
+                "section_id": "weather",
+                "tab_id": "week"
+              }
+            }
+          ]
+        },
+        {
+          "type": "metrics",
+          "id": "conditions",
+          "items": [
+            {
+              "id": "temp",
+              "label": "Temperature",
+              "value": "68°",
+              "caption": "feels like 66°"
+            },
+            {
+              "id": "rain",
+              "label": "Rain",
+              "value": "60%",
+              "caption": "until 4 PM"
+            },
+            {
+              "id": "wind",
+              "label": "Wind",
+              "value": "8 mph",
+              "caption": "west"
+            },
+            {
+              "id": "uv",
+              "label": "UV index",
+              "value": "4",
+              "caption": "moderate"
+            }
+          ]
+        },
+        {
+          "type": "chart",
+          "id": "hourly",
+          "title": "Next 24 hours",
+          "chart": "line",
+          "y_label": "°F",
+          "series": [
+            {
+              "name": "Temperature",
+              "color": "#F59E0B",
+              "points": [
+                {
+                  "x": "00:00",
+                  "y": 60
+                },
+                {
+                  "x": "01:00",
+                  "y": 55
+                },
+                {
+                  "x": "02:00",
+                  "y": 58
+                },
+                {
+                  "x": "03:00",
+                  "y": 65
+                },
+                {
+                  "x": "04:00",
+                  "y": 66
+                },
+                {
+                  "x": "05:00",
+                  "y": 67
+                },
+                {
+                  "x": "06:00",
+                  "y": 70
+                },
+                {
+                  "x": "07:00",
+                  "y": 66
+                },
+                {
+                  "x": "08:00",
+                  "y": 58
+                },
+                {
+                  "x": "09:00",
+                  "y": 59
+                },
+                {
+                  "x": "10:00",
+                  "y": 59
+                },
+                {
+                  "x": "11:00",
+                  "y": 57
+                },
+                {
+                  "x": "12:00",
+                  "y": 63
+                },
+                {
+                  "x": "13:00",
+                  "y": 69
+                },
+                {
+                  "x": "14:00",
+                  "y": 68
+                },
+                {
+                  "x": "15:00",
+                  "y": 66
+                },
+                {
+                  "x": "16:00",
+                  "y": 67
+                },
+                {
+                  "x": "17:00",
+                  "y": 61
+                },
+                {
+                  "x": "18:00",
+                  "y": 55
+                },
+                {
+                  "x": "19:00",
+                  "y": 58
+                },
+                {
+                  "x": "20:00",
+                  "y": 61
+                },
+                {
+                  "x": "21:00",
+                  "y": 61
+                },
+                {
+                  "x": "22:00",
+                  "y": 67
+                },
+                {
+                  "x": "23:00",
+                  "y": 71
+                }
+              ]
+            },
+            {
+              "name": "Feels like",
+              "color": "#94A3B8",
+              "points": [
+                {
+                  "x": "00:00",
+                  "y": 58
+                },
+                {
+                  "x": "01:00",
+                  "y": 53
+                },
+                {
+                  "x": "02:00",
+                  "y": 56
+                },
+                {
+                  "x": "03:00",
+                  "y": 63
+                },
+                {
+                  "x": "04:00",
+                  "y": 64
+                },
+                {
+                  "x": "05:00",
+                  "y": 65
+                },
+                {
+                  "x": "06:00",
+                  "y": 68
+                },
+                {
+                  "x": "07:00",
+                  "y": 64
+                },
+                {
+                  "x": "08:00",
+                  "y": 56
+                },
+                {
+                  "x": "09:00",
+                  "y": 57
+                },
+                {
+                  "x": "10:00",
+                  "y": 57
+                },
+                {
+                  "x": "11:00",
+                  "y": 55
+                },
+                {
+                  "x": "12:00",
+                  "y": 61
+                },
+                {
+                  "x": "13:00",
+                  "y": 67
+                },
+                {
+                  "x": "14:00",
+                  "y": 66
+                },
+                {
+                  "x": "15:00",
+                  "y": 64
+                },
+                {
+                  "x": "16:00",
+                  "y": 65
+                },
+                {
+                  "x": "17:00",
+                  "y": 59
+                },
+                {
+                  "x": "18:00",
+                  "y": 53
+                },
+                {
+                  "x": "19:00",
+                  "y": 56
+                },
+                {
+                  "x": "20:00",
+                  "y": 59
+                },
+                {
+                  "x": "21:00",
+                  "y": 59
+                },
+                {
+                  "x": "22:00",
+                  "y": 65
+                },
+                {
+                  "x": "23:00",
+                  "y": 69
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "callout",
+          "id": "umbrella",
+          "tone": "info",
+          "title": "Umbrella until 4",
+          "text": "The heaviest rain passes between 1 and 3 PM."
+        }
+      ]
+    },
+    {
+      "id": "week",
+      "title": "Week",
+      "icon": "calendar",
+      "blocks": [
+        {
+          "type": "table",
+          "id": "forecast",
+          "title": "7-day forecast",
+          "columns": [
+            "Day",
+            "High",
+            "Low",
+            "Rain"
+          ],
+          "rows": [
+            [
+              "Today",
+              "70°",
+              "55°",
+              "60%"
+            ],
+            [
+              "Tomorrow",
+              "74°",
+              "56°",
+              "10%"
+            ],
+            [
+              "Wed",
+              "77°",
+              "58°",
+              "0%"
+            ],
+            [
+              "Thu",
+              "75°",
+              "57°",
+              "20%"
+            ],
+            [
+              "Fri",
+              "69°",
+              "54°",
+              "70%"
+            ],
+            [
+              "Sat",
+              "66°",
+              "51°",
+              "40%"
+            ],
+            [
+              "Sun",
+              "71°",
+              "53°",
+              "5%"
+            ]
+          ]
+        },
+        {
+          "type": "chart",
+          "id": "week-chart",
+          "title": "Highs and lows",
+          "chart": "bar",
+          "series": [
+            {
+              "name": "High",
+              "color": "#F97316",
+              "points": [
+                {
+                  "x": "Mon",
+                  "y": 70
+                },
+                {
+                  "x": "Tue",
+                  "y": 74
+                },
+                {
+                  "x": "Wed",
+                  "y": 77
+                },
+                {
+                  "x": "Thu",
+                  "y": 75
+                },
+                {
+                  "x": "Fri",
+                  "y": 69
+                },
+                {
+                  "x": "Sat",
+                  "y": 66
+                },
+                {
+                  "x": "Sun",
+                  "y": 71
+                }
+              ]
+            },
+            {
+              "name": "Low",
+              "color": "#38BDF8",
+              "points": [
+                {
+                  "x": "Mon",
+                  "y": 55
+                },
+                {
+                  "x": "Tue",
+                  "y": 56
+                },
+                {
+                  "x": "Wed",
+                  "y": 58
+                },
+                {
+                  "x": "Thu",
+                  "y": 57
+                },
+                {
+                  "x": "Fri",
+                  "y": 54
+                },
+                {
+                  "x": "Sat",
+                  "y": 51
+                },
+                {
+                  "x": "Sun",
+                  "y": 53
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "nodes": [],
+  "space_title": "Home",
+  "space_icon": "house.fill"
+}

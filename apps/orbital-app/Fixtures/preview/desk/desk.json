@@ -1,0 +1,77 @@
+{
+  "configured": true,
+  "model": {
+    "provider": "xai",
+    "model": "grok-4-fast",
+    "fast": true,
+    "billing": "api",
+    "configured": true,
+    "worker_agent": "claude"
+  },
+  "tracker_active": 2,
+  "messages": [
+    {
+      "id": "m1",
+      "role": "user",
+      "text": "Is anything broken at home?",
+      "at": "@now-20m",
+      "source": "voice"
+    },
+    {
+      "id": "m2",
+      "role": "assistant",
+      "text": "Two things: the garage camera has been offline for two hours, and the DNS filter is slow (180 ms lookups). Want me to have an agent look at the DNS logs?",
+      "at": "@now-20m",
+      "model": "grok-4-fast",
+      "latency_ms": 820
+    },
+    {
+      "id": "m3",
+      "role": "user",
+      "text": "Yes, run it on the NAS.",
+      "at": "@now-7m",
+      "source": "voice"
+    },
+    {
+      "id": "m4",
+      "role": "event",
+      "text": "Started codex on nas-01: Why is DNS slow?",
+      "at": "@now-6m",
+      "kind": "task_started",
+      "task_id": "dt-dns"
+    },
+    {
+      "id": "m5",
+      "role": "assistant",
+      "text": "Started. I'll tell you what it finds.",
+      "at": "@now-6m",
+      "speak": "Started. I'll tell you what it finds."
+    }
+  ],
+  "tasks": [
+    {
+      "id": "dt-dns",
+      "title": "Why is DNS slow?",
+      "project": "/srv/dns",
+      "project_name": "dns",
+      "status": "running",
+      "model": "codex",
+      "created_at": "@now-6m",
+      "started_at": "@now-6m",
+      "last_note": "Reading the query log"
+    },
+    {
+      "id": "dt-flaky",
+      "title": "Fix flaky upload test",
+      "project": "~/code/orbit-cli",
+      "project_name": "orbit-cli",
+      "status": "done",
+      "model": "claude",
+      "created_at": "@now-2h",
+      "started_at": "@now-2h",
+      "finished_at": "@now-1h",
+      "summary": "Fixed a race in test_upload; branch fix/flaky-upload.",
+      "tracker_id": "t-flaky"
+    }
+  ]
+}

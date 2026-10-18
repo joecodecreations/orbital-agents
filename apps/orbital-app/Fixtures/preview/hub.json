@@ -1,0 +1,12 @@
+{
+  "service": "orbital-hub",
+  "name": "Orbital Agents",
+  "version": "0.1.0",
+  "hub_id": "hub-preview",
+  "machine": "studio",
+  "apns": {
+    "enabled": false,
+    "configured": false,
+    "environment": "development"
+  }
+}

@@ -1,0 +1,22 @@
+{
+  "id": "t-shelves",
+  "title": "Hang the garage shelves",
+  "status": "done",
+  "source": "manual",
+  "agent_name": "You",
+  "color_index": 3,
+  "created_at": "@now-2d",
+  "updated_at": "@now-1d",
+  "completed_at": "@now-1d",
+  "completed_by": "you",
+  "last_note": "Done, level on the second try",
+  "details": "Two shelves above the workbench.",
+  "notes": [
+    {
+      "at": "@now-1d",
+      "text": "Done, level on the second try"
+    }
+  ],
+  "media": [],
+  "subagents": []
+}

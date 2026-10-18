@@ -1,0 +1,3 @@
+▶ claude · travel-laptop · ~/code/store-site
+Opened products/shirts.json
+error: connection to the satellite was lost

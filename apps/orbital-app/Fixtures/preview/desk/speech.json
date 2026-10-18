@@ -1,0 +1,17 @@
+{
+  "tts": true,
+  "provider_tts": "fish",
+  "default_voice": "voice-en-1",
+  "voices": [
+    {
+      "reference_id": "voice-en-1",
+      "name": "Narrator",
+      "language": "en"
+    },
+    {
+      "reference_id": "voice-pt-1",
+      "name": "Locutora",
+      "language": "pt"
+    }
+  ]
+}

@@ -1,0 +1,194 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://orbital.local/schema/orbital.alert.v1.schema.json",
+  "title": "Orbital alert",
+  "type": "object",
+  "required": [
+    "schema",
+    "id",
+    "kind",
+    "title",
+    "body"
+  ],
+  "properties": {
+    "schema": {
+      "const": "orbital.alert.v1"
+    },
+    "id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128
+    },
+    "kind": {
+      "enum": [
+        "event",
+        "reminder"
+      ]
+    },
+    "section_id": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "node_id": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "tab_id": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "title": {
+      "type": "string",
+      "minLength": 1
+    },
+    "subtitle": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "body": {
+      "type": "string"
+    },
+    "badge": {
+      "type": [
+        "integer",
+        "null"
+      ]
+    },
+    "sound": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "thread_id": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "category_id": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "interruption_level": {
+      "enum": [
+        "passive",
+        "active",
+        "timeSensitive",
+        "critical",
+        null
+      ]
+    },
+    "relevance_score": {
+      "type": [
+        "number",
+        "null"
+      ],
+      "minimum": 0,
+      "maximum": 1
+    },
+    "target_content_id": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "summary_argument": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "summary_argument_count": {
+      "type": [
+        "integer",
+        "null"
+      ],
+      "minimum": 1
+    },
+    "user_info": {
+      "type": [
+        "object",
+        "null"
+      ]
+    },
+    "attachments": {
+      "type": "array"
+    },
+    "actions": {
+      "type": "array",
+      "maxItems": 4
+    },
+    "launch_url": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Where a tap goes: orbital://open?section=<id>&node=<id>&tab=<id>, orbital://alerts, orbital://agent, orbital://tracker?id=<item>."
+    },
+    "deliver_at": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "repeats": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "properties": {
+        "hour": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 23
+        },
+        "minute": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 59
+        },
+        "weekday": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 1,
+          "maximum": 7
+        },
+        "second": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 0,
+          "maximum": 59
+        }
+      }
+    }
+  },
+  "description": "A notification for every signed-in app: POST /v1/alerts {alerts: [...]}, or alongside an ops batch. Ids are natural keys: the same id never notifies twice (unless it was retracted).",
+  "examples": [
+    {
+      "schema": "orbital.alert.v1",
+      "id": "home-server-disk-80",
+      "kind": "event",
+      "section_id": "home-server",
+      "title": "Disk almost full",
+      "body": "/data is 81% full (412 GB free).",
+      "interruption_level": "timeSensitive",
+      "thread_id": "home-server",
+      "launch_url": "orbital://open?section=home-server"
+    }
+  ]
+}

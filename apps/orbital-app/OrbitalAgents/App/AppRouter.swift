@@ -1,0 +1,323 @@
+import Foundation
+import SwiftUI
+
+/// Bottom tabs on an iPhone in portrait.
+enum RootTab: Hashable, CaseIterable {
+    case home
+    case agents
+    case desk
+    case tracker
+    case alerts
+}
+
+/// One push inside a tab's navigation stack on iPhone, or inside the detail column on a wide window.
+enum BrowseRoute: Hashable {
+    /// A section. Shows its node list when the layout is sidebar, otherwise its page.
+    case section(String)
+    /// A node page inside a sidebar section.
+    case node(String, String)
+    /// A space with everything filed under it (SpaceDirectory id).
+    case space(String)
+    /// One product: its charts, money, and pages (SpaceDirectory product id).
+    case product(String)
+    /// Every section the hub has.
+    case browse
+    case alerts
+    case manage
+    case settings
+    case automations
+    case agents
+    /// One machine and what it is running.
+    case satellite(String)
+    /// One agent job: status, output, and Stop.
+    case agentJob(String)
+    /// The tracker's items, and one item with its notes, media, and subagents.
+    case tracker
+    case trackerItem(String)
+}
+
+/// Shell navigation shared by buttons, notification taps, the tab bar, the left bar, and orbital:// links.
+@MainActor
+final class AppRouter: ObservableObject {
+    enum Destination: Equatable {
+        case home
+        case agents
+        case desk
+        case tracker
+        case alerts
+        case settings
+        case automations
+        case manage
+        case section(String?)
+    }
+
+    /// What the wide layout's detail column shows, and on iPhone which tab is up.
+    @Published var destination: Destination = .home {
+        didSet {
+            if destination != oldValue { widePath = [] }
+        }
+    }
+    @Published var deskDraft: String?
+    /// The desk scrolls to this task's card, then clears it.
+    @Published var deskFocusTask: String?
+    @Published var pendingSectionID: String?
+    @Published var pendingNodeID: String?
+    @Published var pendingTabID: String?
+    /// Which iPhone stack the pending tab is for, so a copy of the same page on another tab does not take it.
+    @Published var pendingStack: RootTab?
+    /// iPhone stacks, one per tab.
+    @Published var homePath: [BrowseRoute] = []
+    @Published var agentsPath: [BrowseRoute] = []
+    @Published var deskPath: [BrowseRoute] = []
+    @Published var trackerPath: [BrowseRoute] = []
+    @Published var alertsPath: [BrowseRoute] = []
+    /// Pushes inside the wide layout's detail column. Cleared when the left bar moves.
+    @Published var widePath: [BrowseRoute] = []
+    /// Set by RootView from the window width.
+    @Published var isCompact = true
+    /// Bumped when a notification or button asks the shell to move.
+    @Published var navigationToken = 0
+    /// Automations opens with this feed's detail showing, then clears it.
+    @Published var focusedJobID: String?
+    /// Run agent, open as a sheet, filled in from a button or a link.
+    @Published var runDraft: AgentRunDraft?
+
+    var tab: RootTab {
+        switch destination {
+        case .home, .settings, .automations, .manage, .section: return .home
+        case .agents: return .agents
+        case .desk: return .desk
+        case .tracker: return .tracker
+        case .alerts: return .alerts
+        }
+    }
+
+    func select(tab: RootTab) {
+        if tab == self.tab, isCompact {
+            // Tapping the current tab again returns to its root, like the system apps.
+            setPath([], for: tab)
+            return
+        }
+        switch tab {
+        case .home: destination = .home
+        case .agents: destination = .agents
+        case .desk: destination = .desk
+        case .tracker: destination = .tracker
+        case .alerts: destination = .alerts
+        }
+    }
+
+    private func setPath(_ path: [BrowseRoute], for tab: RootTab) {
+        switch tab {
+        case .home: homePath = path
+        case .agents: agentsPath = path
+        case .desk: deskPath = path
+        case .tracker: trackerPath = path
+        case .alerts: alertsPath = path
+        }
+    }
+
+    func openDesk(prompt: String?, task: String? = nil) {
+        deskDraft = prompt
+        deskFocusTask = task
+        destination = .desk
+        if isCompact { deskPath = [] } else { widePath = [] }
+        navigationToken += 1
+    }
+
+    /// The Tracker, or one item on top of its list.
+    func openTracker(item: String?) {
+        let path: [BrowseRoute] = item.map { [.trackerItem($0)] } ?? []
+        destination = .tracker
+        if isCompact { trackerPath = path } else { widePath = path }
+        navigationToken += 1
+    }
+
+    /// The Agents screen, optionally with one job or machine on top.
+    func openAgents(route: BrowseRoute? = nil) {
+        destination = .agents
+        let path = route.map { [$0] } ?? []
+        if isCompact { agentsPath = path } else { widePath = path }
+        navigationToken += 1
+    }
+
+    /// Run agent, filled in. Any field can be left for the sheet to ask.
+    func runAgent(_ draft: AgentRunDraft = AgentRunDraft()) {
+        runDraft = draft
+    }
+
+    /// Opens a page from a notification, a deep link, or a button. On iPhone it lands on the Home stack.
+    func open(section: String?, node: String? = nil, tab: String? = nil) {
+        pendingSectionID = section
+        pendingNodeID = node
+        pendingTabID = tab
+        guard isCompact else {
+            pendingStack = nil
+            destination = .section(section)
+            widePath = []
+            navigationToken += 1
+            return
+        }
+        pendingStack = .home
+        var path: [BrowseRoute] = []
+        if let section {
+            path.append(.section(section))
+            if let node { path.append(.node(section, node)) }
+        } else {
+            path.append(.browse)
+        }
+        destination = .home
+        homePath = path
+        navigationToken += 1
+    }
+
+    /// Opens a page from Home or a space page. On iPhone it pushes onto the current tab so Back returns there.
+    func show(_ location: PageLocation, tab pageTab: String? = nil) {
+        pendingSectionID = location.sectionID
+        pendingNodeID = location.nodeID
+        pendingTabID = pageTab ?? location.tabID
+        let route: BrowseRoute = location.nodeID.map { .node(location.sectionID, $0) } ?? .section(location.sectionID)
+        guard isCompact else {
+            // Wide: a page pushed in the detail column keeps the space or product page behind it.
+            pendingStack = nil
+            widePath.append(route)
+            navigationToken += 1
+            return
+        }
+        guard tab == .home || tab == .alerts else {
+            open(section: location.sectionID, node: location.nodeID, tab: pageTab ?? location.tabID)
+            return
+        }
+        pendingStack = tab
+        push(route)
+    }
+
+    /// Push onto the visible tab's stack, or the wide detail column. A page opened from Agents, the desk,
+    /// or the tracker lands on Home, so those tabs keep their own screens.
+    func push(_ route: BrowseRoute) {
+        if route == .tracker {
+            openTracker(item: nil)
+            return
+        }
+        if route == .agents {
+            openAgents()
+            return
+        }
+        guard isCompact else {
+            widePath.append(route)
+            return
+        }
+        switch tab {
+        case .home: homePath.append(route)
+        case .alerts: alertsPath.append(route)
+        case .agents:
+            switch route {
+            case .agentJob, .satellite, .trackerItem: agentsPath.append(route)
+            default:
+                homePath = [route]
+                destination = .home
+            }
+        case .desk, .tracker:
+            switch route {
+            case .trackerItem, .agentJob:
+                if tab == .desk { deskPath.append(route) } else { trackerPath.append(route) }
+            default:
+                homePath = [route]
+                destination = .home
+            }
+        }
+    }
+
+    func openSpace(_ id: String) { push(.space(id)) }
+
+    func openProduct(_ id: String) { push(.product(id)) }
+
+    func openAlerts() {
+        destination = .alerts
+        if isCompact { alertsPath = [] }
+        navigationToken += 1
+    }
+
+    func openBrowse() {
+        if isCompact { push(.browse) } else { destination = .section(nil) }
+    }
+
+    func openManage() {
+        if isCompact { push(.manage) } else { destination = .manage }
+    }
+
+    func openSettings() {
+        if isCompact { push(.settings) } else { destination = .settings }
+    }
+
+    /// Every feed's schedule, countdown, last run, and run buttons. `job` opens that feed's detail.
+    func openAutomations(job: String? = nil) {
+        focusedJobID = job
+        if isCompact { push(.automations) } else { destination = .automations }
+        navigationToken += 1
+    }
+
+    /// Handles an orbital:// link. `onConnect` receives the hub address of an orbital://connect link.
+    func handle(_ url: URL, onConnect: ((String) -> Void)? = nil) {
+        guard url.scheme?.lowercased() == OrbitalBrand.urlScheme else { return }
+        let host = (url.host ?? "").lowercased()
+        let items = URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems ?? []
+        func q(_ name: String) -> String? {
+            items.first { $0.name == name }?.value.flatMap { $0.isEmpty ? nil : $0 }
+        }
+        switch host {
+        case "connect":
+            if let hub = q("hub") ?? q("url") { onConnect?(hub) }
+        case "agent", "desk":
+            openDesk(prompt: q("prompt"), task: q("task"))
+        case "tracker":
+            openTracker(item: q("id"))
+        case "agents":
+            if let job = q("job") {
+                openAgents(route: .agentJob(job))
+            } else if let machine = q("machine"), q("run") == nil {
+                openAgents(route: .satellite(machine))
+            } else {
+                openAgents()
+            }
+            if q("run") != nil || q("prompt") != nil {
+                runAgent(AgentRunDraft(machine: q("machine"), agent: q("agent"), prompt: q("prompt") ?? "", cwd: q("cwd") ?? "", title: q("title") ?? ""))
+            }
+        case "run":
+            openAgents()
+            runAgent(AgentRunDraft(machine: q("machine"), agent: q("agent"), prompt: q("prompt") ?? "", cwd: q("cwd") ?? "", title: q("title") ?? ""))
+        case "job":
+            if let job = q("id") { openAgents(route: .agentJob(job)) }
+        case "alerts":
+            openAlerts()
+        case "manage", "settings", "automations", "jobs", "browse":
+            if isCompact {
+                destination = .home
+                homePath = []
+            }
+            switch host {
+            case "manage": openManage()
+            case "settings": openSettings()
+            case "browse": openBrowse()
+            default: openAutomations(job: q("job"))
+            }
+            navigationToken += 1
+        case "home", "":
+            if url.path.isEmpty || host == "home" {
+                homePath = []
+                destination = .home
+                navigationToken += 1
+            } else {
+                open(section: q("section"), node: q("node"), tab: q("tab"))
+            }
+        case "space", "product":
+            guard let id = q("id") else { return }
+            destination = .home
+            homePath = []
+            push(host == "space" ? .space(Spaces.key(id)) : .product(Spaces.key(id)))
+            navigationToken += 1
+        default:
+            open(section: q("section"), node: q("node"), tab: q("tab"))
+        }
+    }
+}

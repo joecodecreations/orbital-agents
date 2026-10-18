@@ -1,0 +1,639 @@
+{
+  "schema": "orbital.section.v1",
+  "id": "fitness",
+  "title": "Fitness",
+  "subtitle": "Watch and scale",
+  "icon": "figure.run",
+  "order": 5,
+  "accent": "#F43F5E",
+  "layout": "page",
+  "summary": "8,420 steps · 3 of 4 goals",
+  "revision": 12,
+  "updated_at": "@now-4m",
+  "space": "home",
+  "blocks": [
+    {
+      "type": "metrics",
+      "id": "today-fit",
+      "items": [
+        {
+          "id": "steps",
+          "label": "Steps",
+          "value": "8,420",
+          "delta": "+1,100 vs. average",
+          "direction": "up"
+        },
+        {
+          "id": "active",
+          "label": "Active minutes",
+          "value": "46",
+          "delta": "goal 45",
+          "direction": "up"
+        },
+        {
+          "id": "sleep",
+          "label": "Sleep",
+          "value": "7 h 12 m",
+          "direction": "flat"
+        },
+        {
+          "id": "hr",
+          "label": "Resting heart rate",
+          "value": "58 bpm",
+          "delta": "-2",
+          "direction": "down"
+        }
+      ]
+    },
+    {
+      "type": "progress",
+      "id": "goals",
+      "title": "Today's goals",
+      "items": [
+        {
+          "id": "steps-goal",
+          "label": "Steps",
+          "value": 8420,
+          "max": 10000,
+          "display": "8,420 / 10,000"
+        },
+        {
+          "id": "move",
+          "label": "Move",
+          "value": 102,
+          "tone": "success",
+          "display": "102%"
+        },
+        {
+          "id": "water",
+          "label": "Water",
+          "value": 5,
+          "max": 8,
+          "display": "5 / 8 glasses"
+        },
+        {
+          "id": "stand",
+          "label": "Stand hours",
+          "value": 10,
+          "max": 12,
+          "display": "10 / 12"
+        }
+      ]
+    },
+    {
+      "type": "series",
+      "id": "fit-series",
+      "kind": "fitness",
+      "space": "home",
+      "product": "Daily",
+      "window": 14,
+      "as_of": "@now-10m",
+      "metrics": [
+        {
+          "id": "steps",
+          "label": "Steps",
+          "platform": "watch",
+          "stat": "steps",
+          "points": [
+            {
+              "x": "@day-29",
+              "y": 10262
+            },
+            {
+              "x": "@day-28",
+              "y": 10356
+            },
+            {
+              "x": "@day-27",
+              "y": 9357
+            },
+            {
+              "x": "@day-26",
+              "y": 9649
+            },
+            {
+              "x": "@day-25",
+              "y": 8153
+            },
+            {
+              "x": "@day-24",
+              "y": 5558
+            },
+            {
+              "x": "@day-23",
+              "y": 6038
+            },
+            {
+              "x": "@day-22",
+              "y": 7471
+            },
+            {
+              "x": "@day-21",
+              "y": 7456
+            },
+            {
+              "x": "@day-20",
+              "y": 9013
+            },
+            {
+              "x": "@day-19",
+              "y": 11188
+            },
+            {
+              "x": "@day-18",
+              "y": 10089
+            },
+            {
+              "x": "@day-17",
+              "y": 8310
+            },
+            {
+              "x": "@day-16",
+              "y": 8213
+            },
+            {
+              "x": "@day-15",
+              "y": 6781
+            },
+            {
+              "x": "@day-14",
+              "y": 5141
+            },
+            {
+              "x": "@day-13",
+              "y": 6835
+            },
+            {
+              "x": "@day-12",
+              "y": 8821
+            },
+            {
+              "x": "@day-11",
+              "y": 8846
+            },
+            {
+              "x": "@day-10",
+              "y": 9996
+            },
+            {
+              "x": "@day-9",
+              "y": 11046
+            },
+            {
+              "x": "@day-8",
+              "y": 8847
+            },
+            {
+              "x": "@day-7",
+              "y": 6835
+            },
+            {
+              "x": "@day-6",
+              "y": 7057
+            },
+            {
+              "x": "@day-5",
+              "y": 6296
+            },
+            {
+              "x": "@day-4",
+              "y": 5821
+            },
+            {
+              "x": "@day-3",
+              "y": 8380
+            },
+            {
+              "x": "@day-2",
+              "y": 10225
+            },
+            {
+              "x": "@day-1",
+              "y": 9610
+            },
+            {
+              "x": "@day",
+              "y": 9935
+            }
+          ]
+        },
+        {
+          "id": "active",
+          "label": "Active minutes",
+          "platform": "watch",
+          "stat": "active_minutes",
+          "points": [
+            {
+              "x": "@day-29",
+              "y": 59
+            },
+            {
+              "x": "@day-28",
+              "y": 50
+            },
+            {
+              "x": "@day-27",
+              "y": 49
+            },
+            {
+              "x": "@day-26",
+              "y": 45
+            },
+            {
+              "x": "@day-25",
+              "y": 28
+            },
+            {
+              "x": "@day-24",
+              "y": 25
+            },
+            {
+              "x": "@day-23",
+              "y": 36
+            },
+            {
+              "x": "@day-22",
+              "y": 39
+            },
+            {
+              "x": "@day-21",
+              "y": 44
+            },
+            {
+              "x": "@day-20",
+              "y": 59
+            },
+            {
+              "x": "@day-19",
+              "y": 58
+            },
+            {
+              "x": "@day-18",
+              "y": 44
+            },
+            {
+              "x": "@day-17",
+              "y": 40
+            },
+            {
+              "x": "@day-16",
+              "y": 36
+            },
+            {
+              "x": "@day-15",
+              "y": 24
+            },
+            {
+              "x": "@day-14",
+              "y": 29
+            },
+            {
+              "x": "@day-13",
+              "y": 45
+            },
+            {
+              "x": "@day-12",
+              "y": 48
+            },
+            {
+              "x": "@day-11",
+              "y": 50
+            },
+            {
+              "x": "@day-10",
+              "y": 59
+            },
+            {
+              "x": "@day-9",
+              "y": 51
+            },
+            {
+              "x": "@day-8",
+              "y": 34
+            },
+            {
+              "x": "@day-7",
+              "y": 32
+            },
+            {
+              "x": "@day-6",
+              "y": 33
+            },
+            {
+              "x": "@day-5",
+              "y": 27
+            },
+            {
+              "x": "@day-4",
+              "y": 38
+            },
+            {
+              "x": "@day-3",
+              "y": 55
+            },
+            {
+              "x": "@day-2",
+              "y": 54
+            },
+            {
+              "x": "@day-1",
+              "y": 50
+            },
+            {
+              "x": "@day",
+              "y": 53
+            }
+          ]
+        },
+        {
+          "id": "sleep",
+          "label": "Sleep (hours)",
+          "platform": "watch",
+          "stat": "sleep",
+          "level": true,
+          "points": [
+            {
+              "x": "@day-29",
+              "y": 7.3
+            },
+            {
+              "x": "@day-28",
+              "y": 7.2
+            },
+            {
+              "x": "@day-27",
+              "y": 6.9
+            },
+            {
+              "x": "@day-26",
+              "y": 6.3
+            },
+            {
+              "x": "@day-25",
+              "y": 6.5
+            },
+            {
+              "x": "@day-24",
+              "y": 7.1
+            },
+            {
+              "x": "@day-23",
+              "y": 7.2
+            },
+            {
+              "x": "@day-22",
+              "y": 7.4
+            },
+            {
+              "x": "@day-21",
+              "y": 7.9
+            },
+            {
+              "x": "@day-20",
+              "y": 7.5
+            },
+            {
+              "x": "@day-19",
+              "y": 6.9
+            },
+            {
+              "x": "@day-18",
+              "y": 6.9
+            },
+            {
+              "x": "@day-17",
+              "y": 6.7
+            },
+            {
+              "x": "@day-16",
+              "y": 6.3
+            },
+            {
+              "x": "@day-15",
+              "y": 6.9
+            },
+            {
+              "x": "@day-14",
+              "y": 7.5
+            },
+            {
+              "x": "@day-13",
+              "y": 7.5
+            },
+            {
+              "x": "@day-12",
+              "y": 7.6
+            },
+            {
+              "x": "@day-11",
+              "y": 7.7
+            },
+            {
+              "x": "@day-10",
+              "y": 7.1
+            },
+            {
+              "x": "@day-9",
+              "y": 6.5
+            },
+            {
+              "x": "@day-8",
+              "y": 6.7
+            },
+            {
+              "x": "@day-7",
+              "y": 6.7
+            },
+            {
+              "x": "@day-6",
+              "y": 6.7
+            },
+            {
+              "x": "@day-5",
+              "y": 7.3
+            },
+            {
+              "x": "@day-4",
+              "y": 7.8
+            },
+            {
+              "x": "@day-3",
+              "y": 7.5
+            },
+            {
+              "x": "@day-2",
+              "y": 7.4
+            },
+            {
+              "x": "@day-1",
+              "y": 7.3
+            },
+            {
+              "x": "@day",
+              "y": 6.7
+            }
+          ]
+        },
+        {
+          "id": "rhr",
+          "label": "Resting heart rate",
+          "platform": "watch",
+          "stat": "resting_hr",
+          "level": true,
+          "points": [
+            {
+              "x": "@day-29",
+              "y": 60
+            },
+            {
+              "x": "@day-28",
+              "y": 61
+            },
+            {
+              "x": "@day-27",
+              "y": 60
+            },
+            {
+              "x": "@day-26",
+              "y": 60
+            },
+            {
+              "x": "@day-25",
+              "y": 60
+            },
+            {
+              "x": "@day-24",
+              "y": 57
+            },
+            {
+              "x": "@day-23",
+              "y": 57
+            },
+            {
+              "x": "@day-22",
+              "y": 58
+            },
+            {
+              "x": "@day-21",
+              "y": 58
+            },
+            {
+              "x": "@day-20",
+              "y": 59
+            },
+            {
+              "x": "@day-19",
+              "y": 61
+            },
+            {
+              "x": "@day-18",
+              "y": 61
+            },
+            {
+              "x": "@day-17",
+              "y": 60
+            },
+            {
+              "x": "@day-16",
+              "y": 59
+            },
+            {
+              "x": "@day-15",
+              "y": 58
+            },
+            {
+              "x": "@day-14",
+              "y": 56
+            },
+            {
+              "x": "@day-13",
+              "y": 57
+            },
+            {
+              "x": "@day-12",
+              "y": 59
+            },
+            {
+              "x": "@day-11",
+              "y": 59
+            },
+            {
+              "x": "@day-10",
+              "y": 60
+            },
+            {
+              "x": "@day-9",
+              "y": 62
+            },
+            {
+              "x": "@day-8",
+              "y": 61
+            },
+            {
+              "x": "@day-7",
+              "y": 58
+            },
+            {
+              "x": "@day-6",
+              "y": 58
+            },
+            {
+              "x": "@day-5",
+              "y": 58
+            },
+            {
+              "x": "@day-4",
+              "y": 57
+            },
+            {
+              "x": "@day-3",
+              "y": 58
+            },
+            {
+              "x": "@day-2",
+              "y": 60
+            },
+            {
+              "x": "@day-1",
+              "y": 60
+            },
+            {
+              "x": "@day",
+              "y": 60
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "tasks",
+      "id": "plan",
+      "title": "Training plan",
+      "subtitle": "Week 3 of 8",
+      "items": [
+        {
+          "id": "run-easy",
+          "title": "Easy run, 5 km",
+          "done": true,
+          "done_at": "@now-1d",
+          "group": "plan"
+        },
+        {
+          "id": "strength",
+          "title": "Strength: legs and core",
+          "due": "@day",
+          "group": "plan"
+        },
+        {
+          "id": "long-run",
+          "title": "Long run, 12 km",
+          "due": "@day+3",
+          "group": "plan",
+          "due_label": "Saturday"
+        }
+      ]
+    }
+  ],
+  "tabs": [],
+  "nodes": []
+}

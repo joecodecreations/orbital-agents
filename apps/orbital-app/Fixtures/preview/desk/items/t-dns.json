@@ -1,0 +1,23 @@
+{
+  "id": "t-dns",
+  "title": "Why is DNS slow?",
+  "status": "active",
+  "source": "agent",
+  "agent": "codex",
+  "agent_name": "Codex",
+  "machine": "nas-01",
+  "project": "dns",
+  "color_index": 4,
+  "created_at": "@now-6m",
+  "updated_at": "@now-1m",
+  "last_note": "Primary upstream slow since 13:05",
+  "details": "Read the DNS filter logs and explain the slow lookups.",
+  "notes": [
+    {
+      "at": "@now-1m",
+      "text": "Primary upstream slow since 13:05"
+    }
+  ],
+  "media": [],
+  "subagents": []
+}

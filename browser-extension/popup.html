@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Orbital Agents Browser Controller</title>
+  <link rel="stylesheet" href="ui.css" />
+  <style>
+    body { width: 330px; padding: 14px; }
+    .card { margin-top: 12px; }
+    .port { display: flex; gap: 8px; margin-top: 10px; }
+    .port input { width: 100px; }
+    .hint { margin-top: 12px; }
+    .err { margin-top: 6px; word-break: break-word; }
+    header.brand { justify-content: space-between; }
+    header.brand .who { display: flex; align-items: center; gap: 10px; }
+    .actions button { flex: 1; }
+    button.small { padding: 5px 9px; font-size: 12px; }
+  </style>
+</head>
+<body>
+  <header class="brand">
+    <div class="who">
+      <img src="icons/icon-48.png" alt="" />
+      <div>
+        <h1>Browser Controller</h1>
+        <div class="sub">Orbital Agents <span id="build"></span></div>
+      </div>
+    </div>
+    <button id="options" class="small" type="button">Options</button>
+  </header>
+
+  <section class="card" aria-label="Bridge">
+    <div class="row">
+      <span class="label">Bridge</span>
+      <span class="status"><span id="dot" class="dot wait"></span><span id="conn">checking</span></span>
+    </div>
+    <div class="row"><span class="label">Address</span><span class="value mono" id="addr">127.0.0.1:7703</span></div>
+    <div class="row">
+      <label class="label" for="cap">Capture network</label>
+      <label class="switch"><input id="cap" type="checkbox" /><span class="track"></span></label>
+    </div>
+    <div class="row">
+      <label class="label" for="iso">Agent tabs in their own window</label>
+      <label class="switch"><input id="iso" type="checkbox" /><span class="track"></span></label>
+    </div>
+    <div class="row"><span class="label">Agent windows</span><span class="value" id="wins">0</span></div>
+    <div class="row"><span class="label">Events waiting</span><span class="value" id="queue">0</span></div>
+    <div id="err" class="err small bad hidden"></div>
+  </section>
+
+  <form class="port" id="portForm">
+    <input id="port" type="number" min="1" max="65535" aria-label="Bridge port" />
+    <button type="submit">Set port</button>
+    <span class="grow"></span>
+  </form>
+
+  <div class="actions" style="margin-top:10px">
+    <button id="focusAuto" type="button">Use agent window</button>
+    <button id="panel" type="button">Side panel</button>
+  </div>
+
+  <p class="hint small muted">
+    Start the bridge on this computer: <code>orbital browser serve</code>.
+    Agents then drive Chrome with <code>orbital browser navigate URL</code>.
+  </p>
+  <script src="popup.js"></script>
+</body>
+</html>

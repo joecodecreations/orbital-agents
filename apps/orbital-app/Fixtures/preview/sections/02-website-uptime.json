@@ -1,0 +1,975 @@
+{
+  "schema": "orbital.section.v1",
+  "id": "website-uptime",
+  "title": "Website uptime",
+  "subtitle": "4 sites · checked every minute",
+  "icon": "globe",
+  "order": 2,
+  "accent": "#22C55E",
+  "layout": "page",
+  "summary": "1 slow · cert renews in 9 days",
+  "revision": 12,
+  "updated_at": "@now-4m",
+  "space": "websites",
+  "blocks": [
+    {
+      "type": "metrics",
+      "id": "uptime-now",
+      "items": [
+        {
+          "id": "uptime",
+          "label": "Uptime (30 days)",
+          "value": "99.96%",
+          "delta": "+0.02%",
+          "direction": "up"
+        },
+        {
+          "id": "latency",
+          "label": "Median response",
+          "value": "212 ms",
+          "delta": "+38 ms",
+          "direction": "up"
+        },
+        {
+          "id": "visitors",
+          "label": "Visitors today",
+          "value": "1,284",
+          "delta": "+9%",
+          "direction": "up"
+        }
+      ]
+    },
+    {
+      "type": "series",
+      "id": "www-series",
+      "kind": "site",
+      "space": "websites",
+      "product": "example.com",
+      "window": 30,
+      "as_of": "@now-4m",
+      "metrics": [
+        {
+          "id": "visitors",
+          "label": "Visitors",
+          "platform": "web",
+          "stat": "visitors",
+          "points": [
+            {
+              "x": "@day-29",
+              "y": 1192
+            },
+            {
+              "x": "@day-28",
+              "y": 1387
+            },
+            {
+              "x": "@day-27",
+              "y": 1281
+            },
+            {
+              "x": "@day-26",
+              "y": 1293
+            },
+            {
+              "x": "@day-25",
+              "y": 1264
+            },
+            {
+              "x": "@day-24",
+              "y": 945
+            },
+            {
+              "x": "@day-23",
+              "y": 816
+            },
+            {
+              "x": "@day-22",
+              "y": 996
+            },
+            {
+              "x": "@day-21",
+              "y": 1038
+            },
+            {
+              "x": "@day-20",
+              "y": 1108
+            },
+            {
+              "x": "@day-19",
+              "y": 1421
+            },
+            {
+              "x": "@day-18",
+              "y": 1492
+            },
+            {
+              "x": "@day-17",
+              "y": 1266
+            },
+            {
+              "x": "@day-16",
+              "y": 1207
+            },
+            {
+              "x": "@day-15",
+              "y": 1142
+            },
+            {
+              "x": "@day-14",
+              "y": 880
+            },
+            {
+              "x": "@day-13",
+              "y": 897
+            },
+            {
+              "x": "@day-12",
+              "y": 1185
+            },
+            {
+              "x": "@day-11",
+              "y": 1264
+            },
+            {
+              "x": "@day-10",
+              "y": 1326
+            },
+            {
+              "x": "@day-9",
+              "y": 1547
+            },
+            {
+              "x": "@day-8",
+              "y": 1467
+            },
+            {
+              "x": "@day-7",
+              "y": 1158
+            },
+            {
+              "x": "@day-6",
+              "y": 1105
+            },
+            {
+              "x": "@day-5",
+              "y": 1088
+            },
+            {
+              "x": "@day-4",
+              "y": 940
+            },
+            {
+              "x": "@day-3",
+              "y": 1096
+            },
+            {
+              "x": "@day-2",
+              "y": 1429
+            },
+            {
+              "x": "@day-1",
+              "y": 1460
+            },
+            {
+              "x": "@day",
+              "y": 1443
+            }
+          ]
+        },
+        {
+          "id": "new-visitors",
+          "label": "New visitors",
+          "platform": "web",
+          "stat": "new_visitors",
+          "points": [
+            {
+              "x": "@day-29",
+              "y": 797
+            },
+            {
+              "x": "@day-28",
+              "y": 708
+            },
+            {
+              "x": "@day-27",
+              "y": 710
+            },
+            {
+              "x": "@day-26",
+              "y": 645
+            },
+            {
+              "x": "@day-25",
+              "y": 484
+            },
+            {
+              "x": "@day-24",
+              "y": 503
+            },
+            {
+              "x": "@day-23",
+              "y": 626
+            },
+            {
+              "x": "@day-22",
+              "y": 642
+            },
+            {
+              "x": "@day-21",
+              "y": 714
+            },
+            {
+              "x": "@day-20",
+              "y": 854
+            },
+            {
+              "x": "@day-19",
+              "y": 800
+            },
+            {
+              "x": "@day-18",
+              "y": 662
+            },
+            {
+              "x": "@day-17",
+              "y": 650
+            },
+            {
+              "x": "@day-16",
+              "y": 595
+            },
+            {
+              "x": "@day-15",
+              "y": 494
+            },
+            {
+              "x": "@day-14",
+              "y": 592
+            },
+            {
+              "x": "@day-13",
+              "y": 747
+            },
+            {
+              "x": "@day-12",
+              "y": 756
+            },
+            {
+              "x": "@day-11",
+              "y": 797
+            },
+            {
+              "x": "@day-10",
+              "y": 868
+            },
+            {
+              "x": "@day-9",
+              "y": 745
+            },
+            {
+              "x": "@day-8",
+              "y": 596
+            },
+            {
+              "x": "@day-7",
+              "y": 614
+            },
+            {
+              "x": "@day-6",
+              "y": 605
+            },
+            {
+              "x": "@day-5",
+              "y": 574
+            },
+            {
+              "x": "@day-4",
+              "y": 724
+            },
+            {
+              "x": "@day-3",
+              "y": 866
+            },
+            {
+              "x": "@day-2",
+              "y": 824
+            },
+            {
+              "x": "@day-1",
+              "y": 812
+            },
+            {
+              "x": "@day",
+              "y": 822
+            }
+          ]
+        },
+        {
+          "id": "latency",
+          "label": "Response time",
+          "platform": "web",
+          "stat": "latency",
+          "format": "ms",
+          "level": true,
+          "points": [
+            {
+              "x": "@day-29",
+              "y": 234
+            },
+            {
+              "x": "@day-28",
+              "y": 225
+            },
+            {
+              "x": "@day-27",
+              "y": 217
+            },
+            {
+              "x": "@day-26",
+              "y": 218
+            },
+            {
+              "x": "@day-25",
+              "y": 192
+            },
+            {
+              "x": "@day-24",
+              "y": 172
+            },
+            {
+              "x": "@day-23",
+              "y": 188
+            },
+            {
+              "x": "@day-22",
+              "y": 199
+            },
+            {
+              "x": "@day-21",
+              "y": 201
+            },
+            {
+              "x": "@day-20",
+              "y": 225
+            },
+            {
+              "x": "@day-19",
+              "y": 239
+            },
+            {
+              "x": "@day-18",
+              "y": 217
+            },
+            {
+              "x": "@day-17",
+              "y": 203
+            },
+            {
+              "x": "@day-16",
+              "y": 201
+            },
+            {
+              "x": "@day-15",
+              "y": 180
+            },
+            {
+              "x": "@day-14",
+              "y": 173
+            },
+            {
+              "x": "@day-13",
+              "y": 201
+            },
+            {
+              "x": "@day-12",
+              "y": 215
+            },
+            {
+              "x": "@day-11",
+              "y": 215
+            },
+            {
+              "x": "@day-10",
+              "y": 232
+            },
+            {
+              "x": "@day-9",
+              "y": 232
+            },
+            {
+              "x": "@day-8",
+              "y": 200
+            },
+            {
+              "x": "@day-7",
+              "y": 187
+            },
+            {
+              "x": "@day-6",
+              "y": 191
+            },
+            {
+              "x": "@day-5",
+              "y": 179
+            },
+            {
+              "x": "@day-4",
+              "y": 186
+            },
+            {
+              "x": "@day-3",
+              "y": 219
+            },
+            {
+              "x": "@day-2",
+              "y": 228
+            },
+            {
+              "x": "@day-1",
+              "y": 220
+            },
+            {
+              "x": "@day",
+              "y": 226
+            }
+          ]
+        },
+        {
+          "id": "uptime",
+          "label": "Uptime",
+          "platform": "web",
+          "stat": "uptime",
+          "format": "percent",
+          "level": true,
+          "points": [
+            {
+              "x": "@day-29",
+              "y": 100
+            },
+            {
+              "x": "@day-28",
+              "y": 100
+            },
+            {
+              "x": "@day-27",
+              "y": 100
+            },
+            {
+              "x": "@day-26",
+              "y": 99.9
+            },
+            {
+              "x": "@day-25",
+              "y": 100
+            },
+            {
+              "x": "@day-24",
+              "y": 100
+            },
+            {
+              "x": "@day-23",
+              "y": 100
+            },
+            {
+              "x": "@day-22",
+              "y": 100
+            },
+            {
+              "x": "@day-21",
+              "y": 100
+            },
+            {
+              "x": "@day-20",
+              "y": 99.6
+            },
+            {
+              "x": "@day-19",
+              "y": 100
+            },
+            {
+              "x": "@day-18",
+              "y": 100
+            },
+            {
+              "x": "@day-17",
+              "y": 100
+            },
+            {
+              "x": "@day-16",
+              "y": 100
+            },
+            {
+              "x": "@day-15",
+              "y": 100
+            },
+            {
+              "x": "@day-14",
+              "y": 100
+            },
+            {
+              "x": "@day-13",
+              "y": 100
+            },
+            {
+              "x": "@day-12",
+              "y": 100
+            },
+            {
+              "x": "@day-11",
+              "y": 99.9
+            },
+            {
+              "x": "@day-10",
+              "y": 100
+            },
+            {
+              "x": "@day-9",
+              "y": 100
+            },
+            {
+              "x": "@day-8",
+              "y": 100
+            },
+            {
+              "x": "@day-7",
+              "y": 100
+            },
+            {
+              "x": "@day-6",
+              "y": 100
+            },
+            {
+              "x": "@day-5",
+              "y": 100
+            },
+            {
+              "x": "@day-4",
+              "y": 100
+            },
+            {
+              "x": "@day-3",
+              "y": 100
+            },
+            {
+              "x": "@day-2",
+              "y": 100
+            },
+            {
+              "x": "@day-1",
+              "y": 100
+            },
+            {
+              "x": "@day",
+              "y": 99.8
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "status",
+      "id": "sites",
+      "title": "Sites",
+      "items": [
+        {
+          "id": "www",
+          "label": "example.com",
+          "status": "up",
+          "detail": "184 ms",
+          "url": "https://example.com"
+        },
+        {
+          "id": "blog",
+          "label": "blog.example.com",
+          "status": "up",
+          "detail": "201 ms",
+          "url": "https://blog.example.com"
+        },
+        {
+          "id": "docs",
+          "label": "docs.example.com",
+          "status": "slow",
+          "detail": "1.9 s from Europe",
+          "since": "@now-40m",
+          "url": "https://docs.example.com"
+        },
+        {
+          "id": "shop",
+          "label": "shop.example.com",
+          "status": "up",
+          "detail": "240 ms",
+          "url": "https://shop.example.com"
+        }
+      ]
+    },
+    {
+      "type": "callout",
+      "id": "cert",
+      "tone": "warning",
+      "title": "Certificate renews in 9 days",
+      "text": "Auto-renew is on for **example.com**. If it fails, the uptime feed raises an alert two days before expiry."
+    },
+    {
+      "type": "chart",
+      "id": "regions",
+      "title": "Response time by region",
+      "chart": "bar",
+      "y_label": "ms",
+      "y_format": "ms",
+      "caption": "Median over the last hour.",
+      "series": [
+        {
+          "name": "docs.example.com",
+          "color": "#F59E0B",
+          "points": [
+            {
+              "x": "US East",
+              "y": 190
+            },
+            {
+              "x": "US West",
+              "y": 240
+            },
+            {
+              "x": "Europe",
+              "y": 1900
+            },
+            {
+              "x": "Asia",
+              "y": 610
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "series",
+      "id": "docs-series",
+      "kind": "site",
+      "space": "websites",
+      "product": "docs.example.com",
+      "window": 30,
+      "as_of": "@now-4m",
+      "metrics": [
+        {
+          "id": "visitors",
+          "label": "Visitors",
+          "platform": "web",
+          "stat": "visitors",
+          "points": [
+            {
+              "x": "@day-29",
+              "y": 439
+            },
+            {
+              "x": "@day-28",
+              "y": 438
+            },
+            {
+              "x": "@day-27",
+              "y": 383
+            },
+            {
+              "x": "@day-26",
+              "y": 302
+            },
+            {
+              "x": "@day-25",
+              "y": 354
+            },
+            {
+              "x": "@day-24",
+              "y": 439
+            },
+            {
+              "x": "@day-23",
+              "y": 445
+            },
+            {
+              "x": "@day-22",
+              "y": 496
+            },
+            {
+              "x": "@day-21",
+              "y": 558
+            },
+            {
+              "x": "@day-20",
+              "y": 487
+            },
+            {
+              "x": "@day-19",
+              "y": 401
+            },
+            {
+              "x": "@day-18",
+              "y": 404
+            },
+            {
+              "x": "@day-17",
+              "y": 371
+            },
+            {
+              "x": "@day-16",
+              "y": 336
+            },
+            {
+              "x": "@day-15",
+              "y": 431
+            },
+            {
+              "x": "@day-14",
+              "y": 519
+            },
+            {
+              "x": "@day-13",
+              "y": 507
+            },
+            {
+              "x": "@day-12",
+              "y": 527
+            },
+            {
+              "x": "@day-11",
+              "y": 543
+            },
+            {
+              "x": "@day-10",
+              "y": 440
+            },
+            {
+              "x": "@day-9",
+              "y": 366
+            },
+            {
+              "x": "@day-8",
+              "y": 401
+            },
+            {
+              "x": "@day-7",
+              "y": 402
+            },
+            {
+              "x": "@day-6",
+              "y": 408
+            },
+            {
+              "x": "@day-5",
+              "y": 519
+            },
+            {
+              "x": "@day-4",
+              "y": 581
+            },
+            {
+              "x": "@day-3",
+              "y": 528
+            },
+            {
+              "x": "@day-2",
+              "y": 515
+            },
+            {
+              "x": "@day-1",
+              "y": 502
+            },
+            {
+              "x": "@day",
+              "y": 399
+            }
+          ]
+        },
+        {
+          "id": "latency",
+          "label": "Response time",
+          "platform": "web",
+          "stat": "latency",
+          "format": "ms",
+          "level": true,
+          "points": [
+            {
+              "x": "@day-29",
+              "y": 276
+            },
+            {
+              "x": "@day-28",
+              "y": 292
+            },
+            {
+              "x": "@day-27",
+              "y": 278
+            },
+            {
+              "x": "@day-26",
+              "y": 280
+            },
+            {
+              "x": "@day-25",
+              "y": 273
+            },
+            {
+              "x": "@day-24",
+              "y": 234
+            },
+            {
+              "x": "@day-23",
+              "y": 224
+            },
+            {
+              "x": "@day-22",
+              "y": 245
+            },
+            {
+              "x": "@day-21",
+              "y": 248
+            },
+            {
+              "x": "@day-20",
+              "y": 258
+            },
+            {
+              "x": "@day-19",
+              "y": 294
+            },
+            {
+              "x": "@day-18",
+              "y": 295
+            },
+            {
+              "x": "@day-17",
+              "y": 268
+            },
+            {
+              "x": "@day-16",
+              "y": 263
+            },
+            {
+              "x": "@day-15",
+              "y": 252
+            },
+            {
+              "x": "@day-14",
+              "y": 222
+            },
+            {
+              "x": "@day-13",
+              "y": 229
+            },
+            {
+              "x": "@day-12",
+              "y": 261
+            },
+            {
+              "x": "@day-11",
+              "y": 267
+            },
+            {
+              "x": "@day-10",
+              "y": 276
+            },
+            {
+              "x": "@day-9",
+              "y": 299
+            },
+            {
+              "x": "@day-8",
+              "y": 284
+            },
+            {
+              "x": "@day-7",
+              "y": 248
+            },
+            {
+              "x": "@day-6",
+              "y": 245
+            },
+            {
+              "x": "@day-5",
+              "y": 240
+            },
+            {
+              "x": "@day-4",
+              "y": 224
+            },
+            {
+              "x": "@day-3",
+              "y": 247
+            },
+            {
+              "x": "@day-2",
+              "y": 282
+            },
+            {
+              "x": "@day-1",
+              "y": 281
+            },
+            {
+              "x": "@day",
+              "y": 1900
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "product",
+      "id": "site-product",
+      "kind": "site",
+      "space": "websites",
+      "headline": "Version 2.4 is live on every region.",
+      "tone": "success",
+      "checked_at": "@now-4m",
+      "releases": [
+        {
+          "id": "web-live",
+          "platform": "web",
+          "status": "live",
+          "version": "2.4.1",
+          "since": "@now-3d",
+          "url": "https://example.com"
+        },
+        {
+          "id": "web-next",
+          "platform": "web",
+          "status": "testing",
+          "version": "2.5.0",
+          "note": "Staging since Monday"
+        }
+      ],
+      "metrics": [
+        {
+          "id": "lighthouse",
+          "label": "Performance score",
+          "value": "94"
+        }
+      ],
+      "links": [
+        {
+          "id": "status",
+          "label": "Status page",
+          "url": "https://status.example.com"
+        }
+      ]
+    },
+    {
+      "type": "links",
+      "id": "site-links",
+      "title": "Links",
+      "items": [
+        {
+          "label": "Status page",
+          "url": "https://status.example.com",
+          "detail": "What visitors see",
+          "icon": "dot.radiowaves.left.and.right"
+        },
+        {
+          "label": "DNS settings",
+          "url": "https://dns.example.com",
+          "icon": "network"
+        }
+      ]
+    }
+  ],
+  "tabs": [],
+  "nodes": []
+}

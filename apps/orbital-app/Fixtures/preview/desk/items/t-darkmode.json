@@ -1,0 +1,64 @@
+{
+  "id": "t-darkmode",
+  "title": "Add dark mode to the status page",
+  "status": "active",
+  "source": "agent",
+  "agent": "claude",
+  "agent_name": "Claude",
+  "machine": "studio",
+  "project": "status-page",
+  "color_index": 2,
+  "created_at": "@now-14m",
+  "updated_at": "@now-1m",
+  "last_note": "Dark snapshots pass; checking contrast",
+  "details": "Add a **dark mode** to the status page using the existing colour tokens.",
+  "notes": [
+    {
+      "at": "@now-12m",
+      "text": "Found 14 colour values; 11 already use tokens"
+    },
+    {
+      "at": "@now-3m",
+      "text": "Dark snapshots pass; checking contrast"
+    }
+  ],
+  "media": [
+    {
+      "id": "m-dark-1",
+      "kind": "image",
+      "caption": "Dark mode, desktop",
+      "file_name": "m-dark-1.jpg",
+      "added_at": "@now-3m",
+      "bytes": 182044,
+      "thumb_url": "/v1/tracker/media/t-darkmode/m-dark-1?variant=thumb",
+      "full_url": "/v1/tracker/media/t-darkmode/m-dark-1?variant=full"
+    },
+    {
+      "id": "m-light-1",
+      "kind": "image",
+      "caption": "Light mode, unchanged",
+      "file_name": "m-light-1.jpg",
+      "added_at": "@now-3m",
+      "bytes": 182044,
+      "thumb_url": "/v1/tracker/media/t-darkmode/m-light-1?variant=thumb",
+      "full_url": "/v1/tracker/media/t-darkmode/m-light-1?variant=full"
+    }
+  ],
+  "subagents": [
+    {
+      "id": "s-contrast",
+      "title": "Contrast check",
+      "agent_name": "Claude",
+      "status": "active",
+      "details": "Every text pair above 4.5:1",
+      "created_at": "@now-4m",
+      "notes": [
+        {
+          "at": "@now-2m",
+          "text": "Lowest pair 5.1:1"
+        }
+      ],
+      "media": []
+    }
+  ]
+}

@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Browser Controller</title>
+  <link rel="stylesheet" href="ui.css" />
+  <style>
+    body { padding: 14px; }
+    .card { margin-top: 12px; }
+    ul { list-style: none; margin: 0; padding: 0; }
+    li { display: grid; grid-template-columns: 14px 1fr auto; gap: 8px; align-items: baseline; padding: 7px 0; border-top: 1px solid var(--line); }
+    li:first-child { border-top: 0; }
+    li .err { grid-column: 2 / 4; color: var(--bad); font-size: 11.5px; word-break: break-word; }
+    .empty { color: var(--muted); padding: 8px 0; }
+  </style>
+</head>
+<body>
+  <header class="brand">
+    <img src="icons/icon-48.png" alt="" />
+    <div>
+      <h1>Browser Controller</h1>
+      <div class="sub">Orbital Agents <span id="build"></span></div>
+    </div>
+  </header>
+
+  <section class="card">
+    <div class="row">
+      <span class="label">Bridge</span>
+      <span class="status"><span id="dot" class="dot wait"></span><span id="conn">checking</span></span>
+    </div>
+    <div class="row"><span class="label">Address</span><span class="value mono" id="addr"></span></div>
+    <div class="row"><span class="label">Network capture</span><span class="value" id="cap"></span></div>
+    <div class="row"><span class="label">Agent windows</span><span class="value" id="wins"></span></div>
+  </section>
+
+  <h2>Recent commands</h2>
+  <section class="card">
+    <ul id="log"><li class="empty">No commands yet.</li></ul>
+  </section>
+  <p class="small muted">Commands appear here as agents send them. Only the action, the outcome and the time are kept, plus the error message when one fails.</p>
+  <script src="sidepanel.js"></script>
+</body>
+</html>

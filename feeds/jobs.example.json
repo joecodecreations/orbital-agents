@@ -1,0 +1,96 @@
+{
+ "version": 1,
+ "about": "Example timetable for the Orbital Agents scheduler. Copy it to ~/.orbital-agents/jobs.json (the setup wizard offers to) and edit the URLs, repos and place. The scheduler reloads this file by itself. 'every' is seconds on a grid shifted by 'offset' seconds from the top of the hour; jobs in one lane run one at a time, lanes run side by side. {repo} is this repository, {python} the Python that runs the scheduler, ~ your home folder.",
+ "max_parallel": 2,
+ "groups": [
+  {"id": "home-lab", "title": "Home Lab", "icon": "server.rack"},
+  {"id": "daily", "title": "Daily", "icon": "sun.max.fill"},
+  {"id": "projects", "title": "Projects", "icon": "folder.fill"},
+  {"id": "demo", "title": "Demo", "icon": "sparkles"}
+ ],
+ "lanes": {
+  "local": {"title": "This machine", "kind": "local"},
+  "web": {"title": "Public websites and APIs", "kind": "api"}
+ },
+ "jobs": [
+  {
+   "id": "machine-health",
+   "name": "This machine's health",
+   "group": "home-lab",
+   "reads": "CPU load, memory, disks and uptime of the hub machine",
+   "targets": [{"section": "machine-health"}],
+   "every": 300,
+   "offset": 0,
+   "lane": "local",
+   "timeout": 60,
+   "cwd": "{repo}",
+   "argv": ["{python}", "feeds/examples/machine_health.py"]
+  },
+  {
+   "id": "website-uptime",
+   "name": "Website uptime",
+   "group": "home-lab",
+   "reads": "An HTTP GET to each URL",
+   "targets": [{"section": "website-uptime"}],
+   "every": 300,
+   "offset": 60,
+   "lane": "web",
+   "timeout": 120,
+   "cwd": "{repo}",
+   "argv": ["{python}", "feeds/examples/website_uptime.py", "--url", "https://example.com", "--url", "https://www.iana.org"]
+  },
+  {
+   "id": "github",
+   "name": "GitHub repository stats",
+   "group": "projects",
+   "reads": "api.github.com, public data (60 requests an hour without a token)",
+   "targets": [{"section": "github"}],
+   "every": 1800,
+   "offset": 420,
+   "lane": "web",
+   "timeout": 120,
+   "cwd": "{repo}",
+   "argv": ["{python}", "feeds/examples/github_repo.py", "--repo", "python/cpython"]
+  },
+  {
+   "id": "weather",
+   "name": "Weather",
+   "group": "daily",
+   "reads": "api.open-meteo.com forecast (free, no key)",
+   "targets": [{"section": "weather"}],
+   "every": 1800,
+   "offset": 900,
+   "lane": "web",
+   "timeout": 60,
+   "cwd": "{repo}",
+   "argv": ["{python}", "feeds/examples/weather.py", "--place", "Greenwich", "--lat", "51.4769", "--lon", "-0.0005"]
+  },
+  {
+   "id": "headlines",
+   "name": "Headlines",
+   "group": "daily",
+   "reads": "RSS and Atom feeds",
+   "targets": [{"section": "headlines"}],
+   "every": 3600,
+   "offset": 1200,
+   "lane": "web",
+   "timeout": 120,
+   "cwd": "{repo}",
+   "argv": ["{python}", "feeds/examples/rss_headlines.py", "--feed", "https://hnrss.org/frontpage"]
+  },
+  {
+   "id": "hello",
+   "name": "Hello, blocks (demo page)",
+   "group": "demo",
+   "reads": "Nothing: a tour of every block type, and it answers its own buttons",
+   "targets": [{"section": "hello"}],
+   "every": 3600,
+   "offset": 300,
+   "lane": "local",
+   "timeout": 60,
+   "cwd": "{repo}",
+   "argv": ["{python}", "feeds/examples/hello_blocks.py"],
+   "watch": ["{orbital_home}/data/hub/actions/hello.json"]
+  }
+ ]
+}

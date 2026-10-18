@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Agent window</title>
+  <link rel="icon" href="icons/icon-32.png" />
+  <link rel="stylesheet" href="ui.css" />
+  <style>
+    body { min-height: 100vh; display: grid; place-items: center; padding: 16px; }
+    main { max-width: 440px; text-align: center; }
+    img { width: 72px; height: 72px; border-radius: 16px; }
+    h1 { font-size: 22px; margin: 14px 0 8px; }
+    p { color: var(--muted); margin: 0 0 8px; }
+  </style>
+</head>
+<body>
+  <main>
+    <img src="icons/icon-128.png" alt="" />
+    <h1>Agent window: <span id="name">main</span></h1>
+    <p>An agent works in this window through the Orbital Agents Browser Controller. Your other Chrome windows stay yours.</p>
+    <p>Leave it open and not minimized; pages in hidden windows can stop loading.</p>
+  </main>
+  <script src="automation.js"></script>
+</body>
+</html>

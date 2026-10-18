@@ -1,0 +1,128 @@
+{
+  "schema": "orbital.section.v1",
+  "id": "household",
+  "title": "Household",
+  "subtitle": "Shared to-do list",
+  "icon": "house.fill",
+  "order": 7,
+  "accent": "#FB923C",
+  "layout": "page",
+  "summary": "2 due today",
+  "revision": 12,
+  "updated_at": "@now-4m",
+  "space": "home",
+  "blocks": [
+    {
+      "type": "tasks",
+      "id": "chores",
+      "title": "To do",
+      "empty_text": "Nothing left. Nice.",
+      "items": [
+        {
+          "id": "filter",
+          "title": "Replace the furnace filter",
+          "due": "@day",
+          "group": "home",
+          "status": "ready"
+        },
+        {
+          "id": "trash",
+          "title": "Recycling out tonight",
+          "due": "@day",
+          "group": "home",
+          "due_label": "Tonight"
+        },
+        {
+          "id": "tomatoes",
+          "title": "Stake the tomatoes",
+          "due": "@day+2",
+          "group": "garden"
+        },
+        {
+          "id": "pharmacy",
+          "title": "Pick up the prescription",
+          "due": "@day+1",
+          "group": "errands"
+        },
+        {
+          "id": "gutters",
+          "title": "Clean the gutters",
+          "group": "home",
+          "status": "later"
+        },
+        {
+          "id": "bulbs",
+          "title": "Buy light bulbs",
+          "done": true,
+          "done_at": "@now-5h",
+          "group": "errands"
+        }
+      ],
+      "add": {
+        "label": "Add",
+        "group": "home",
+        "groups": [
+          {
+            "id": "home",
+            "label": "Home"
+          },
+          {
+            "id": "garden",
+            "label": "Garden"
+          },
+          {
+            "id": "errands",
+            "label": "Errands"
+          }
+        ],
+        "remind_options": [
+          {
+            "days": [
+              0
+            ],
+            "label": "Morning it's due"
+          },
+          {
+            "days": [
+              1,
+              0
+            ],
+            "label": "Day before and morning of"
+          }
+        ]
+      }
+    },
+    {
+      "type": "bullets",
+      "id": "shopping",
+      "title": "Shopping list",
+      "items": [
+        "Coffee beans",
+        "Oat milk",
+        "Batteries (AA)",
+        "Dish soap"
+      ]
+    },
+    {
+      "type": "key_value",
+      "id": "house-facts",
+      "title": "Good to know",
+      "items": [
+        {
+          "label": "Wi-Fi (guests)",
+          "value": "home-guest"
+        },
+        {
+          "label": "Bin day",
+          "value": "Tuesday night"
+        },
+        {
+          "label": "Furnace filter",
+          "value": "16 × 25 × 1"
+        }
+      ]
+    }
+  ],
+  "tabs": [],
+  "nodes": []
+}

@@ -1,0 +1,114 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://orbital.local/schema/orbital.pulse.v1.schema.json",
+  "title": "Orbital pulse",
+  "description": "POST /v1/pulse. Live numbers that change every minute: the hub keeps the newest item per key, pushes it over /v1/live, and never bumps a section revision or notifies.",
+  "type": "object",
+  "properties": {
+    "schema": {
+      "const": "orbital.pulse.v1"
+    },
+    "items": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "key",
+          "section_id",
+          "label",
+          "value"
+        ],
+        "properties": {
+          "key": {
+            "type": "string",
+            "pattern": "^[a-z0-9][a-z0-9._-]{0,127}$"
+          },
+          "section_id": {
+            "type": "string"
+          },
+          "node_id": {
+            "type": "string"
+          },
+          "label": {
+            "type": "string",
+            "maxLength": 60
+          },
+          "value": {
+            "type": "number"
+          },
+          "display": {
+            "type": "string",
+            "maxLength": 40
+          },
+          "detail": {
+            "type": "string",
+            "maxLength": 120
+          },
+          "unit": {
+            "type": "string",
+            "maxLength": 24
+          },
+          "platform": {
+            "type": "string",
+            "maxLength": 24
+          },
+          "source": {
+            "type": "string",
+            "maxLength": 40
+          },
+          "at": {
+            "type": "string"
+          },
+          "ttl_seconds": {
+            "type": "integer",
+            "minimum": 10,
+            "maximum": 86400
+          },
+          "order": {
+            "type": "integer"
+          },
+          "series": {
+            "type": "array",
+            "maxItems": 120,
+            "items": {
+              "type": "object",
+              "required": [
+                "x",
+                "y"
+              ],
+              "properties": {
+                "x": {
+                  "type": "string"
+                },
+                "y": {
+                  "type": "number"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "remove": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    }
+  },
+  "examples": [
+    {
+      "schema": "orbital.pulse.v1",
+      "items": [
+        {
+          "key": "home-server.cpu",
+          "section_id": "home-server",
+          "label": "CPU now",
+          "value": 0.12,
+          "display": "12%",
+          "ttl_seconds": 120
+        }
+      ]
+    }
+  ]
+}

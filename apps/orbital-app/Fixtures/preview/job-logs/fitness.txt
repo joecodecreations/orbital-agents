@@ -1,0 +1,3 @@
+[fitness] looking for the newest watch export
+[fitness] no export newer than 24 h in ~/Exports/health
+[fitness] error: nothing to read

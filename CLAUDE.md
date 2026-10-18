@@ -1,0 +1,1 @@
+Read [AGENTS.md](AGENTS.md) first and follow it: it has the setup steps, where everything lives, how to verify, and the rules (never print secrets, ask before installing services or driving the browser).

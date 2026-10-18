@@ -1,0 +1,4 @@
+[uptime] example.com 184 ms
+[uptime] blog.example.com 201 ms
+[uptime] docs.example.com 1912 ms (slow)
+[uptime] shop.example.com 240 ms

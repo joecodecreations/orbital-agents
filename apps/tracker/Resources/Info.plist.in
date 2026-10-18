@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!-- Template: scripts/build.sh fills in __BUNDLE_ID__ (from apple.bundle_prefix) and __VERSION__. -->
+<plist version="1.0">
+<dict>
+	<key>CFBundleName</key>
+	<string>Orbital Agents - Agent Satellite Tracker</string>
+	<key>CFBundleDisplayName</key>
+	<string>Orbital Agents - Agent Satellite Tracker</string>
+	<key>CFBundleIdentifier</key>
+	<string>__BUNDLE_ID__</string>
+	<key>CFBundleExecutable</key>
+	<string>OrbitalTracker</string>
+	<key>CFBundleIconFile</key>
+	<string>AppIcon</string>
+	<key>CFBundlePackageType</key>
+	<string>APPL</string>
+	<key>CFBundleShortVersionString</key>
+	<string>__VERSION__</string>
+	<key>CFBundleVersion</key>
+	<string>__BUILD__</string>
+	<key>LSMinimumSystemVersion</key>
+	<string>14.0</string>
+	<key>LSUIElement</key>
+	<true/>
+	<key>LSMultipleInstancesProhibited</key>
+	<true/>
+	<key>LSApplicationCategoryType</key>
+	<string>public.app-category.developer-tools</string>
+	<key>NSHighResolutionCapable</key>
+	<true/>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>Only when voice is turned on (tracker.voice) and the mic is on: Agent Satellite Tracker listens for what you say you're working on and turns it into a bubble. Audio is transcribed on this Mac and never stored.</string>
+	<key>NSHumanReadableCopyright</key>
+	<string>Orbital Agents contributors. MIT License.</string>
+</dict>
+</plist>

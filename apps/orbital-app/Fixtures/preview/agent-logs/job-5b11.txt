@@ -1,0 +1,3 @@
+▶ codex · nas-01 · /srv/dns
+Reading /srv/dns/logs/query.log (48,210 lines)
+The primary upstream answers in 170-210 ms since 13:05; before that, 18 ms.

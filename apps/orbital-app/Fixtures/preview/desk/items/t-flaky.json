@@ -1,0 +1,41 @@
+{
+  "id": "t-flaky",
+  "title": "Fix flaky upload test",
+  "status": "done",
+  "source": "agent",
+  "agent": "claude",
+  "agent_name": "Claude",
+  "machine": "travel-laptop",
+  "project": "orbit-cli",
+  "color_index": 1,
+  "created_at": "@now-2h",
+  "updated_at": "@now-1h",
+  "completed_at": "@now-1h",
+  "completed_by": "agent",
+  "last_note": "Pushed branch fix/flaky-upload",
+  "summary": "Fixed a race between the upload future and the progress callback.",
+  "details": "test_upload fails about one run in ten on CI.",
+  "notes": [
+    {
+      "at": "@now-100m",
+      "text": "Reproduced: 6 failures in 50 runs"
+    },
+    {
+      "at": "@now-1h",
+      "text": "Pushed branch fix/flaky-upload"
+    }
+  ],
+  "media": [
+    {
+      "id": "m-ci-1",
+      "kind": "image",
+      "caption": "CI run, all green",
+      "file_name": "m-ci-1.jpg",
+      "added_at": "@now-1h",
+      "bytes": 182044,
+      "thumb_url": "/v1/tracker/media/t-flaky/m-ci-1?variant=thumb",
+      "full_url": "/v1/tracker/media/t-flaky/m-ci-1?variant=full"
+    }
+  ],
+  "subagents": []
+}

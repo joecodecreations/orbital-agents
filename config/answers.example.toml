@@ -1,0 +1,70 @@
+# Answers for a non-interactive setup. Copy, edit, then:
+#
+#     ./setup --answers answers.toml --yes
+#
+# Every key is optional. A key you leave out (or set to "") is asked, or with --yes takes its default.
+# Lines that are commented out have a smart default; uncomment them to force a value.
+# Re-running setup applies the answers given here and keeps your current settings for the rest.
+# Secrets can come from environment variables instead of this file:
+#   ORBITAL_HUB_PASSWORD, ORBITAL_JOIN_TOKEN, XAI_API_KEY, FISH_API_KEY
+# `orbital setup --dry-run --answers answers.toml --yes` prints every action without doing it.
+
+role = "auto"                    # auto | hub | satellite. auto: satellite when a hub answers on the tailnet, else hub
+
+[system]
+name = "Orbital Agents"          # hub: the name shown in the apps
+machine_name = ""                # this machine's name; empty = its short hostname
+
+[ports]                          # defaults shown; only change them if something else uses them
+hub = 7700
+tracker = 7701                   # loopback only
+stt = 7702                       # loopback only, used when tracker voice is on
+browser = 7703
+satellite = 7704
+on_conflict = "next-free"        # next-free | keep | fail: when another program already uses a port
+
+[components]
+tracker = true                   # macOS: the floating Agent Satellite Tracker
+browser = true                   # Browser Controller bridge (needs Chrome)
+# browser_remote = true         # let other machines drive this Chrome over Tailscale (default: true on satellites)
+agents = true                    # run agents here when the hub asks (satellite service)
+scheduler = true                 # hub only: run data feeds
+feeds = "default"                # hub only: ids from feeds/jobs.example.json, e.g. ["hello", "machine-health"], or "all" / "none" / "default"
+services = true                  # install login services (start at login, restart on crash)
+
+[tracker]                        # macOS, when the tracker is on
+hotkeys = true                   # global shortcuts: <modifiers>+T show/hide, +N type an item, +M mic
+# hotkey_modifiers = "ctrl+option"   # default; setup suggests "ctrl+option+shift" when another tracker is installed. Use "ctrl+option+shift" if another app already uses ctrl+option
+
+[login]                          # hub only: the app sign-in
+username = ""                    # empty = your login name
+password = ""                    # empty = keep the current one, or generate one (or set ORBITAL_HUB_PASSWORD)
+generate_password = true         # false: fail instead of generating when no password is given
+
+[keys]                           # optional API keys, stored in secrets.env (mode 0600)
+XAI_API_KEY = ""                 # Desk voice replies
+FISH_API_KEY = ""                # spoken replies
+
+[apple]                          # macOS builds
+team_id = ""                     # Apple Developer Team ID; empty = detect it from your Apple Development certificate
+bundle_prefix = ""               # e.g. "com.yourname" → com.yourname.orbitalagents; empty = suggested from your login name
+ios_device = ""                  # iPhone name to install to; empty = the first connected one
+# build_tracker = true           # build + install the tracker app (default: only when it isn't installed yet)
+# build_mac_app = true           # hub: build + install the Orbital Agents Mac app (needs Xcode and a team id)
+build_iphone_app = "auto"        # hub: auto = when an iPhone is connected | true | false
+
+[browser]
+open_extensions_page = true      # open chrome://extensions and the extension folder (loading it is one click you do)
+
+[satellite]                      # satellite only
+hub_url = ""                     # e.g. "http://my-mac.your-tailnet.ts.net:7700"; empty = find the hub on the tailnet
+join_token = ""                  # the hub printed it (`orbital satellites invite` shows it again); or set ORBITAL_JOIN_TOKEN
+
+[skills]
+install = true                   # copy the agent skills into ~/.claude, ~/.codex, ~/.grok, ~/.gemini (those that exist)
+agents = "all"                   # or a list: ["claude", "codex"]
+rules = "auto"                   # always-on rule block: auto (skip files that already have another tracker's rule) | yes | no
+
+[verify]
+live_test = true                 # run `orbital test --live` at the end
+wait_seconds = 25                # how long to wait for services to answer before testing

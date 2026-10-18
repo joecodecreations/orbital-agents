@@ -1,0 +1,137 @@
+{
+  "sections": [
+    {
+      "id": "server-health",
+      "title": "Home server",
+      "subtitle": "nas-01 · 14 services",
+      "icon": "server.rack",
+      "order": 1,
+      "accent": "#38BDF8",
+      "summary": "All services up · disk 71%",
+      "revision": 12,
+      "updated_at": "@now-4m",
+      "space": "homelab"
+    },
+    {
+      "id": "website-uptime",
+      "title": "Website uptime",
+      "subtitle": "4 sites · checked every minute",
+      "icon": "globe",
+      "order": 2,
+      "accent": "#22C55E",
+      "summary": "1 slow · cert renews in 9 days",
+      "revision": 12,
+      "updated_at": "@now-4m",
+      "space": "websites"
+    },
+    {
+      "id": "github-repos",
+      "title": "GitHub repos",
+      "subtitle": "2 repositories",
+      "icon": "chevron.left.forwardslash.chevron.right",
+      "order": 3,
+      "accent": "#A78BFA",
+      "summary": "orbit-cli 1.8.0 released · 7 open PRs",
+      "revision": 12,
+      "updated_at": "@now-4m",
+      "space": "open-source"
+    },
+    {
+      "id": "weather",
+      "title": "Weather",
+      "subtitle": "Home · updated hourly",
+      "icon": "cloud.sun.fill",
+      "order": 4,
+      "accent": "#F59E0B",
+      "summary": "68° · rain until 4 PM",
+      "revision": 12,
+      "updated_at": "@now-4m",
+      "space": "home"
+    },
+    {
+      "id": "fitness",
+      "title": "Fitness",
+      "subtitle": "Watch and scale",
+      "icon": "figure.run",
+      "order": 5,
+      "accent": "#F43F5E",
+      "summary": "8,420 steps · 3 of 4 goals",
+      "revision": 12,
+      "updated_at": "@now-4m",
+      "space": "home"
+    },
+    {
+      "id": "sales",
+      "title": "Store sales",
+      "subtitle": "Online store and app",
+      "icon": "bag.fill",
+      "order": 6,
+      "accent": "#10B981",
+      "summary": "$1,104 today · 27 orders",
+      "revision": 12,
+      "updated_at": "@now-4m",
+      "space": "shop"
+    },
+    {
+      "id": "household",
+      "title": "Household",
+      "subtitle": "Shared to-do list",
+      "icon": "house.fill",
+      "order": 7,
+      "accent": "#FB923C",
+      "summary": "2 due today",
+      "revision": 12,
+      "updated_at": "@now-4m",
+      "space": "home"
+    },
+    {
+      "id": "runbooks",
+      "title": "Runbooks",
+      "subtitle": "How to fix things at 2 AM",
+      "icon": "book.closed.fill",
+      "order": 8,
+      "accent": "#64748B",
+      "summary": "3 runbooks",
+      "revision": 12,
+      "updated_at": "@now-4m",
+      "space": "homelab"
+    }
+  ],
+  "spaces": [
+    {
+      "id": "homelab",
+      "title": "Home lab",
+      "subtitle": "Server, network and backups",
+      "icon": "server.rack",
+      "order": 1
+    },
+    {
+      "id": "websites",
+      "title": "Websites",
+      "subtitle": "Uptime and visitors",
+      "icon": "globe",
+      "order": 2
+    },
+    {
+      "id": "shop",
+      "title": "Shop",
+      "subtitle": "Orders, payouts and the app",
+      "icon": "bag.fill",
+      "order": 3
+    },
+    {
+      "id": "open-source",
+      "title": "Open source",
+      "subtitle": "Repos and releases",
+      "icon": "chevron.left.forwardslash.chevron.right",
+      "order": 4
+    },
+    {
+      "id": "home",
+      "title": "Home",
+      "subtitle": "Weather, fitness and chores",
+      "icon": "house.fill",
+      "order": 5
+    }
+  ]
+}

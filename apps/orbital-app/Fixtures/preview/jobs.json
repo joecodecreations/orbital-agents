@@ -1,0 +1,445 @@
+{
+  "schema": "orbital.jobs.v1",
+  "scheduler": {
+    "up": true,
+    "host": "studio",
+    "heartbeat_at": "@now-15s",
+    "heartbeat_age_s": 15,
+    "running": 1,
+    "queued": 0,
+    "max_parallel": 3,
+    "every_choices": [
+      300,
+      900,
+      1800,
+      3600,
+      21600,
+      86400
+    ]
+  },
+  "groups": [
+    {
+      "id": "infra",
+      "title": "Infrastructure",
+      "icon": "server.rack"
+    },
+    {
+      "id": "business",
+      "title": "Business",
+      "icon": "bag"
+    },
+    {
+      "id": "life",
+      "title": "Life",
+      "icon": "heart"
+    }
+  ],
+  "lanes": [
+    {
+      "id": "local",
+      "title": "This machine",
+      "kind": "local",
+      "ok": true,
+      "machine": "studio"
+    },
+    {
+      "id": "browser",
+      "title": "Browser on studio",
+      "kind": "browser",
+      "ok": true,
+      "machine": "studio",
+      "profile": "default",
+      "checked_at": "@now-2m"
+    }
+  ],
+  "jobs": [
+    {
+      "id": "server-health",
+      "name": "Home server",
+      "group": "infra",
+      "reads": null,
+      "targets": [
+        {
+          "section": "server-health"
+        }
+      ],
+      "lane": "local",
+      "every_s": 300,
+      "default_every_s": 300,
+      "schedule": "every 5 min",
+      "paused": false,
+      "timeout_s": 300,
+      "state": "idle",
+      "started_at": null,
+      "next_run_at": "@now+2m",
+      "last": {
+        "started_at": "@now-3m",
+        "finished_at": "@now-2m",
+        "duration_s": 14.2,
+        "exit_code": 0,
+        "status": "ok",
+        "summary": "14 services, 1 down",
+        "issues": null
+      },
+      "last_ok_at": "@now-3m",
+      "failing_since": null,
+      "history": [
+        {
+          "at": "@now-3m",
+          "status": "ok",
+          "duration_s": 13
+        },
+        {
+          "at": "@now-8m",
+          "status": "ok",
+          "duration_s": 14
+        },
+        {
+          "at": "@now-13m",
+          "status": "ok",
+          "duration_s": 15
+        },
+        {
+          "at": "@now-18m",
+          "status": "ok",
+          "duration_s": 16
+        },
+        {
+          "at": "@now-23m",
+          "status": "ok",
+          "duration_s": 17
+        },
+        {
+          "at": "@now-28m",
+          "status": "ok",
+          "duration_s": 18
+        }
+      ]
+    },
+    {
+      "id": "uptime",
+      "name": "Website uptime",
+      "group": "infra",
+      "reads": null,
+      "targets": [
+        {
+          "section": "website-uptime"
+        }
+      ],
+      "lane": "local",
+      "every_s": 300,
+      "default_every_s": 300,
+      "schedule": "every 5 min",
+      "paused": false,
+      "timeout_s": 300,
+      "state": "running",
+      "started_at": "@now-1m",
+      "next_run_at": "@now+1m",
+      "last": {
+        "started_at": "@now-4m",
+        "finished_at": "@now-3m",
+        "duration_s": 14.2,
+        "exit_code": 0,
+        "status": "ok",
+        "summary": "4 sites checked",
+        "issues": null
+      },
+      "last_ok_at": "@now-4m",
+      "failing_since": null,
+      "history": [
+        {
+          "at": "@now-4m",
+          "status": "ok",
+          "duration_s": 13
+        },
+        {
+          "at": "@now-9m",
+          "status": "ok",
+          "duration_s": 14
+        },
+        {
+          "at": "@now-14m",
+          "status": "ok",
+          "duration_s": 15
+        },
+        {
+          "at": "@now-19m",
+          "status": "ok",
+          "duration_s": 16
+        },
+        {
+          "at": "@now-24m",
+          "status": "ok",
+          "duration_s": 17
+        },
+        {
+          "at": "@now-29m",
+          "status": "ok",
+          "duration_s": 18
+        }
+      ]
+    },
+    {
+      "id": "github",
+      "name": "GitHub repos",
+      "group": "business",
+      "reads": null,
+      "targets": [
+        {
+          "section": "github-repos"
+        }
+      ],
+      "lane": "local",
+      "every_s": 3600,
+      "default_every_s": 3600,
+      "schedule": "every 1 h",
+      "paused": false,
+      "timeout_s": 300,
+      "state": "idle",
+      "started_at": null,
+      "next_run_at": "@now+38m",
+      "last": {
+        "started_at": "@now-22m",
+        "finished_at": "@now-21m",
+        "duration_s": 14.2,
+        "exit_code": 0,
+        "status": "ok",
+        "summary": "2 repos",
+        "issues": null
+      },
+      "last_ok_at": "@now-22m",
+      "failing_since": null,
+      "history": [
+        {
+          "at": "@now-22m",
+          "status": "ok",
+          "duration_s": 13
+        },
+        {
+          "at": "@now-82m",
+          "status": "ok",
+          "duration_s": 14
+        },
+        {
+          "at": "@now-142m",
+          "status": "ok",
+          "duration_s": 15
+        },
+        {
+          "at": "@now-202m",
+          "status": "ok",
+          "duration_s": 16
+        },
+        {
+          "at": "@now-262m",
+          "status": "ok",
+          "duration_s": 17
+        },
+        {
+          "at": "@now-322m",
+          "status": "ok",
+          "duration_s": 18
+        }
+      ]
+    },
+    {
+      "id": "store",
+      "name": "Store sales",
+      "group": "business",
+      "reads": null,
+      "targets": [
+        {
+          "section": "sales"
+        }
+      ],
+      "lane": "browser",
+      "every_s": 900,
+      "default_every_s": 900,
+      "schedule": "every 15 min",
+      "paused": false,
+      "timeout_s": 300,
+      "state": "idle",
+      "started_at": null,
+      "next_run_at": "@now+9m",
+      "last": {
+        "started_at": "@now-6m",
+        "finished_at": "@now-5m",
+        "duration_s": 14.2,
+        "exit_code": 0,
+        "status": "ok",
+        "summary": "27 orders today",
+        "issues": null
+      },
+      "last_ok_at": "@now-6m",
+      "failing_since": null,
+      "history": [
+        {
+          "at": "@now-6m",
+          "status": "ok",
+          "duration_s": 13
+        },
+        {
+          "at": "@now-21m",
+          "status": "ok",
+          "duration_s": 14
+        },
+        {
+          "at": "@now-36m",
+          "status": "ok",
+          "duration_s": 15
+        },
+        {
+          "at": "@now-51m",
+          "status": "ok",
+          "duration_s": 16
+        },
+        {
+          "at": "@now-66m",
+          "status": "ok",
+          "duration_s": 17
+        },
+        {
+          "at": "@now-81m",
+          "status": "ok",
+          "duration_s": 18
+        }
+      ]
+    },
+    {
+      "id": "weather",
+      "name": "Weather",
+      "group": "life",
+      "reads": null,
+      "targets": [
+        {
+          "section": "weather"
+        }
+      ],
+      "lane": "local",
+      "every_s": 3600,
+      "default_every_s": 3600,
+      "schedule": "every 1 h",
+      "paused": false,
+      "timeout_s": 300,
+      "state": "idle",
+      "started_at": null,
+      "next_run_at": "@now+20m",
+      "last": {
+        "started_at": "@now-40m",
+        "finished_at": "@now-39m",
+        "duration_s": 14.2,
+        "exit_code": 0,
+        "status": "ok",
+        "summary": "Forecast updated",
+        "issues": null
+      },
+      "last_ok_at": "@now-40m",
+      "failing_since": null,
+      "history": [
+        {
+          "at": "@now-40m",
+          "status": "ok",
+          "duration_s": 13
+        },
+        {
+          "at": "@now-100m",
+          "status": "ok",
+          "duration_s": 14
+        },
+        {
+          "at": "@now-160m",
+          "status": "ok",
+          "duration_s": 15
+        },
+        {
+          "at": "@now-220m",
+          "status": "ok",
+          "duration_s": 16
+        },
+        {
+          "at": "@now-280m",
+          "status": "ok",
+          "duration_s": 17
+        },
+        {
+          "at": "@now-340m",
+          "status": "ok",
+          "duration_s": 18
+        }
+      ]
+    },
+    {
+      "id": "fitness",
+      "name": "Fitness",
+      "group": "life",
+      "reads": null,
+      "targets": [
+        {
+          "section": "fitness"
+        }
+      ],
+      "lane": "local",
+      "every_s": 21600,
+      "default_every_s": 21600,
+      "schedule": "every 6 h",
+      "paused": false,
+      "timeout_s": 300,
+      "state": "idle",
+      "started_at": null,
+      "next_run_at": "@now+310m",
+      "last": {
+        "started_at": "@now-50m",
+        "finished_at": "@now-49m",
+        "duration_s": 14.2,
+        "exit_code": 1,
+        "status": "error",
+        "summary": "Watch export not found",
+        "issues": [
+          "No export file in the last 24 hours. Is the phone's export shortcut still on?"
+        ]
+      },
+      "last_ok_at": "@now-1d",
+      "failing_since": "@now-3h",
+      "history": [
+        {
+          "at": "@now-50m",
+          "status": "error",
+          "duration_s": 13
+        },
+        {
+          "at": "@now-410m",
+          "status": "ok",
+          "duration_s": 14
+        },
+        {
+          "at": "@now-770m",
+          "status": "ok",
+          "duration_s": 15
+        },
+        {
+          "at": "@now-1130m",
+          "status": "ok",
+          "duration_s": 16
+        },
+        {
+          "at": "@now-1490m",
+          "status": "ok",
+          "duration_s": 17
+        },
+        {
+          "at": "@now-1850m",
+          "status": "ok",
+          "duration_s": 18
+        }
+      ]
+    }
+  ],
+  "batch": null,
+  "disk": {
+    "free_gb": 41.5,
+    "total_gb": 500,
+    "low": false,
+    "big_logs": []
+  },
+  "server_time": "@now"
+}

@@ -1,0 +1,102 @@
+# Orbital Agents settings — copy to ~/.orbital-agents/config.toml (the setup wizard does this for you).
+# Every key is optional: anything you leave out uses the default shown here.
+# Passwords, tokens and API keys do NOT go here; they live in ~/.orbital-agents/secrets.env.
+# After editing: `orbital config --apply` then `orbital services restart`.
+
+[system]
+name = "Orbital Agents"          # shown in the apps
+role = "hub"                     # hub = the primary machine; satellite = every other machine
+machine_name = ""                # empty = this computer's short hostname
+
+[hub]
+host = "0.0.0.0"
+port = 7700
+url = ""                         # satellites only: e.g. "http://my-mac.tailnet-name.ts.net:7700"
+# Only these networks may connect (loopback + Tailscale). Add a LAN range only if you really need it.
+allow_networks = ["127.0.0.0/8", "::1/128", "100.64.0.0/10", "fd7a:115c:a1e0::/48"]
+data_retention_days = 90         # alerts, action results and old media are trimmed after this
+max_media_mb = 8
+
+[tracker]                        # the floating Agent Satellite Tracker (macOS)
+enabled = true
+port = 7701                      # loopback only
+stt_port = 7702                  # loopback only, speech sidecar
+voice = false                    # on-device speech; first use downloads a ~1.5 GB model
+titles = "auto"                  # auto | grok | none — who shortens spoken items into titles
+grok_model = ""                  # model for grok titles (empty = the grok CLI's default)
+hotkeys = true                   # global shortcuts: <modifiers>+M mic, +T show/hide, +N type an item
+hotkey_modifiers = "ctrl+option" # e.g. "ctrl+option+shift" if another app already uses ctrl+option
+history_retention_days = 365
+media_retention_days = 60
+
+[browser]                        # Orbital Agents Browser Controller
+enabled = true
+bridge_port = 7703
+bind = "loopback"                # "tailscale" lets the hub (and your other machines) drive this Chrome
+
+[satellite]                      # runs agents on this machine when asked (the hub runs one too)
+enabled = true
+port = 7704
+bind = "tailscale"               # loopback | tailscale
+max_concurrent_jobs = 2
+job_timeout_minutes = 60
+workdirs = ["~"]                 # agents may only start inside these folders
+default_agent = "claude"
+heartbeat_seconds = 60
+max_output_bytes = 2000000        # per agent job; the tail is kept
+job_retention_days = 14          # finished job records and output
+allow_networks = ["127.0.0.0/8", "::1/128", "100.64.0.0/10", "fd7a:115c:a1e0::/48"]
+
+# How each agent CLI is started. {prompt} and {cwd} are filled in. No shell is used.
+# Add your own: [agents.myagent] command = ["/path/to/tool", "--task", "{prompt}"]
+[agents.claude]
+command = ["claude", "-p", "{prompt}"]
+[agents.codex]
+command = ["codex", "exec", "{prompt}"]
+[agents.grok]
+command = ["grok", "-p", "{prompt}"]
+[agents.gemini]
+command = ["gemini", "-p", "{prompt}"]
+[agents.echo]                    # harmless test agent used by `orbital test`
+command = ["/bin/echo", "{prompt}"]
+
+[scheduler]                      # runs the feeds listed in ~/.orbital-agents/jobs.json
+enabled = true
+max_parallel = 2
+output_retention_days = 14
+max_output_bytes = 1000000        # per feed run
+
+[watchdog]                       # self-healing: health checks, restarts, log trimming
+enabled = true
+interval_seconds = 60
+failures_before_restart = 2
+
+[logging]                        # ~/.orbital-agents/logs/<component>.log, JSON lines
+level = "INFO"                   # DEBUG | INFO | WARNING | ERROR
+max_bytes = 5000000              # roll a log file at this size
+backups = 3                      # rolled files kept per component
+retention_days = 14              # delete rolled files older than this
+
+[desk]                           # the app's Desk (talk to an agent by voice or text)
+provider = "xai"                 # needs XAI_API_KEY in secrets.env (optional)
+model = "grok-4-fast-non-reasoning"
+worker_agent = "claude"          # agent started for real work
+reminders_list = ""              # macOS Reminders list for "remind me…" (empty = default list)
+# Folders the desk may start work in (optional, repeat the block for more):
+# [[desk.projects]]
+# name = "website"
+# path = "~/code/website"
+# about = "Personal website, static HTML"
+
+[speech]
+fish_model = ""                  # optional Fish Audio voice model id (needs FISH_API_KEY in secrets.env)
+
+[apple]                          # iPhone / Mac app build (wizard fills these)
+team_id = ""                     # your Apple Developer Team ID
+bundle_prefix = "com.example"    # e.g. com.yourname → com.yourname.orbitalagents
+app_name = "Orbital Agents"
+ios_device = ""                  # device name to install to; empty = first connected iPhone
+
+[notifications]
+apns = false                     # direct Apple push when the app is closed (optional); see docs/NOTIFICATIONS.md
+apns_environment = "development" # development for Xcode/devicectl installs, production for TestFlight/App Store

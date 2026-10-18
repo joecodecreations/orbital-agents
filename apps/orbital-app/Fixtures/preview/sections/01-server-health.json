@@ -1,0 +1,821 @@
+{
+  "schema": "orbital.section.v1",
+  "id": "server-health",
+  "title": "Home server",
+  "subtitle": "nas-01 · 14 services",
+  "icon": "server.rack",
+  "order": 1,
+  "accent": "#38BDF8",
+  "layout": "page",
+  "summary": "All services up · disk 71%",
+  "revision": 12,
+  "updated_at": "@now-4m",
+  "space": "homelab",
+  "blocks": [
+    {
+      "type": "metrics",
+      "id": "now",
+      "items": [
+        {
+          "id": "cpu",
+          "label": "CPU",
+          "value": "23%",
+          "delta": "-4%",
+          "direction": "down",
+          "caption": "8 cores"
+        },
+        {
+          "id": "memory",
+          "label": "Memory",
+          "value": "11.2 GB",
+          "delta": "of 32 GB",
+          "direction": "flat"
+        },
+        {
+          "id": "disk",
+          "label": "Disk",
+          "value": "71%",
+          "delta": "+2% this week",
+          "direction": "up"
+        },
+        {
+          "id": "uptime",
+          "label": "Uptime",
+          "value": "41 days",
+          "caption": "since the last update"
+        }
+      ]
+    },
+    {
+      "type": "status",
+      "id": "services",
+      "title": "Services",
+      "items": [
+        {
+          "id": "media",
+          "label": "Media server",
+          "status": "up",
+          "detail": "3 streams",
+          "since": "@now-41d"
+        },
+        {
+          "id": "photos",
+          "label": "Photo library",
+          "status": "up",
+          "detail": "indexing 120 new photos"
+        },
+        {
+          "id": "backup",
+          "label": "Nightly backup",
+          "status": "up",
+          "detail": "finished 2:14 AM, 38 GB"
+        },
+        {
+          "id": "dns",
+          "label": "DNS filter",
+          "status": "degraded",
+          "detail": "upstream slow, 180 ms",
+          "since": "@now-25m"
+        },
+        {
+          "id": "vpn",
+          "label": "VPN",
+          "status": "up",
+          "detail": "2 peers connected"
+        },
+        {
+          "id": "cameras",
+          "label": "Camera recorder",
+          "status": "down",
+          "detail": "garage camera offline",
+          "since": "@now-2h"
+        }
+      ]
+    },
+    {
+      "type": "progress",
+      "id": "volumes",
+      "title": "Volumes",
+      "items": [
+        {
+          "id": "system",
+          "label": "System SSD",
+          "value": 38,
+          "caption": "190 GB of 500 GB"
+        },
+        {
+          "id": "media-vol",
+          "label": "Media array",
+          "value": 71,
+          "caption": "11.4 TB of 16 TB",
+          "tone": "warning"
+        },
+        {
+          "id": "backup-vol",
+          "label": "Backup drive",
+          "value": 5.1,
+          "max": 8,
+          "display": "5.1 / 8 TB"
+        }
+      ]
+    },
+    {
+      "type": "chart",
+      "id": "cpu-24h",
+      "title": "CPU, last 24 hours",
+      "chart": "area",
+      "y_label": "%",
+      "y_format": "percent",
+      "series": [
+        {
+          "name": "CPU",
+          "color": "#38BDF8",
+          "points": [
+            {
+              "x": "00:00",
+              "y": 33
+            },
+            {
+              "x": "01:00",
+              "y": 27
+            },
+            {
+              "x": "02:00",
+              "y": 26
+            },
+            {
+              "x": "03:00",
+              "y": 23
+            },
+            {
+              "x": "04:00",
+              "y": 12
+            },
+            {
+              "x": "05:00",
+              "y": 11
+            },
+            {
+              "x": "06:00",
+              "y": 19
+            },
+            {
+              "x": "07:00",
+              "y": 21
+            },
+            {
+              "x": "08:00",
+              "y": 24
+            },
+            {
+              "x": "09:00",
+              "y": 33
+            },
+            {
+              "x": "10:00",
+              "y": 31
+            },
+            {
+              "x": "11:00",
+              "y": 22
+            },
+            {
+              "x": "12:00",
+              "y": 21
+            },
+            {
+              "x": "13:00",
+              "y": 18
+            },
+            {
+              "x": "14:00",
+              "y": 10
+            },
+            {
+              "x": "15:00",
+              "y": 15
+            },
+            {
+              "x": "16:00",
+              "y": 25
+            },
+            {
+              "x": "17:00",
+              "y": 26
+            },
+            {
+              "x": "18:00",
+              "y": 28
+            },
+            {
+              "x": "19:00",
+              "y": 33
+            },
+            {
+              "x": "20:00",
+              "y": 26
+            },
+            {
+              "x": "21:00",
+              "y": 16
+            },
+            {
+              "x": "22:00",
+              "y": 16
+            },
+            {
+              "x": "23:00",
+              "y": 16
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "buttons",
+      "id": "controls",
+      "items": [
+        {
+          "id": "restart-media",
+          "label": "Restart media server",
+          "style": "primary",
+          "action": {
+            "type": "post",
+            "action": "server.restart",
+            "value": {
+              "service": "media"
+            },
+            "confirm": "Restart the media server? Streams stop for about 30 seconds."
+          }
+        },
+        {
+          "id": "ask-agent",
+          "label": "Ask an agent",
+          "style": "secondary",
+          "action": {
+            "type": "agent",
+            "prompt": "Read the DNS filter logs from the last hour and tell me why lookups are slow."
+          }
+        },
+        {
+          "id": "dashboard",
+          "label": "Open dashboard",
+          "style": "link",
+          "action": {
+            "type": "url",
+            "url": "https://status.example.com"
+          }
+        }
+      ]
+    },
+    {
+      "type": "key_value",
+      "id": "facts",
+      "title": "Machine",
+      "items": [
+        {
+          "label": "Host",
+          "value": "nas-01"
+        },
+        {
+          "label": "OS",
+          "value": "Linux 6.8 (x86_64)"
+        },
+        {
+          "label": "Last update",
+          "value": "41 days ago"
+        },
+        {
+          "label": "Temperature",
+          "value": "44 °C"
+        }
+      ]
+    },
+    {
+      "type": "table",
+      "id": "containers",
+      "title": "Containers",
+      "limit": 4,
+      "columns": [
+        "Name",
+        "State",
+        "CPU",
+        "Memory"
+      ],
+      "rows": [
+        [
+          "media",
+          "running",
+          "6.1%",
+          "1.8 GB"
+        ],
+        [
+          "photos",
+          "running",
+          "12.4%",
+          "2.2 GB"
+        ],
+        [
+          "dns-filter",
+          "running",
+          "0.4%",
+          "120 MB"
+        ],
+        [
+          "vpn",
+          "running",
+          "0.2%",
+          "60 MB"
+        ],
+        [
+          "recorder",
+          "restarting",
+          "0%",
+          "0 MB"
+        ],
+        [
+          "backup",
+          "exited (0)",
+          "0%",
+          "0 MB"
+        ]
+      ]
+    },
+    {
+      "type": "timeline",
+      "id": "events",
+      "title": "Recent events",
+      "items": [
+        {
+          "id": "e1",
+          "at": "@now-25m",
+          "title": "DNS upstream slow",
+          "detail": "Median lookup 180 ms (usually 20 ms).",
+          "tone": "warning"
+        },
+        {
+          "id": "e2",
+          "at": "@now-2h",
+          "title": "Garage camera went offline",
+          "tone": "danger"
+        },
+        {
+          "id": "e3",
+          "at": "@now-9h",
+          "title": "Nightly backup finished",
+          "detail": "38 GB in 41 minutes.",
+          "tone": "success"
+        },
+        {
+          "id": "e4",
+          "at": "@now-2d",
+          "title": "Media array scrub passed",
+          "tone": "info"
+        }
+      ]
+    },
+    {
+      "type": "tasks",
+      "id": "maintenance",
+      "title": "Maintenance",
+      "items": [
+        {
+          "id": "swap-drive",
+          "title": "Swap the backup drive for the offsite one",
+          "due": "@day+2",
+          "group": "maintenance",
+          "status": "ready"
+        },
+        {
+          "id": "camera-cable",
+          "title": "Check the garage camera cable",
+          "due": "@day",
+          "group": "maintenance",
+          "status": "ready",
+          "tags": [
+            "cameras"
+          ]
+        },
+        {
+          "id": "update-os",
+          "title": "Install the OS update",
+          "group": "maintenance",
+          "status": "waiting",
+          "note": "After the backup swap."
+        }
+      ],
+      "add": {
+        "label": "Add a job",
+        "group": "maintenance",
+        "groups": [
+          {
+            "id": "maintenance",
+            "label": "Maintenance"
+          }
+        ]
+      }
+    },
+    {
+      "type": "series",
+      "id": "server-series",
+      "kind": "server",
+      "space": "homelab",
+      "product": "nas-01",
+      "window": 14,
+      "title": "Load",
+      "as_of": "@now-4m",
+      "metrics": [
+        {
+          "id": "cpu",
+          "label": "CPU",
+          "platform": "linux",
+          "stat": "cpu",
+          "format": "percent",
+          "level": true,
+          "points": [
+            {
+              "x": "@day-29",
+              "y": 29
+            },
+            {
+              "x": "@day-28",
+              "y": 32
+            },
+            {
+              "x": "@day-27",
+              "y": 29
+            },
+            {
+              "x": "@day-26",
+              "y": 29
+            },
+            {
+              "x": "@day-25",
+              "y": 26
+            },
+            {
+              "x": "@day-24",
+              "y": 16
+            },
+            {
+              "x": "@day-23",
+              "y": 15
+            },
+            {
+              "x": "@day-22",
+              "y": 21
+            },
+            {
+              "x": "@day-21",
+              "y": 21
+            },
+            {
+              "x": "@day-20",
+              "y": 25
+            },
+            {
+              "x": "@day-19",
+              "y": 34
+            },
+            {
+              "x": "@day-18",
+              "y": 33
+            },
+            {
+              "x": "@day-17",
+              "y": 25
+            },
+            {
+              "x": "@day-16",
+              "y": 25
+            },
+            {
+              "x": "@day-15",
+              "y": 21
+            },
+            {
+              "x": "@day-14",
+              "y": 13
+            },
+            {
+              "x": "@day-13",
+              "y": 17
+            },
+            {
+              "x": "@day-12",
+              "y": 25
+            },
+            {
+              "x": "@day-11",
+              "y": 26
+            },
+            {
+              "x": "@day-10",
+              "y": 29
+            },
+            {
+              "x": "@day-9",
+              "y": 35
+            },
+            {
+              "x": "@day-8",
+              "y": 29
+            },
+            {
+              "x": "@day-7",
+              "y": 20
+            },
+            {
+              "x": "@day-6",
+              "y": 20
+            },
+            {
+              "x": "@day-5",
+              "y": 18
+            },
+            {
+              "x": "@day-4",
+              "y": 15
+            },
+            {
+              "x": "@day-3",
+              "y": 22
+            },
+            {
+              "x": "@day-2",
+              "y": 31
+            },
+            {
+              "x": "@day-1",
+              "y": 30
+            },
+            {
+              "x": "@day",
+              "y": 30
+            }
+          ]
+        },
+        {
+          "id": "memory",
+          "label": "Memory",
+          "platform": "linux",
+          "stat": "memory",
+          "format": "percent",
+          "level": true,
+          "points": [
+            {
+              "x": "@day-29",
+              "y": 38
+            },
+            {
+              "x": "@day-28",
+              "y": 37
+            },
+            {
+              "x": "@day-27",
+              "y": 36
+            },
+            {
+              "x": "@day-26",
+              "y": 32
+            },
+            {
+              "x": "@day-25",
+              "y": 31
+            },
+            {
+              "x": "@day-24",
+              "y": 35
+            },
+            {
+              "x": "@day-23",
+              "y": 36
+            },
+            {
+              "x": "@day-22",
+              "y": 37
+            },
+            {
+              "x": "@day-21",
+              "y": 41
+            },
+            {
+              "x": "@day-20",
+              "y": 40
+            },
+            {
+              "x": "@day-19",
+              "y": 36
+            },
+            {
+              "x": "@day-18",
+              "y": 34
+            },
+            {
+              "x": "@day-17",
+              "y": 34
+            },
+            {
+              "x": "@day-16",
+              "y": 31
+            },
+            {
+              "x": "@day-15",
+              "y": 33
+            },
+            {
+              "x": "@day-14",
+              "y": 38
+            },
+            {
+              "x": "@day-13",
+              "y": 39
+            },
+            {
+              "x": "@day-12",
+              "y": 38
+            },
+            {
+              "x": "@day-11",
+              "y": 40
+            },
+            {
+              "x": "@day-10",
+              "y": 38
+            },
+            {
+              "x": "@day-9",
+              "y": 33
+            },
+            {
+              "x": "@day-8",
+              "y": 33
+            },
+            {
+              "x": "@day-7",
+              "y": 34
+            },
+            {
+              "x": "@day-6",
+              "y": 32
+            },
+            {
+              "x": "@day-5",
+              "y": 35
+            },
+            {
+              "x": "@day-4",
+              "y": 40
+            },
+            {
+              "x": "@day-3",
+              "y": 40
+            },
+            {
+              "x": "@day-2",
+              "y": 38
+            },
+            {
+              "x": "@day-1",
+              "y": 38
+            },
+            {
+              "x": "@day",
+              "y": 35
+            }
+          ]
+        },
+        {
+          "id": "requests",
+          "label": "Requests",
+          "platform": "linux",
+          "stat": "requests",
+          "points": [
+            {
+              "x": "@day-29",
+              "y": 5285
+            },
+            {
+              "x": "@day-28",
+              "y": 4857
+            },
+            {
+              "x": "@day-27",
+              "y": 4665
+            },
+            {
+              "x": "@day-26",
+              "y": 4629
+            },
+            {
+              "x": "@day-25",
+              "y": 3635
+            },
+            {
+              "x": "@day-24",
+              "y": 3065
+            },
+            {
+              "x": "@day-23",
+              "y": 3743
+            },
+            {
+              "x": "@day-22",
+              "y": 4090
+            },
+            {
+              "x": "@day-21",
+              "y": 4218
+            },
+            {
+              "x": "@day-20",
+              "y": 5163
+            },
+            {
+              "x": "@day-19",
+              "y": 5512
+            },
+            {
+              "x": "@day-18",
+              "y": 4645
+            },
+            {
+              "x": "@day-17",
+              "y": 4249
+            },
+            {
+              "x": "@day-16",
+              "y": 4153
+            },
+            {
+              "x": "@day-15",
+              "y": 3370
+            },
+            {
+              "x": "@day-14",
+              "y": 3307
+            },
+            {
+              "x": "@day-13",
+              "y": 4369
+            },
+            {
+              "x": "@day-12",
+              "y": 4790
+            },
+            {
+              "x": "@day-11",
+              "y": 4830
+            },
+            {
+              "x": "@day-10",
+              "y": 5457
+            },
+            {
+              "x": "@day-9",
+              "y": 5293
+            },
+            {
+              "x": "@day-8",
+              "y": 4145
+            },
+            {
+              "x": "@day-7",
+              "y": 3824
+            },
+            {
+              "x": "@day-6",
+              "y": 3946
+            },
+            {
+              "x": "@day-5",
+              "y": 3543
+            },
+            {
+              "x": "@day-4",
+              "y": 3942
+            },
+            {
+              "x": "@day-3",
+              "y": 5147
+            },
+            {
+              "x": "@day-2",
+              "y": 5343
+            },
+            {
+              "x": "@day-1",
+              "y": 5070
+            },
+            {
+              "x": "@day",
+              "y": 5310
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "tabs": [],
+  "nodes": []
+}

@@ -1,0 +1,71 @@
+[
+  {
+    "key": "server-cpu",
+    "section_id": "server-health",
+    "label": "CPU now",
+    "value": 23,
+    "display": "23%",
+    "unit": "%",
+    "at": "@now-20s",
+    "ttl_seconds": 86400,
+    "series": [
+      {
+        "x": "@now-30m",
+        "y": 28
+      },
+      {
+        "x": "@now-27m",
+        "y": 30
+      },
+      {
+        "x": "@now-24m",
+        "y": 27
+      },
+      {
+        "x": "@now-21m",
+        "y": 28
+      },
+      {
+        "x": "@now-18m",
+        "y": 26
+      },
+      {
+        "x": "@now-15m",
+        "y": 18
+      },
+      {
+        "x": "@now-12m",
+        "y": 17
+      },
+      {
+        "x": "@now-9m",
+        "y": 21
+      },
+      {
+        "x": "@now-6m",
+        "y": 22
+      },
+      {
+        "x": "@now-3m",
+        "y": 24
+      }
+    ]
+  },
+  {
+    "key": "site-online",
+    "section_id": "website-uptime",
+    "label": "Visitors online",
+    "value": 14,
+    "at": "@now-30s",
+    "ttl_seconds": 86400,
+    "platform": "web"
+  },
+  {
+    "key": "orders-today",
+    "section_id": "sales",
+    "label": "Orders today",
+    "value": 27,
+    "at": "@now-1m",
+    "ttl_seconds": 86400
+  }
+]

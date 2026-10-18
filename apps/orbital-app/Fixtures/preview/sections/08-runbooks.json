@@ -1,0 +1,170 @@
+{
+  "schema": "orbital.section.v1",
+  "id": "runbooks",
+  "title": "Runbooks",
+  "subtitle": "How to fix things at 2 AM",
+  "icon": "book.closed.fill",
+  "order": 8,
+  "accent": "#64748B",
+  "layout": "sidebar",
+  "summary": "3 runbooks",
+  "revision": 12,
+  "updated_at": "@now-4m",
+  "space": "homelab",
+  "blocks": [
+    {
+      "type": "callout",
+      "id": "first",
+      "tone": "info",
+      "title": "Start with the Home server page",
+      "text": "Most problems show up there first: a service down, a full disk, a failed backup."
+    }
+  ],
+  "tabs": [],
+  "nodes": [
+    {
+      "id": "backups",
+      "title": "Backups",
+      "subtitle": "Nightly and offsite",
+      "icon": "externaldrive.fill",
+      "order": 1,
+      "layout": "page",
+      "tabs": [],
+      "blocks": [
+        {
+          "type": "heading",
+          "id": "h",
+          "text": "Backups",
+          "level": 1
+        },
+        {
+          "type": "paragraph",
+          "id": "p",
+          "text": "The NAS backs up every night at **2:00 AM** to the backup drive, then copies the newest snapshot offsite."
+        },
+        {
+          "type": "image",
+          "id": "diagram",
+          "src": "/v1/media/backup-diagram.png",
+          "alt": "Backup flow from the NAS to the backup drive and offsite",
+          "caption": "Where every copy lives.",
+          "aspect": "16:9"
+        },
+        {
+          "type": "bullets",
+          "id": "steps",
+          "title": "Swap the offsite drive",
+          "ordered": true,
+          "items": [
+            "Wait for the nightly backup to finish.",
+            "Unmount the backup drive from the dashboard.",
+            "Swap it for the offsite drive.",
+            "Run a test restore of one folder."
+          ]
+        },
+        {
+          "type": "callout",
+          "id": "warn",
+          "tone": "danger",
+          "title": "Never unplug during a backup",
+          "text": "The status light blinks blue while a backup runs."
+        }
+      ]
+    },
+    {
+      "id": "dns",
+      "title": "DNS filter",
+      "subtitle": "Slow lookups",
+      "icon": "network",
+      "order": 2,
+      "layout": "page",
+      "tabs": [],
+      "blocks": [
+        {
+          "type": "heading",
+          "id": "h",
+          "text": "When lookups are slow",
+          "level": 1
+        },
+        {
+          "type": "key_value",
+          "id": "kv",
+          "items": [
+            {
+              "label": "Dashboard",
+              "value": "http://nas-01.local:8053"
+            },
+            {
+              "label": "Upstreams",
+              "value": "2 (primary, fallback)"
+            }
+          ]
+        },
+        {
+          "type": "divider",
+          "id": "d"
+        },
+        {
+          "type": "table",
+          "id": "t",
+          "columns": [
+            "Symptom",
+            "Fix"
+          ],
+          "rows": [
+            [
+              "Every lookup slow",
+              "Switch to the fallback upstream"
+            ],
+            [
+              "One site fails",
+              "Check the block list for it"
+            ],
+            [
+              "Nothing resolves",
+              "Restart the DNS container"
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "id": "restore",
+      "title": "Restore",
+      "subtitle": "Get a file back",
+      "icon": "arrow.counterclockwise",
+      "order": 3,
+      "layout": "page",
+      "tabs": [],
+      "blocks": [
+        {
+          "type": "timeline",
+          "id": "tl",
+          "title": "Last test restores",
+          "items": [
+            {
+              "at": "@now-6d",
+              "title": "Restored 2 GB of photos",
+              "tone": "success"
+            },
+            {
+              "at": "@now-36d",
+              "title": "Restored a home folder",
+              "tone": "success"
+            }
+          ]
+        },
+        {
+          "type": "links",
+          "id": "l",
+          "items": [
+            {
+              "label": "Backup software docs",
+              "url": "https://docs.example.com/backups"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

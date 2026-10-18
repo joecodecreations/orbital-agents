@@ -1,0 +1,52 @@
+[
+  {
+    "schema": "orbital.alert.v1",
+    "id": "al-docs-slow",
+    "kind": "warning",
+    "section_id": "website-uptime",
+    "title": "docs.example.com is slow",
+    "subtitle": "1.9 s from Europe",
+    "body": "Median response from Europe has been over a second for 40 minutes.",
+    "interruption_level": "time-sensitive",
+    "created_at": "@now-38m",
+    "category_id": "orbital.default"
+  },
+  {
+    "schema": "orbital.alert.v1",
+    "id": "al-camera",
+    "kind": "error",
+    "section_id": "server-health",
+    "title": "Garage camera offline",
+    "body": "The camera recorder lost the garage camera two hours ago.",
+    "created_at": "@now-2h"
+  },
+  {
+    "schema": "orbital.alert.v1",
+    "id": "al-order",
+    "kind": "info",
+    "section_id": "sales",
+    "title": "New order #1042",
+    "body": "$64.00 · 2 items to Portland.",
+    "created_at": "@now-6m",
+    "interruption_level": "passive"
+  },
+  {
+    "schema": "orbital.alert.v1",
+    "id": "al-agent-done",
+    "kind": "agent",
+    "title": "Agent finished: Fix flaky upload test",
+    "body": "Claude on studio fixed the timing in test_upload and pushed a branch.",
+    "created_at": "@now-1h",
+    "launch_url": "orbital://agents?job=job-7c21"
+  },
+  {
+    "schema": "orbital.alert.v1",
+    "id": "al-rain",
+    "kind": "reminder",
+    "section_id": "weather",
+    "title": "Rain until 4 PM",
+    "body": "Take an umbrella if you head out before then.",
+    "created_at": "@now-3h",
+    "acked": true
+  }
+]

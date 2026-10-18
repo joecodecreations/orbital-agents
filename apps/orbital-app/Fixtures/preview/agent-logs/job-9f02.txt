@@ -1,0 +1,11 @@
+▶ claude · studio · ~/code/status-page
+Reading the status page styles.
+Found 14 colour values; 11 already use tokens.
+Adding a dark palette to styles/tokens.css.
+Switching the 3 hard-coded colours to tokens.
+Running the visual tests…
+  ✓ light: 24 snapshots unchanged
+  ✓ dark: 24 new snapshots
+Checking contrast: the lowest pair is 5.1:1 (muted text on card).
+Editing styles/tokens.css
+Running the visual tests…

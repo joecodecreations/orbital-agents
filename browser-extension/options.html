@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Browser Controller options</title>
+  <link rel="stylesheet" href="ui.css" />
+  <style>
+    body { padding: 28px 16px 48px; }
+    main { max-width: 720px; margin: 0 auto; }
+    .card { padding: 4px 14px; }
+    .row { min-height: 52px; }
+    .row .text { display: flex; flex-direction: column; gap: 2px; padding: 8px 0; }
+    .row .text .muted { font-size: 12px; }
+    .card .field { width: 200px; flex: none; }
+    #saved { min-height: 18px; margin-top: 10px; }
+    pre { background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); padding: 12px; overflow-x: auto; font-family: var(--mono); font-size: 12px; line-height: 1.55; }
+    ol { padding-left: 20px; }
+    li { margin: 4px 0; }
+    @media (max-width: 560px) { .row { flex-wrap: wrap; } .card .field { width: 100%; } }
+  </style>
+</head>
+<body>
+<main>
+  <header class="brand">
+    <img src="icons/icon-48.png" alt="" />
+    <div>
+      <h1>Orbital Agents Browser Controller</h1>
+      <div class="sub">Options <span id="build"></span></div>
+    </div>
+  </header>
+
+  <h2>Bridge</h2>
+  <section class="card">
+    <div class="row">
+      <div class="text"><label for="port">Bridge port</label><span class="muted">The bridge on this computer, <code>http://127.0.0.1:&lt;port&gt;</code>. Same as <code>browser.bridge_port</code> in config.toml (default 7703).</span></div>
+      <input class="field" id="port" type="number" min="1" max="65535" />
+    </div>
+    <div class="row">
+      <div class="text"><span>Connection</span><span class="muted" id="health">Not checked yet.</span></div>
+      <button id="test" type="button">Test connection</button>
+    </div>
+    <div class="row">
+      <div class="text"><label for="enabled">Take commands from the bridge</label><span class="muted">Turn off to pause all agent control of this browser.</span></div>
+      <label class="switch"><input id="enabled" type="checkbox" /><span class="track"></span></label>
+    </div>
+  </section>
+
+  <h2>Behavior</h2>
+  <section class="card">
+    <div class="row">
+      <div class="text"><label for="iso">Agent tabs in their own window</label><span class="muted">Each agent session gets its own window, which opens in the background and never takes focus from you.</span></div>
+      <label class="switch"><input id="iso" type="checkbox" /><span class="track"></span></label>
+    </div>
+    <div class="row">
+      <div class="text"><label for="display">Display for agent windows</label><span class="muted">Automatic uses a second display when there is one.</span></div>
+      <select class="field" id="display"><option value="">Automatic</option></select>
+    </div>
+    <div class="row">
+      <div class="text"><label for="cap">Capture network traffic</label><span class="muted">Records requests, responses and API endpoints from every tab for agents to read. Credentials are redacted by the bridge. Leave off unless you need it.</span></div>
+      <label class="switch"><input id="cap" type="checkbox" /><span class="track"></span></label>
+    </div>
+  </section>
+
+  <div class="actions" style="margin-top:14px">
+    <button class="primary" id="save" type="button">Save</button>
+    <button id="reset" type="button">Reset to defaults</button>
+  </div>
+  <div id="saved" class="small"></div>
+
+  <h2>Getting started</h2>
+  <ol>
+    <li>Start the bridge on this computer: <code>orbital browser serve</code> (the setup wizard can install it as a background service).</li>
+    <li>Leave this extension loaded. The toolbar popup shows <span class="ok">connected</span> once it reaches the bridge.</li>
+    <li>Drive the browser from a terminal or an agent:</li>
+  </ol>
+<pre>orbital browser status
+orbital browser navigate https://example.com
+orbital browser click "a[href]"
+orbital browser type "input[name=q]" "hello" --human
+orbital browser screenshot --out page.png
+orbital browser --node my-other-mac tabs</pre>
+  <p class="small muted">Security: the extension only talks to <code>127.0.0.1</code>. Other machines can reach this browser only when the bridge is started with <code>browser.bind = "tailscale"</code> and they present the bridge token. Anyone who can reach the bridge can act in your logged-in tabs, so keep the token private.</p>
+</main>
+<script src="options.js"></script>
+</body>
+</html>

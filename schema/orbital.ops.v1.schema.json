@@ -1,0 +1,84 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://orbital.local/schema/orbital.ops.v1.schema.json",
+  "title": "Orbital ops batch",
+  "type": "object",
+  "required": [
+    "schema",
+    "ops"
+  ],
+  "properties": {
+    "schema": {
+      "const": "orbital.ops.v1"
+    },
+    "if_revision": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "alerts": {
+      "type": "array",
+      "items": {
+        "type": "object"
+      }
+    },
+    "ops": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "op"
+        ],
+        "properties": {
+          "op": {
+            "enum": [
+              "merge_section",
+              "merge_node",
+              "replace_section",
+              "delete_section",
+              "upsert_node",
+              "delete_node",
+              "reorder_nodes",
+              "upsert_tab",
+              "delete_tab",
+              "reorder_tabs",
+              "upsert_block",
+              "delete_block",
+              "reorder_blocks"
+            ]
+          }
+        }
+      }
+    }
+  },
+  "description": "POST /v1/sections/{id}/ops. Id-addressed edits for one section; a failed op rolls the whole batch back. if_revision makes it conditional (409 on a mismatch). Block ops without node_id and tab_id address the section's own blocks on any layout; name tab_id (and node_id on a sidebar section) to reach a tab or a node.",
+  "examples": [
+    {
+      "schema": "orbital.ops.v1",
+      "ops": [
+        {
+          "op": "upsert_block",
+          "block": {
+            "type": "metrics",
+            "id": "vitals",
+            "items": [
+              {
+                "label": "CPU",
+                "value": "12%"
+              },
+              {
+                "label": "Disk free",
+                "value": "412 GB"
+              }
+            ]
+          }
+        },
+        {
+          "op": "merge_section",
+          "value": {
+            "summary": "All services up"
+          }
+        }
+      ]
+    }
+  ]
+}

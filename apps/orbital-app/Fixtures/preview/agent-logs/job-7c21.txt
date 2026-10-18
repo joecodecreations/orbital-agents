@@ -1,0 +1,5 @@
+▶ claude · studio · ~/code/orbit-cli
+Ran test_upload 50 times: 6 failures.
+The test asserts before the progress callback fires.
+The test raced the progress callback. Waiting on the upload future instead.
+All 212 tests pass. Pushed branch fix/flaky-upload.

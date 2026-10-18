@@ -1,0 +1,770 @@
+{
+  "schema": "orbital.section.v1",
+  "id": "sales",
+  "title": "Store sales",
+  "subtitle": "Online store and app",
+  "icon": "bag.fill",
+  "order": 6,
+  "accent": "#10B981",
+  "layout": "page",
+  "summary": "$1,104 today · 27 orders",
+  "revision": 12,
+  "updated_at": "@now-4m",
+  "space": "shop",
+  "blocks": [
+    {
+      "type": "metrics",
+      "id": "sales-now",
+      "items": [
+        {
+          "id": "today",
+          "label": "Today",
+          "value": "$1,104",
+          "delta": "+18%",
+          "direction": "up"
+        },
+        {
+          "id": "orders",
+          "label": "Orders",
+          "value": "27",
+          "delta": "+4",
+          "direction": "up"
+        },
+        {
+          "id": "aov",
+          "label": "Average order",
+          "value": "$40.89",
+          "direction": "flat"
+        },
+        {
+          "id": "refunds",
+          "label": "Refunds",
+          "value": "3",
+          "delta": "+2",
+          "direction": "up",
+          "caption": "this week"
+        }
+      ]
+    },
+    {
+      "type": "ledger",
+      "id": "store-ledger",
+      "title": "Store payouts",
+      "currency": "USD",
+      "space": "shop",
+      "source": "store",
+      "connected": true,
+      "as_of": "@now-6m",
+      "days": [
+        {
+          "date": "@day-29",
+          "amount": 1125,
+          "count": 27,
+          "product": "Online store"
+        },
+        {
+          "date": "@day-28",
+          "amount": 1034,
+          "count": 25,
+          "product": "Online store"
+        },
+        {
+          "date": "@day-27",
+          "amount": 966,
+          "count": 24,
+          "product": "Online store"
+        },
+        {
+          "date": "@day-26",
+          "amount": 981,
+          "count": 24,
+          "product": "Online store"
+        },
+        {
+          "date": "@day-25",
+          "amount": 721,
+          "count": 18,
+          "product": "Online store"
+        },
+        {
+          "date": "@day-24",
+          "amount": 518,
+          "count": 13,
+          "product": "Online store"
+        },
+        {
+          "date": "@day-23",
+          "amount": 695,
+          "count": 17,
+          "product": "Online store"
+        },
+        {
+          "date": "@day-22",
+          "amount": 822,
+          "count": 20,
+          "product": "Online store"
+        },
+        {
+          "date": "@day-21",
+          "amount": 848,
+          "count": 21,
+          "product": "Online store"
+        },
+        {
+          "date": "@day-20",
+          "amount": 1113,
+          "count": 27,
+          "product": "Online store"
+        },
+        {
+          "date": "@day-19",
+          "amount": 1266,
+          "count": 31,
+          "product": "Online store"
+        },
+        {
+          "date": "@day-18",
+          "amount": 1042,
+          "count": 25,
+          "product": "Online store"
+        },
+        {
+          "date": "@day-17",
+          "amount": 908,
+          "count": 22,
+          "product": "Online store"
+        },
+        {
+          "date": "@day-16",
+          "amount": 897,
+          "count": 22,
+          "product": "Online store"
+        },
+        {
+          "date": "@day-15",
+          "amount": 684,
+          "count": 17,
+          "product": "Online store"
+        },
+        {
+          "date": "@day-14",
+          "amount": 623,
+          "count": 15,
+          "product": "Online store"
+        },
+        {
+          "date": "@day-13",
+          "amount": 921,
+          "count": 22,
+          "product": "Online store"
+        },
+        {
+          "date": "@day-12",
+          "amount": 1079,
+          "count": 26,
+          "product": "Online store"
+        },
+        {
+          "date": "@day-11",
+          "amount": 1088,
+          "count": 27,
+          "product": "Online store"
+        },
+        {
+          "date": "@day-10",
+          "amount": 1271,
+          "count": 31,
+          "product": "Online store"
+        },
+        {
+          "date": "@day-9",
+          "amount": 1278,
+          "count": 31,
+          "product": "Online store"
+        },
+        {
+          "date": "@day-8",
+          "amount": 958,
+          "count": 23,
+          "product": "Online store"
+        },
+        {
+          "date": "@day-7",
+          "amount": 834,
+          "count": 20,
+          "product": "Online store"
+        },
+        {
+          "date": "@day-6",
+          "amount": 881,
+          "count": 21,
+          "product": "Online store"
+        },
+        {
+          "date": "@day-5",
+          "amount": 770,
+          "count": 19,
+          "product": "Online store"
+        },
+        {
+          "date": "@day-4",
+          "amount": 846,
+          "count": 21,
+          "product": "Online store"
+        },
+        {
+          "date": "@day-3",
+          "amount": 1202,
+          "count": 29,
+          "product": "Online store"
+        },
+        {
+          "date": "@day-2",
+          "amount": 1306,
+          "count": 32,
+          "product": "Online store"
+        },
+        {
+          "date": "@day-1",
+          "amount": 1227,
+          "count": 30,
+          "product": "Online store"
+        },
+        {
+          "date": "@day",
+          "amount": 1302,
+          "count": 32,
+          "product": "Online store"
+        }
+      ],
+      "entries": [
+        {
+          "id": "o-1042",
+          "at": "@now-6m",
+          "amount": 64.0,
+          "label": "Order #1042 · 2 items",
+          "status": "paid",
+          "product": "Online store"
+        },
+        {
+          "id": "o-1041",
+          "at": "@now-38m",
+          "amount": 29.5,
+          "label": "Order #1041",
+          "status": "paid",
+          "product": "Online store"
+        },
+        {
+          "id": "o-1040",
+          "at": "@now-1h",
+          "amount": -18.0,
+          "label": "Refund for #1012",
+          "status": "refunded",
+          "product": "Online store"
+        },
+        {
+          "id": "o-1039",
+          "at": "@now-2h",
+          "amount": 112.0,
+          "label": "Order #1039 · 4 items",
+          "status": "paid",
+          "product": "Online store"
+        },
+        {
+          "id": "a-77",
+          "at": "@now-3h",
+          "amount": 4.99,
+          "label": "App subscription",
+          "status": "paid",
+          "product": "Mobile app"
+        }
+      ],
+      "metrics": [
+        {
+          "id": "month",
+          "label": "This month",
+          "value": "$24,310"
+        },
+        {
+          "id": "fees",
+          "label": "Fees",
+          "value": "$712"
+        }
+      ]
+    },
+    {
+      "type": "series",
+      "id": "sales-series",
+      "kind": "sales",
+      "space": "shop",
+      "product": "Online store",
+      "window": 30,
+      "as_of": "@now-6m",
+      "metrics": [
+        {
+          "id": "revenue",
+          "label": "Revenue",
+          "platform": "web",
+          "stat": "revenue",
+          "format": "usd",
+          "points": [
+            {
+              "x": "@day-29",
+              "y": 1125
+            },
+            {
+              "x": "@day-28",
+              "y": 1034
+            },
+            {
+              "x": "@day-27",
+              "y": 966
+            },
+            {
+              "x": "@day-26",
+              "y": 981
+            },
+            {
+              "x": "@day-25",
+              "y": 721
+            },
+            {
+              "x": "@day-24",
+              "y": 518
+            },
+            {
+              "x": "@day-23",
+              "y": 695
+            },
+            {
+              "x": "@day-22",
+              "y": 822
+            },
+            {
+              "x": "@day-21",
+              "y": 848
+            },
+            {
+              "x": "@day-20",
+              "y": 1113
+            },
+            {
+              "x": "@day-19",
+              "y": 1266
+            },
+            {
+              "x": "@day-18",
+              "y": 1042
+            },
+            {
+              "x": "@day-17",
+              "y": 908
+            },
+            {
+              "x": "@day-16",
+              "y": 897
+            },
+            {
+              "x": "@day-15",
+              "y": 684
+            },
+            {
+              "x": "@day-14",
+              "y": 623
+            },
+            {
+              "x": "@day-13",
+              "y": 921
+            },
+            {
+              "x": "@day-12",
+              "y": 1079
+            },
+            {
+              "x": "@day-11",
+              "y": 1088
+            },
+            {
+              "x": "@day-10",
+              "y": 1271
+            },
+            {
+              "x": "@day-9",
+              "y": 1278
+            },
+            {
+              "x": "@day-8",
+              "y": 958
+            },
+            {
+              "x": "@day-7",
+              "y": 834
+            },
+            {
+              "x": "@day-6",
+              "y": 881
+            },
+            {
+              "x": "@day-5",
+              "y": 770
+            },
+            {
+              "x": "@day-4",
+              "y": 846
+            },
+            {
+              "x": "@day-3",
+              "y": 1202
+            },
+            {
+              "x": "@day-2",
+              "y": 1306
+            },
+            {
+              "x": "@day-1",
+              "y": 1227
+            },
+            {
+              "x": "@day",
+              "y": 1302
+            }
+          ]
+        },
+        {
+          "id": "orders",
+          "label": "Orders",
+          "platform": "web",
+          "stat": "orders",
+          "points": [
+            {
+              "x": "@day-29",
+              "y": 27
+            },
+            {
+              "x": "@day-28",
+              "y": 25
+            },
+            {
+              "x": "@day-27",
+              "y": 24
+            },
+            {
+              "x": "@day-26",
+              "y": 24
+            },
+            {
+              "x": "@day-25",
+              "y": 18
+            },
+            {
+              "x": "@day-24",
+              "y": 13
+            },
+            {
+              "x": "@day-23",
+              "y": 17
+            },
+            {
+              "x": "@day-22",
+              "y": 20
+            },
+            {
+              "x": "@day-21",
+              "y": 21
+            },
+            {
+              "x": "@day-20",
+              "y": 27
+            },
+            {
+              "x": "@day-19",
+              "y": 31
+            },
+            {
+              "x": "@day-18",
+              "y": 25
+            },
+            {
+              "x": "@day-17",
+              "y": 22
+            },
+            {
+              "x": "@day-16",
+              "y": 22
+            },
+            {
+              "x": "@day-15",
+              "y": 17
+            },
+            {
+              "x": "@day-14",
+              "y": 15
+            },
+            {
+              "x": "@day-13",
+              "y": 22
+            },
+            {
+              "x": "@day-12",
+              "y": 26
+            },
+            {
+              "x": "@day-11",
+              "y": 27
+            },
+            {
+              "x": "@day-10",
+              "y": 31
+            },
+            {
+              "x": "@day-9",
+              "y": 31
+            },
+            {
+              "x": "@day-8",
+              "y": 23
+            },
+            {
+              "x": "@day-7",
+              "y": 20
+            },
+            {
+              "x": "@day-6",
+              "y": 21
+            },
+            {
+              "x": "@day-5",
+              "y": 19
+            },
+            {
+              "x": "@day-4",
+              "y": 21
+            },
+            {
+              "x": "@day-3",
+              "y": 29
+            },
+            {
+              "x": "@day-2",
+              "y": 32
+            },
+            {
+              "x": "@day-1",
+              "y": 30
+            },
+            {
+              "x": "@day",
+              "y": 32
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "insight_cards",
+      "id": "findings",
+      "title": "Worth a look",
+      "space": "shop",
+      "as_of": "@now-1h",
+      "next_run": "@now+5h",
+      "cards": [
+        {
+          "id": "refund-spike",
+          "kind": "refunds",
+          "severity": "high",
+          "state": "new",
+          "title": "Refunds doubled this week",
+          "summary": "Three of the four refunds name the same size chart. A clearer chart and a reply to the customers would likely stop the next ones.",
+          "product": "Online store",
+          "count": 4,
+          "count_label": "refunds",
+          "first_seen": "@now-1d",
+          "evidence": [
+            "#1012: \"runs small\"",
+            "#1018: \"size chart was wrong\"",
+            "#1031: \"ordered medium, fits like small\""
+          ],
+          "actions": [
+            {
+              "id": "reply",
+              "kind": "email",
+              "label": "Reply to the customers",
+              "approve_label": "Send replies",
+              "state": "ready",
+              "email": {
+                "to": "customer@example.com",
+                "from": "support@example.com",
+                "subject": "About your order",
+                "body": "Hi there,\n\nThanks for telling us about the fit. We've updated the size chart and your refund is on its way.\n\nThe store team"
+              }
+            },
+            {
+              "id": "fix-chart",
+              "kind": "agent",
+              "label": "Fix the size chart",
+              "approve_label": "Start agent",
+              "state": "ready",
+              "brief": {
+                "title": "Update the size chart",
+                "prompt": "Update the size chart on the product pages to match the supplier's new measurements.",
+                "repo": "store-site"
+              }
+            }
+          ]
+        },
+        {
+          "id": "checkout-slow",
+          "kind": "performance",
+          "severity": "medium",
+          "state": "new",
+          "title": "Checkout got slower",
+          "summary": "The payment step went from 1.1 s to 3.2 s after Tuesday's deploy.",
+          "product": "Online store",
+          "metrics": [
+            {
+              "id": "p50",
+              "label": "Median",
+              "value": "3.2 s",
+              "delta": "+2.1 s",
+              "direction": "up"
+            }
+          ],
+          "links": [
+            {
+              "id": "trace",
+              "label": "Open the trace",
+              "url": "https://status.example.com/traces/checkout"
+            }
+          ],
+          "actions": [
+            {
+              "id": "profile",
+              "kind": "agent",
+              "label": "Profile checkout",
+              "approve_label": "Start agent",
+              "state": "ready",
+              "brief": {
+                "title": "Profile the checkout step",
+                "prompt": "Profile the checkout payment step and find what got slower since Tuesday."
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "tasks",
+      "id": "to-ship",
+      "title": "To pack and ship",
+      "items": [
+        {
+          "id": "ship-1042",
+          "title": "#1042 · 2 items to Portland",
+          "due": "@day",
+          "group": "orders",
+          "tags": [
+            "priority"
+          ]
+        },
+        {
+          "id": "ship-1041",
+          "title": "#1041 · 1 item to Austin",
+          "due": "@day+1",
+          "group": "orders"
+        },
+        {
+          "id": "restock",
+          "title": "Reorder medium shirts",
+          "due": "@day+4",
+          "group": "stock",
+          "status": "waiting"
+        }
+      ],
+      "add": {
+        "label": "Add",
+        "group": "orders",
+        "groups": [
+          {
+            "id": "orders",
+            "label": "Orders"
+          },
+          {
+            "id": "stock",
+            "label": "Stock"
+          }
+        ]
+      }
+    },
+    {
+      "type": "product",
+      "id": "app-product",
+      "kind": "app",
+      "space": "shop",
+      "headline": "Version 3.3 is in beta; 3.2 is live.",
+      "tone": "info",
+      "checked_at": "@now-1h",
+      "releases": [
+        {
+          "id": "ios-live",
+          "platform": "ios",
+          "status": "live",
+          "version": "3.2.0",
+          "since": "@now-12d"
+        },
+        {
+          "id": "ios-beta",
+          "platform": "ios",
+          "status": "testing",
+          "version": "3.3.0",
+          "build": "118",
+          "since": "@now-2d"
+        },
+        {
+          "id": "android-live",
+          "platform": "android",
+          "status": "live",
+          "version": "3.2.0",
+          "since": "@now-11d"
+        }
+      ],
+      "ratings": [
+        {
+          "store": "App Store",
+          "value": 4.6,
+          "max": 5,
+          "count": 812
+        },
+        {
+          "store": "Play",
+          "value": 4.4,
+          "max": 5,
+          "count": 503
+        }
+      ],
+      "reviews": [
+        {
+          "id": "rv1",
+          "store": "App Store",
+          "rating": 5,
+          "title": "Fast checkout",
+          "body": "Ordering takes ten seconds now. Love it.",
+          "author": "sam_k",
+          "at": "@now-1d"
+        },
+        {
+          "id": "rv2",
+          "store": "Play",
+          "rating": 3,
+          "title": "Sizes?",
+          "body": "The size chart could be clearer.",
+          "author": "rivera",
+          "at": "@now-2d"
+        }
+      ]
+    }
+  ],
+  "tabs": [],
+  "nodes": [],
+  "space_title": "Shop",
+  "space_icon": "bag.fill"
+}

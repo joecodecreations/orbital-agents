@@ -1,0 +1,36 @@
+# Python
+__pycache__/
+*.pyc
+.venv/
+*.egg-info/
+.pytest_cache/
+build/
+dist/
+
+# Swift / Xcode
+.build/
+.swiftpm/
+DerivedData/
+.derivedData*/
+*.xcuserstate
+xcuserdata/
+apps/orbital-app/*.xcodeproj/project.xcworkspace/xcuserdata/
+
+# Node
+node_modules/
+
+# Local-only files: secrets, runtime data, personal checks
+.env
+*.env
+!*.example.env
+*.p8
+secrets.env
+config.toml
+!config/*.example.toml
+.public-safety.local
+.orbital-agents/
+logs/
+*.log
+
+# macOS
+.DS_Store

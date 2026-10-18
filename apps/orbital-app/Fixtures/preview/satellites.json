@@ -1,0 +1,75 @@
+{
+  "satellites": [
+    {
+      "id": "sat-studio",
+      "name": "studio",
+      "machine": "studio",
+      "host": "studio.local",
+      "ip": "100.64.0.10",
+      "port": 7701,
+      "os": "macOS 26.1",
+      "version": "0.1.0",
+      "capabilities": {
+        "agents": [
+          "claude",
+          "codex",
+          "gemini"
+        ],
+        "browser": true,
+        "browser_port": 9333,
+        "tracker": true
+      },
+      "joined_at": "@now-40d",
+      "last_seen": "@now-20s",
+      "heartbeat_seconds": 60,
+      "status": "online",
+      "running_jobs": 1,
+      "is_hub": true
+    },
+    {
+      "id": "sat-nas",
+      "name": "nas-01",
+      "machine": "nas-01",
+      "host": "nas-01.local",
+      "ip": "100.64.0.11",
+      "port": 7701,
+      "os": "Linux 6.8",
+      "version": "0.1.0",
+      "capabilities": {
+        "agents": [
+          "claude",
+          "codex"
+        ],
+        "browser": false,
+        "tracker": false
+      },
+      "joined_at": "@now-38d",
+      "last_seen": "@now-45s",
+      "heartbeat_seconds": 60,
+      "status": "online",
+      "running_jobs": 1
+    },
+    {
+      "id": "sat-laptop",
+      "name": "travel-laptop",
+      "machine": "travel-laptop",
+      "host": "travel-laptop.local",
+      "ip": "100.64.0.12",
+      "port": 7701,
+      "os": "macOS 26.0",
+      "version": "0.1.0",
+      "capabilities": {
+        "agents": [
+          "claude"
+        ],
+        "browser": true,
+        "tracker": true
+      },
+      "joined_at": "@now-12d",
+      "last_seen": "@now-3h",
+      "heartbeat_seconds": 60,
+      "status": "offline",
+      "running_jobs": 0
+    }
+  ]
+}
