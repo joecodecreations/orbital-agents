@@ -2,7 +2,9 @@
 
 Voices (FISH_API_KEY in secrets.env): the app sends a reply's text and a Fish voice id and plays
 the audio that comes back, so the app needs no Fish key of its own and the key never leaves the hub.
-Without the key, /v1/speech/status says so and the app uses its built-in voice.
+Without the key, /v1/speech/status says so and the app uses its built-in voice. The voices the app
+offers come from [speech.voices] in config.toml (name, Fish reference id, language, default); a
+request with no voice id gets the default voice for its language.
 
 Speech-to-text models: each model folder in data/hub/stt-models/<id>/ has a manifest.json listing
 every file with its size and sha256. The app lists them, downloads the files once (resuming with
@@ -71,11 +73,56 @@ class FishError(Exception):
         self.status = status
 
 
+def parse_voices(table) -> list[dict]:
+    """[speech.voices] as a list: {"name", "id", "language", "default"}.
+
+    Each entry is a table named after the voice (`[speech.voices.Ada]` with `id`, optional
+    `language` like "en" or "pt", optional `default = true`), or just `Ada = "<reference id>"`.
+    Entries without an id are skipped.
+    """
+    voices: list[dict] = []
+    if not isinstance(table, dict):
+        return voices
+    for name, entry in table.items():
+        if isinstance(entry, str):
+            entry = {"id": entry}
+        if not isinstance(entry, dict):
+            continue
+        voice_id = str(entry.get("id") or entry.get("reference_id") or "").strip()
+        if not voice_id or any(v["id"] == voice_id for v in voices):
+            continue
+        language = str(entry.get("language") or "").strip().lower() or None
+        voices.append({"name": str(entry.get("name") or name).strip() or voice_id, "id": voice_id,
+                       "language": language, "default": entry.get("default") is True})
+    return voices
+
+
 class FishVoices:
-    def __init__(self, api_key: str, model: str) -> None:
+    def __init__(self, api_key: str, model: str, voices: list[dict] | None = None) -> None:
         self.api_key = (api_key or "").strip()
         self.model = model or "s2.1-pro-free"
+        self.voices = list(voices or [])
         self._client: httpx.AsyncClient | None = None
+
+    def default_voice(self, language: str | None = None) -> str | None:
+        """The voice for a request with no voice id: the language's default, else its first voice.
+
+        English (and no language) falls back to the overall default, then the first voice. Another
+        language with no voice of its own gets None, so Fish picks rather than an English voice.
+        """
+        lang = (language or "en").strip().lower()[:2] or "en"
+        same = [v for v in self.voices if (v["language"] or "en")[:2] == lang]
+        if same:
+            return next((v["id"] for v in same if v["default"]), same[0]["id"])
+        if lang != "en":
+            return None
+        marked = [v for v in self.voices if v["default"]]
+        return (marked or self.voices or [{"id": None}])[0]["id"]
+
+    def defaults(self) -> dict[str, str]:
+        """Default voice id per language, for the app's pickers."""
+        langs = sorted({(v["language"] or "en")[:2] for v in self.voices} | ({"en"} if self.voices else set()))
+        return {lang: vid for lang in langs if (vid := self.default_voice(lang))}
 
     @property
     def configured(self) -> bool:
@@ -226,14 +273,23 @@ def add_routes(app, hub) -> None:
         if denied:
             return denied
         voices.refresh(hub.auth.get("FISH_API_KEY"))
-        return JSONResponse({"tts": voices.configured, "provider_tts": "fish" if voices.configured else "none",
-                             "note": None if voices.configured else "Add FISH_API_KEY to secrets.env for spoken replies."})
+        return JSONResponse({
+            "tts": voices.configured,
+            "provider_tts": "fish" if voices.configured else "none",
+            "voices": [{"id": v["id"], "name": v["name"], "language": v["language"], "default": v["default"]}
+                       for v in voices.voices],
+            "default_voice": voices.default_voice(),
+            "defaults": voices.defaults(),
+            "model": voices.model,
+            "note": None if voices.configured else "Add FISH_API_KEY to secrets.env for spoken replies.",
+        })
 
     def _speech_args(body: dict):
         speed = body.get("speed")
+        reference_id = str(body.get("reference_id") or "").strip()
         return (
             str(body["text"]),
-            str(body.get("reference_id") or "") or None,
+            reference_id or voices.default_voice(str(body.get("language") or "") or None),
             float(speed) if isinstance(speed, (int, float)) and not isinstance(speed, bool) else None,
             str(body.get("model") or "") or None,
         )

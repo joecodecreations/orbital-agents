@@ -195,6 +195,24 @@ about = "Personal website, static HTML"
 | Key | Default | Meaning |
 |---|---|---|
 | `fish_model` | `""` | optional Fish Audio voice model id for spoken replies (needs `FISH_API_KEY`) |
+| `voices` | `{}` | the Fish voices the app offers, one table per voice: `id` (the Fish reference id), `language` (`en`, `pt`, …; default `en`), `default = true` for each language's default |
+
+A request with no voice id gets its language's default voice (`default = true`, else that language's first voice).
+
+```toml
+[speech]
+fish_model = "s2.1-pro-free"
+
+[speech.voices.Ada]
+id = "0123456789abcdef0123456789abcdef"
+language = "en"
+default = true
+
+[speech.voices.Lia]
+id = "fedcba9876543210fedcba9876543210"
+language = "pt"
+default = true
+```
 
 ### `[apple]` (iPhone and Mac app builds; the wizard fills these)
 

@@ -100,6 +100,11 @@ reminders_list = ""              # macOS Reminders list for "remind me…" (empt
 
 [speech]
 fish_model = ""                  # optional Fish Audio voice model id (needs FISH_API_KEY in secrets.env)
+# Fish voices the app offers (docs/CONFIG.md#speech): one table per voice.
+# [speech.voices.Ada]
+# id = "<Fish reference id>"
+# language = "en"
+# default = true
 
 [apple]                          # iPhone / Mac app build (wizard fills these)
 team_id = ""                     # your Apple Developer Team ID

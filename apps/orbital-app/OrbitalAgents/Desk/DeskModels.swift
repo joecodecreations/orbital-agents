@@ -188,11 +188,20 @@ struct SpeechStatus: Decodable, Equatable {
     var providerTTS: String = "none"
     var voices: [Voice] = []
     var defaultVoice: String?
+    /// The hub's default voice id per language code ("en", "pt").
+    var defaults: [String: String] = [:]
 
     enum CodingKeys: String, CodingKey {
-        case tts, voices
+        case tts, voices, defaults
         case providerTTS = "provider_tts"
         case defaultVoice = "default_voice"
+    }
+
+    /// The hub's voice for a language: its per-language default, else (English) the overall default.
+    func defaultVoice(for language: SpeechLanguage) -> String? {
+        let code = String(language.bcp47.prefix(2)).lowercased()
+        if let id = Insights.nonEmpty(defaults[code]) { return id }
+        return language == .english ? Insights.nonEmpty(defaultVoice) : nil
     }
 
     init() {}
@@ -203,6 +212,7 @@ struct SpeechStatus: Decodable, Equatable {
         providerTTS = c.lenientString(.providerTTS) ?? (tts ? "fish" : "none")
         voices = c.lossy(Voice.self, .voices)
         defaultVoice = c.lenientString(.defaultVoice)
+        defaults = (try? c.decodeIfPresent([String: String].self, forKey: .defaults)) ?? [:]
     }
 }
 

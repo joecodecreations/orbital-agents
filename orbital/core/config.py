@@ -113,6 +113,7 @@ DEFAULTS: dict[str, Any] = {
     },
     "speech": {
         "fish_model": "",               # optional Fish Audio voice model id for spoken replies (needs FISH_API_KEY)
+        "voices": {},                   # Fish voices the app offers: [speech.voices.<Name>] id, language, default
     },
     "apple": {                          # iPhone / Mac app build settings (setup wizard fills these)
         "team_id": "",

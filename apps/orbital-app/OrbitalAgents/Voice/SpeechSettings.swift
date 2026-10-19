@@ -178,19 +178,42 @@ final class SpeechSettings: ObservableObject {
         static let onDeviceModel = "orbital.speech.onDeviceModel"
         static let onDeviceMode = "orbital.speech.onDeviceMode"
         static let diagnostics = "orbital.speech.diagnostics"
+        static let classicDefaults = "orbital.speech.classicDefaults"
     }
 
+    /// The hub's speed for Fish voices when the app sends none; a touch quicker than normal.
+    static let defaultFishSpeed = 1.05
+    /// The on-device model to download when the hub offers it (else the hub's first model).
+    static let defaultOnDeviceModel = "crisperwhisper2-turbo-int8"
+
     private init() {
-        sttProvider = STTProvider(rawValue: defaults.string(forKey: Keys.sttProvider) ?? "") ?? .appleOnDevice
-        ttsProvider = TTSProvider(rawValue: defaults.string(forKey: Keys.ttsProvider) ?? "") ?? .appleOnDevice
+        // Defaults match the Orbital Classic app: on-device Whisper writes what is sent (Apple's
+        // words until the model is downloaded) and replies speak in a Fish voice from the hub
+        // (the built-in voice whenever the hub can't make one).
+        var stt = STTProvider(rawValue: defaults.string(forKey: Keys.sttProvider) ?? "") ?? .onDeviceWhisper
+        var tts = TTSProvider(rawValue: defaults.string(forKey: Keys.ttsProvider) ?? "") ?? .fishAudio
+        // Earlier builds defaulted both to Apple; move a device still on them over once.
+        if !defaults.bool(forKey: Keys.classicDefaults) {
+            defaults.set(true, forKey: Keys.classicDefaults)
+            if stt == .appleOnDevice {
+                stt = .onDeviceWhisper
+                defaults.set(stt.rawValue, forKey: Keys.sttProvider)
+            }
+            if tts == .appleOnDevice {
+                tts = .fishAudio
+                defaults.set(tts.rawValue, forKey: Keys.ttsProvider)
+            }
+        }
+        sttProvider = stt
+        ttsProvider = tts
         speechLanguage = SpeechLanguage(rawValue: defaults.string(forKey: Keys.speechLanguage) ?? "") ?? .english
         audioInputSource = AudioInputSource(rawValue: defaults.string(forKey: Keys.audioInput) ?? "") ?? .auto
-        audioOutputRoute = AudioOutputRoute(rawValue: defaults.string(forKey: Keys.audioOutput) ?? "") ?? .auto
+        audioOutputRoute = AudioOutputRoute(rawValue: defaults.string(forKey: Keys.audioOutput) ?? "") ?? .glasses
         let storedFallback = AudioOutputRoute(rawValue: defaults.string(forKey: Keys.lastNonGlasses) ?? "")
         lastNonGlassesRoute = (storedFallback == nil || storedFallback == .glasses) ? .auto : storedFallback!
         ttsEnabled = defaults.object(forKey: Keys.ttsEnabled) as? Bool ?? true
         appleTTSSpeed = Self.clamped(defaults.object(forKey: Keys.appleTTSSpeed) as? Double ?? 1.0, 0.5, 1.5)
-        fishTTSSpeed = Self.clamped(defaults.object(forKey: Keys.fishTTSSpeed) as? Double ?? 1.0, 0.5, 2.0)
+        fishTTSSpeed = Self.clamped(defaults.object(forKey: Keys.fishTTSSpeed) as? Double ?? Self.defaultFishSpeed, 0.5, 2.0)
         if defaults.object(forKey: Keys.speakerBoost) != nil {
             speakerBoostDb = Self.clamped(defaults.object(forKey: Keys.speakerBoost) as? Double ?? SpeakerBoost.defaultDb, SpeakerBoost.minDb, SpeakerBoost.maxDb)
         } else {
@@ -212,7 +235,7 @@ final class SpeechSettings: ObservableObject {
         openAIAPIKey = KeychainStore.get(account: Keys.openAIKey) ?? ""
         azureSpeechKey = KeychainStore.get(account: Keys.azureKey) ?? ""
         azureSpeechRegion = defaults.string(forKey: Keys.azureRegion) ?? "eastus"
-        onDeviceModelID = defaults.string(forKey: Keys.onDeviceModel) ?? ""
+        onDeviceModelID = defaults.string(forKey: Keys.onDeviceModel) ?? Self.defaultOnDeviceModel
         onDeviceMode = OnDeviceSpeechMode(rawValue: defaults.string(forKey: Keys.onDeviceMode) ?? "") ?? .intended
         sendDiagnostics = defaults.bool(forKey: Keys.diagnostics)
     }
@@ -221,8 +244,11 @@ final class SpeechSettings: ObservableObject {
         min(maxV, max(minV, value))
     }
 
-    /// The hub's voice list. A voice picked earlier that the hub no longer offers goes back to its default.
+    /// The hub's voice list. A language with no voice picked yet takes the hub's default for it
+    /// (`[speech.voices]` on the hub), so the pickers show that voice by name.
     func applyHubVoices(_ status: SpeechStatus) {
+        if fishDefaultENVoiceId.isEmpty, let id = status.defaultVoice(for: .english) { fishDefaultENVoiceId = id }
+        if fishDefaultPTVoiceId.isEmpty, let id = status.defaultVoice(for: .portuguese) { fishDefaultPTVoiceId = id }
         var voices = [FishVoice.hubDefault]
         for voice in status.voices where !voices.contains(where: { $0.referenceId == voice.id }) {
             voices.append(FishVoice(name: voice.name, referenceId: voice.id, language: voice.language))
@@ -237,7 +263,7 @@ final class SpeechSettings: ObservableObject {
     func resetActiveTTSSpeed() {
         switch ttsProvider {
         case .appleOnDevice: appleTTSSpeed = 1.0
-        case .fishAudio: fishTTSSpeed = 1.0
+        case .fishAudio: fishTTSSpeed = Self.defaultFishSpeed
         case .azureSpeech: azureTTSSpeed = 1.0
         }
     }

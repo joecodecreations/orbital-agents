@@ -97,7 +97,8 @@ class Hub:
         self.satellites = Registry(self.paths.hub_data / "satellites.json",
                                    heartbeat_seconds=int(cfg.get("satellite.heartbeat_seconds", 60) or 60), clock=clock)
         self.join_window = satellites_module.JoinWindow(self.paths.hub_data / "join_window.json", clock=clock)
-        self.voices = FishVoices(self.auth.get("FISH_API_KEY"), str(cfg.get("speech.fish_model") or ""))
+        self.voices = FishVoices(self.auth.get("FISH_API_KEY"), str(cfg.get("speech.fish_model") or ""),
+                                 speech_module.parse_voices(cfg.get("speech.voices")))
         self.speech_models = SpeechModels(self.paths.hub_data)
         self.apns = APNs(cfg, self.auth.get, self.store, clock=clock)
         self.desk: Desk | None = None

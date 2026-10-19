@@ -117,7 +117,7 @@ final class DeskState: ObservableObject {
     private var liveGeneration = 0
 
     init() {
-        speakRepliesOn = (UserDefaults.standard.object(forKey: Keys.speakReplies) as? Bool) ?? false
+        speakRepliesOn = (UserDefaults.standard.object(forKey: Keys.speakReplies) as? Bool) ?? true
         announceTrackerDone = UserDefaults.standard.bool(forKey: Keys.announceDone)
         // Last level seen, until the hub answers.
         trackerEvidence = TrackerEvidence(rawValue: UserDefaults.standard.string(forKey: Keys.evidence) ?? "") ?? .off
