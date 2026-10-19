@@ -225,6 +225,11 @@ final class OrbitalAPI {
         try decoder.decode(JobsSnapshot.self, from: try await send("/v1/jobs"))
     }
 
+    /// Plans, the work that used the most, and agent automations' totals.
+    func usage() async throws -> UsageReport {
+        try decoder.decode(UsageReport.self, from: try await send("/v1/usage"))
+    }
+
     func runJob(_ id: String) async throws {
         _ = try await send("/v1/jobs/\(Self.escape(id))/run", method: "POST", body: Data("{}".utf8))
     }

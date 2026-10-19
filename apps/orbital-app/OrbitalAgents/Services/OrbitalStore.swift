@@ -41,6 +41,8 @@ final class OrbitalStore: ObservableObject {
     @Published private(set) var systemSectionIDs: [String] = []
     /// Extra bottom-bar items and the sidebar tree, from the hub.
     @Published var nav = NavDoc.empty
+    /// Subscription plans and the AI work that used the most (`/v1/usage`).
+    @Published var usageReport: UsageReport?
     /// One short line at the bottom of the shell ("Marked done · syncing"). Clears itself.
     @Published private(set) var toast: String?
     /// Bumped when a scheduled reminder comes due, so the badge and the inbox move it to Waiting.
@@ -1056,6 +1058,7 @@ extension OrbitalStore {
         #endif
         guard isLoggedIn, let snapshot = try? await api.jobs() else { return }
         applyJobs(snapshot)
+        if let report = try? await api.usage(), report != usageReport { usageReport = report }
     }
 
     /// Marks jobs queued on screen at once; the scheduler's next snapshot replaces it within a second.

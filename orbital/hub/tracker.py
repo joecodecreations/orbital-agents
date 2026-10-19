@@ -208,6 +208,8 @@ class TrackerFeed:
             "cover": self._media_urls(item["id"], cover, None) if cover else None,
             "subagents": {"total": len(subs), "active": sum(1 for s in subs if s.get("status") == "active")},
             "processing": bool(item.get("processing")),
+            "progress": item.get("progress"),
+            "usage": item.get("usage") if isinstance(item.get("usage"), dict) else None,
         }
 
     def detail(self, item: dict) -> dict:
@@ -233,6 +235,8 @@ class TrackerFeed:
                         "completed_at": sub.get("completedAt"),
                         "notes": [{"at": n.get("at"), "text": n.get("text") or ""} for n in sub.get("notes") or []],
                         "media": [self._media_urls(item["id"], m, sub.get("id")) for m in sub.get("media") or [] if m.get("kind") in ("image", "video")],
+                        "progress": sub.get("progress"),
+                        "usage": sub.get("usage") if isinstance(sub.get("usage"), dict) else None,
                     }
                     for sub in item.get("subagents") or []
                 ],

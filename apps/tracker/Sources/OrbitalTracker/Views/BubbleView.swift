@@ -79,6 +79,14 @@ struct BubbleView: View {
                 .truncationMode(.tail)
                 .frame(maxWidth: 230, alignment: .leading)
                 .fixedSize(horizontal: true, vertical: false)
+            if !done, let progress = item.progress {
+                Text("\(progress)%")
+                    .font(.system(size: 10.5, weight: .bold, design: .rounded).monospacedDigit())
+                    .foregroundStyle(.white.opacity(0.85))
+                    .padding(.horizontal, 5)
+                    .padding(.vertical, 1)
+                    .background(Capsule().fill(.white.opacity(0.16)))
+            }
             if item.processing {
                 ProgressView().controlSize(.mini).tint(.white)
             }

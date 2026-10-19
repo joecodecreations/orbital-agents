@@ -77,6 +77,7 @@ from orbital.core.logs import get_logger
 from orbital.core.paths import REPO_ROOT
 from orbital.core.secrets import Secrets
 from orbital.satellite.agents import search_path
+from orbital.satellite.usage import TreeUsageMeter
 
 SCHEMA = "orbital.jobs.v1"
 TICK = 1.0
@@ -304,6 +305,35 @@ def classify(lines: list[str], exit_code: int | None, timed_out: bool = False) -
 
 # --------------------------------------------------------------------------- registry
 
+AGENT_CLIS = {"claude", "grok", "codex", "gemini", "orbital-desk"}
+AGENT_CALL = re.compile(
+    r"""(\b(?:claude|grok|gemini)\b["']?\s*,?\s*["']?(?:-p|--print|--prompt|agent)\b)"""
+    r"""|(\bcodex\b["']?\s*,?\s*["']?exec\b)|(\borbital\b["']?\s*,?\s*["']?agents["']?\s*,?\s*["']?run\b)|(/v1/(?:satellites/[^"'\s]+/)?agents/run)"""
+    r"""|(\bwhich\(\s*["'](?:claude|grok|codex|gemini|agy)["'])""")
+USAGE_EVERY = 15.0  # seconds between token measurements of a running agent job
+
+
+def job_kind(raw: dict, argv: list[str]) -> str:
+    """"agent" when the job spins up an AI agent (it calls an agent CLI, `orbital agents run`, or the
+    agents API, directly or in the script it runs), else "automation". jobs.json "kind" overrides."""
+    declared = str(raw.get("kind") or "").lower()
+    if declared in ("agent", "automation"):
+        return declared
+    if any(Path(part).name.lower().split(".")[0] in AGENT_CLIS for part in argv[:2]):
+        return "agent"
+    if AGENT_CALL.search(" ".join(argv)):
+        return "agent"
+    for part in argv:
+        path = Path(part)
+        if path.suffix.lower() in (".py", ".sh", ".js", ".ts", ".rb", ".zsh", ".bash") and path.is_file():
+            try:
+                if AGENT_CALL.search(path.read_text(encoding="utf-8", errors="replace")[:400_000]):
+                    return "agent"
+            except OSError:
+                continue
+    return "automation"
+
+
 
 class Job:
     def __init__(self, raw: dict, order: int, home: Path | None = None):
@@ -328,6 +358,7 @@ class Job:
         self.watch = [Path(expand(path, home)) for path in raw.get("watch") or []]
         self.quiet_history = bool(raw.get("quiet_history"))
         self.enabled = raw.get("enabled", True) is not False
+        self.kind = job_kind(raw, self.argv)
 
 
 def load_registry(path: Path, home: Path | None = None) -> tuple[dict, list[Job]]:
@@ -745,6 +776,8 @@ class Scheduler:
                                {"status": "error", "summary": f"Could not start: {exc}", "issues": [str(exc)]}, reason)
             return
         self.running[job.id] = run
+        run.meter = TreeUsageMeter(run.proc.pid, started) if job.kind == "agent" else None
+        run.next_measure = started + USAGE_EVERY
         record.update({
             "state": "running",
             "pid": run.proc.pid,
@@ -759,6 +792,10 @@ class Scheduler:
     def poll_running(self, now: float) -> None:
         for job_id, run in list(self.running.items()):
             code = run.proc.poll()
+            meter = getattr(run, "meter", None)
+            if meter is not None and (code is not None or now >= run.next_measure):
+                run.next_measure = now + USAGE_EVERY
+                run.usage = meter.snapshot() or getattr(run, "usage", None)
             if code is None:
                 age = now - run.started
                 if run.killed_at is None and age > run.job.timeout:
@@ -781,7 +818,7 @@ class Scheduler:
             record["state"] = "idle"
             record["pid"] = None
             record["output_truncated"] = run.truncated
-            self.finish_record(job, record, run.started, code, outcome, run.reason)
+            self.finish_record(job, record, run.started, code, outcome, run.reason, usage=getattr(run, "usage", None))
             try:
                 header = f"# {job.name} · {iso(run.started)} · {run.reason} · exit {code} · {outcome['status']}\n"
                 (self.runs_dir / f"{job_id}.log").write_text(header + "\n".join(lines[-TAIL_LINES:]) + "\n", encoding="utf-8")
@@ -793,7 +830,8 @@ class Scheduler:
             elif job.watch and self.watch_signature(job) != self.watch_sigs.get(job.id):
                 self.watch_pending[job.id] = now
 
-    def finish_record(self, job: Job, record: dict, started: float, code: int | None, outcome: dict, reason: str) -> None:
+    def finish_record(self, job: Job, record: dict, started: float, code: int | None, outcome: dict, reason: str,
+                      usage: dict | None = None) -> None:
         finished = now_ts()
         last = {
             "started_at": iso(started),
@@ -805,6 +843,16 @@ class Scheduler:
             "issues": outcome["issues"],
             "reason": reason,
         }
+        if usage:
+            last["usage"] = usage
+            totals = record.setdefault("usage_total", {"runs": 0, "inputTokens": 0, "cachedTokens": 0, "outputTokens": 0,
+                                                       "reasoningTokens": 0, "planPercent": 0.0})
+            totals["runs"] += 1
+            for key in ("inputTokens", "cachedTokens", "outputTokens", "reasoningTokens"):
+                totals[key] += int(usage.get(key) or 0)
+            totals["planPercent"] = round(totals["planPercent"] + float(usage.get("planPercent") or 0), 2)
+            totals["since"] = totals.get("since") or last["started_at"]
+            totals["engine"] = usage.get("engine")
         previous = record.get("last") or {}
         record["last"] = last
         if outcome["status"] == "ok":
@@ -816,6 +864,10 @@ class Scheduler:
         if not (job.quiet_history and previous.get("status") == outcome["status"] and history):
             history.append({"at": last["started_at"], "status": outcome["status"], "duration_s": last["duration_s"],
                             "summary": outcome["summary"][:120], "reason": reason})
+            if usage:
+                history[-1]["tokens"] = sum(int(usage.get(k) or 0) for k in ("inputTokens", "outputTokens", "reasoningTokens"))
+                if usage.get("planPercent") is not None:
+                    history[-1]["plan_percent"] = usage.get("planPercent")
             del history[:-HISTORY]
         else:
             history[-1]["at"] = last["started_at"]
@@ -883,6 +935,9 @@ class Scheduler:
                 "failing_since": record.get("failing_since"),
                 "history": (record.get("history") or [])[-HISTORY:],
                 "logs": [f"data/scheduler/out/{job.id}.log", f"data/scheduler/runs/{job.id}.log"],
+                "kind": job.kind,
+                "usage_total": record.get("usage_total"),
+                "usage_live": getattr(self.running.get(job.id), "usage", None),
             })
         lanes_out = []
         for lane_id, lane in (self.meta.get("lanes") or {}).items():

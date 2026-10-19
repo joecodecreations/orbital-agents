@@ -28,6 +28,7 @@ entirely (the tests do).
 from __future__ import annotations
 
 import collections
+import json
 import os
 import random
 import re
@@ -260,6 +261,21 @@ class TrackerReporter:
             self._relay({"op": "update", "id": item_id, "note": note[:2000]})
             return True
         return self._call(["update", item_id, "--note", note[:2000]]) is not None
+
+    def usage(self, item_id: str | None, usage: dict, progress: int | None = None) -> bool:
+        """Running totals of tokens and plan share for an item (replaces what it had)."""
+        if not item_id or not usage:
+            return False
+        if self._is_relayed(item_id):
+            command: dict = {"op": "update", "id": item_id, "usage": usage}
+            if progress is not None:
+                command["progress"] = progress
+            self._relay(command)
+            return True
+        args = ["update", item_id, "--usage-json", json.dumps(usage)]
+        if progress is not None:
+            args += ["--progress", str(progress)]
+        return self._call(args) is not None
 
     def done(self, item_id: str | None, summary: str) -> bool:
         if not item_id:

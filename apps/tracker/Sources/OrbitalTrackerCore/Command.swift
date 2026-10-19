@@ -36,6 +36,10 @@ public struct TrackerCommand: Codable, Sendable, Equatable {
     public var summary: String?
     public var workspace: String?
     public var media: [MediaInput]?
+    /// Percent complete (0–100).
+    public var progress: Int?
+    /// Running totals of tokens and plan share; replaces what the item had.
+    public var usage: TokenUsage?
     public var sentAt: Date?
 
     public init(op: String, id: String? = nil) {

@@ -46,6 +46,9 @@ struct ItemDetailBody: View {
             if !item.details.isEmpty {
                 section(item.isAI ? "Task" : "Details") { MarkdownView(text: item.details, store: store) }
             }
+            if item.progress != nil || item.usage != nil {
+                section("Progress and cost") { UsageSummary(progress: item.progress, usage: item.usage) }
+            }
             if !item.notes.isEmpty {
                 section("Progress") {
                     VStack(alignment: .leading, spacing: 5) {
@@ -355,5 +358,63 @@ struct DetailWindowView: View {
         }
         .padding(Self.margin)
         .environment(\.colorScheme, .dark)
+    }
+}
+
+
+/// Percent complete as a bar, then tokens and the share of the subscription the work used.
+struct UsageSummary: View {
+    let progress: Int?
+    let usage: TokenUsage?
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            if let progress {
+                HStack(spacing: 8) {
+                    ProgressView(value: Double(progress), total: 100)
+                        .tint(progress >= 100 ? Palette.ok : .white.opacity(0.85))
+                    Text("\(progress)%")
+                        .font(.system(size: 11, weight: .bold).monospacedDigit())
+                        .foregroundStyle(.white.opacity(0.85))
+                }
+            }
+            if let usage {
+                Text(Self.tokensLine(usage))
+                    .font(.system(size: 11, weight: .medium).monospacedDigit())
+                    .foregroundStyle(.white.opacity(0.8))
+                    .fixedSize(horizontal: false, vertical: true)
+                if let plan = Self.planLine(usage) {
+                    Text(plan)
+                        .font(.system(size: 11, weight: .semibold))
+                        .foregroundStyle((usage.planPercent ?? 0) >= 5 ? Palette.warn : .white.opacity(0.7))
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+            }
+        }
+    }
+
+    static func compact(_ n: Int) -> String {
+        n >= 1_000_000 ? String(format: "%.1fM", Double(n) / 1_000_000) : n >= 1000 ? String(format: "%.1fk", Double(n) / 1000) : "\(n)"
+    }
+
+    static func tokensLine(_ u: TokenUsage) -> String {
+        var parts = ["\(compact(u.totalTokens)) tokens"]
+        var detail: [String] = []
+        if let i = u.inputTokens { detail.append("\(compact(i)) in") }
+        if let c = u.cachedTokens, c > 0 { detail.append("\(compact(c)) cached") }
+        if let o = u.outputTokens { detail.append("\(compact(o)) out") }
+        if let r = u.reasoningTokens, r > 0 { detail.append("\(compact(r)) reasoning") }
+        if !detail.isEmpty { parts.append("(" + detail.joined(separator: ", ") + ")") }
+        if let engine = u.engine { parts.append("· " + Agents.displayName(engine) + (u.model.map { " " + $0 } ?? "")) }
+        return parts.joined(separator: " ")
+    }
+
+    static func planLine(_ u: TokenUsage) -> String? {
+        var parts: [String] = []
+        if let share = u.planPercent { parts.append(String(format: "%.1f%% of the %@plan", share, u.planPeriod.map { "\($0) " } ?? "")) }
+        if let used = u.planUsedPercent { parts.append(String(format: "plan %.0f%% used", used)) }
+        if let reset = u.planResetsAt { parts.append("resets " + Fmt.clock(reset)) }
+        if let by = u.measuredBy { parts.append(by == "satellite" ? "measured" : "reported") }
+        return parts.isEmpty ? nil : parts.joined(separator: " · ")
     }
 }

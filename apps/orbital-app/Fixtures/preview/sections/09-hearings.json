@@ -1,0 +1,266 @@
+{
+ "schema": "orbital.section.v1",
+ "id": "hearings",
+ "title": "Hearings",
+ "subtitle": "Hearings and deadlines",
+ "icon": "building.columns.fill",
+ "order": 9,
+ "accent": "#F5C16C",
+ "layout": "sidebar",
+ "summary": "Next: small claims hearing in 2 days",
+ "revision": 3,
+ "updated_at": "@now-12m",
+ "space": "home",
+ "blocks": [],
+ "tabs": [],
+ "nodes": [
+  {
+   "id": "overview",
+   "title": "Overview",
+   "icon": "calendar",
+   "order": 1,
+   "layout": "page",
+   "tabs": [],
+   "blocks": [
+    {
+     "type": "docket",
+     "id": "hearings",
+     "title": "Hearings",
+     "as_of": "@now-12m",
+     "empty_text": "Nothing on the calendar.",
+     "items": [
+      {
+       "id": "sc-hearing",
+       "kind": "hearing",
+       "date": "@day+2",
+       "title": "Small claims hearing",
+       "case": "Deposit dispute",
+       "case_number": "SC-0000-0142",
+       "confirmed": true,
+       "appearance": true,
+       "can_ready": true,
+       "ready": false,
+       "time": "9:30 AM",
+       "where": "Room 2B",
+       "detail": "Bring two printed copies of the photos and receipts.",
+       "prep_open": 2,
+       "prep_total": 5,
+       "open": {
+        "section_id": "hearings",
+        "node_id": "deposit"
+       }
+      },
+      {
+       "id": "sc-evidence",
+       "kind": "deadline",
+       "date": "@day+5",
+       "title": "Exhibit list due",
+       "case": "Deposit dispute",
+       "case_number": "SC-0000-0142",
+       "confirmed": true,
+       "appearance": true,
+       "can_ready": false,
+       "ready": false,
+       "open": {
+        "section_id": "hearings",
+        "node_id": "deposit"
+       }
+      },
+      {
+       "id": "traffic",
+       "kind": "hearing",
+       "date": "@day+16",
+       "title": "Traffic hearing",
+       "case": "Parking ticket",
+       "case_number": "TR-0000-0907",
+       "confirmed": true,
+       "appearance": true,
+       "can_ready": true,
+       "ready": true,
+       "time": "2:00 PM",
+       "where": "Room 104",
+       "open": {
+        "section_id": "hearings",
+        "node_id": "ticket"
+       }
+      },
+      {
+       "id": "jury",
+       "kind": "hearing",
+       "date": "@day+30",
+       "title": "Jury duty check-in",
+       "case": "Jury service",
+       "case_number": "JS-0000-3310",
+       "confirmed": false,
+       "appearance": true,
+       "can_ready": false,
+       "ready": false,
+       "time": "8:00 AM",
+       "where": "Main lobby"
+      },
+      {
+       "id": "filing",
+       "kind": "deadline",
+       "date": "@day-3",
+       "title": "Claim form filed",
+       "case": "Deposit dispute",
+       "case_number": "SC-0000-0142",
+       "confirmed": true,
+       "appearance": true,
+       "can_ready": false,
+       "ready": false,
+       "open": {
+        "section_id": "hearings",
+        "node_id": "deposit"
+       }
+      }
+     ]
+    },
+    {
+     "type": "tasks",
+     "id": "prep",
+     "title": "Prep",
+     "items": [
+      {
+       "id": "p1",
+       "title": "Print the photos",
+       "group": "Deposit dispute",
+       "done": true,
+       "done_at": "@now-1d"
+      },
+      {
+       "id": "p2",
+       "title": "Copy of the lease",
+       "group": "Deposit dispute",
+       "done": true,
+       "done_at": "@now-2d"
+      },
+      {
+       "id": "p3",
+       "title": "Receipts for the cleaning",
+       "group": "Deposit dispute",
+       "due": "@day+1"
+      },
+      {
+       "id": "p4",
+       "title": "Parking for the courthouse",
+       "group": "Deposit dispute"
+      },
+      {
+       "id": "p5",
+       "title": "Ask for the morning off",
+       "group": "Deposit dispute",
+       "due": "@day"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "deposit",
+   "title": "Deposit dispute",
+   "icon": "house.fill",
+   "order": 2,
+   "layout": "page",
+   "tabs": [],
+   "blocks": [
+    {
+     "type": "key_value",
+     "id": "deposit-facts",
+     "items": [
+      {
+       "label": "Case",
+       "value": "SC-0000-0142"
+      },
+      {
+       "label": "Venue",
+       "value": "Small claims"
+      }
+     ]
+    },
+    {
+     "type": "docket",
+     "id": "deposit-dates",
+     "title": "Dates",
+     "as_of": "@now-12m",
+     "empty_text": "No dates yet.",
+     "items": [
+      {
+       "id": "sc-hearing",
+       "kind": "hearing",
+       "date": "@day+2",
+       "title": "Small claims hearing",
+       "case": "Deposit dispute",
+       "case_number": "SC-0000-0142",
+       "confirmed": true,
+       "appearance": true,
+       "can_ready": true,
+       "ready": false,
+       "time": "9:30 AM",
+       "where": "Room 2B",
+       "detail": "Bring two printed copies of the photos and receipts.",
+       "prep_open": 2,
+       "prep_total": 5
+      },
+      {
+       "id": "sc-evidence",
+       "kind": "deadline",
+       "date": "@day+5",
+       "title": "Exhibit list due",
+       "case": "Deposit dispute",
+       "case_number": "SC-0000-0142",
+       "confirmed": true,
+       "appearance": true,
+       "can_ready": false,
+       "ready": false
+      },
+      {
+       "id": "filing",
+       "kind": "deadline",
+       "date": "@day-3",
+       "title": "Claim form filed",
+       "case": "Deposit dispute",
+       "case_number": "SC-0000-0142",
+       "confirmed": true,
+       "appearance": true,
+       "can_ready": false,
+       "ready": false
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "ticket",
+   "title": "Parking ticket",
+   "icon": "car.fill",
+   "order": 3,
+   "layout": "page",
+   "tabs": [],
+   "blocks": [
+    {
+     "type": "docket",
+     "id": "ticket-dates",
+     "title": "Dates",
+     "empty_text": "No dates yet.",
+     "items": [
+      {
+       "id": "traffic",
+       "kind": "hearing",
+       "date": "@day+16",
+       "title": "Traffic hearing",
+       "case": "Parking ticket",
+       "case_number": "TR-0000-0907",
+       "confirmed": true,
+       "appearance": true,
+       "can_ready": true,
+       "ready": true,
+       "time": "2:00 PM",
+       "where": "Room 104"
+      }
+     ]
+    }
+   ]
+  }
+ ]
+}

@@ -18,7 +18,7 @@ orbital-track start --agent claude --title "Fix Login Redirect" \
   --details "Login sends users to /404 after OAuth. Fixing in **web/app**."
 
 # 2. Milestones (optional)
-orbital-track update k7m2x9qa --note "Root cause: callback URL built from the wrong env var"
+orbital-track update k7m2x9qa --note "Root cause: callback URL built from the wrong env var" --progress 40
 orbital-track update k7m2x9qa --note "Before and after" --media /abs/before.png --media /abs/after.png
 
 # 3. Finish, or stop. Always close the item.
@@ -53,7 +53,9 @@ orbital-track done <SUB_ID> --summary "3 routes build the callback URL by hand; 
 
 Never run `start` as a subagent. A subagent whose prompt has no `ORBITAL_TRACK_PARENT` line does nothing with the tracker. As a safety net, `start` turns into `sub` when the `ORBITAL_TRACK_PARENT` environment variable is set.
 
-Jobs the hub starts on a satellite are tracked by the satellite itself; such an agent gets `ORBITAL_TRACK_ID` in its environment and can add notes with `orbital-track update "$ORBITAL_TRACK_ID" --note "..."`.
+Jobs the hub starts on a satellite are tracked by the satellite itself; such an agent gets `ORBITAL_TRACK_ID` in its environment and can add notes with `orbital-track update "$ORBITAL_TRACK_ID" --note "..." --progress 50`.
+
+**Progress and cost.** `--progress <0-100>` is how far along the whole job is; report it at each milestone (done sets 100). You don't report tokens: the satellite that runs an agent measures them (Grok from its CLI log, Claude from its session transcript) along with the share of the subscription plan used, and the tracker, the app's Tracker tab and System → Automations show them. Scripts can send totals themselves with `--usage-json '{"engine":"grok","inputTokens":1200,"outputTokens":300}'`.
 
 ## Media
 

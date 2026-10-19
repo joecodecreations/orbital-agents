@@ -95,6 +95,30 @@
       "revision": 12,
       "updated_at": "@now-4m",
       "space": "homelab"
+    },
+    {
+      "id": "hearings",
+      "title": "Hearings",
+      "subtitle": "Hearings and deadlines",
+      "icon": "building.columns.fill",
+      "order": 9,
+      "accent": "#F5C16C",
+      "summary": "Next: small claims hearing in 2 days",
+      "revision": 3,
+      "updated_at": "@now-12m",
+      "space": "home"
+    },
+    {
+      "id": "marketing",
+      "title": "Marketing",
+      "subtitle": "Ledger, goal and experiments",
+      "icon": "megaphone.fill",
+      "order": 10,
+      "accent": "#5AC8FA",
+      "summary": "3 for you · 2 experiments running",
+      "revision": 5,
+      "updated_at": "@now-6m",
+      "space": "shop"
     }
   ],
   "spaces": [

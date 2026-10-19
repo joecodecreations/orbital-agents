@@ -20,7 +20,8 @@ struct SettingsView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 18) {
-                OrbitalScreenHeader(eyebrow: "This device", title: "Settings", accent: accent)
+                OrbitalScreenHeader(eyebrow: "System", title: "Settings", accent: accent)
+                AgentSettingsCards()
                 if let pending = store.pendingHubURL {
                     pendingHubCard(pending)
                 }
@@ -54,8 +55,7 @@ struct SettingsView: View {
                         }
                     }
                 }
-                group("Agent and voice", symbol: "waveform") {
-                    row("Agent model", desk.isUnavailable ? "Not set up" : (desk.model?.model ?? "Checking…"))
+                group("Voice", symbol: "waveform") {
                     row("Fish voices on the hub", desk.speechStatus.tts ? "Ready" : "Not set up")
                     OrbitalActionButton(title: "Voice settings", symbol: "waveform", kind: .secondary, accent: accent) {
                         showVoice = true

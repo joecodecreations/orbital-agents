@@ -805,7 +805,9 @@ def create_app(cfg: Config | None = None, *, background: bool = True, clock=time
     desk_module.add_routes(app, hub)
     speech_module.add_routes(app, hub)
     from orbital.hub import nav as nav_module
+    from orbital.hub import usage as usage_module
     nav_module.add_routes(app, hub)
+    usage_module.add_routes(app, hub)
     return app
 
 

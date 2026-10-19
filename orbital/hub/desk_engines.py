@@ -1595,11 +1595,41 @@ class FallbackProvider:
                 await provider.close()
 
 
-def build_fallback(xai_key: str, data_dir: Path, *, cli_model: str = "", claude_model: str | None = None,
-                   claude_route: str | None = "auto", work_note=None) -> FallbackProvider:
-    """The Agent tab's engines from the hub's settings: subscriptions first, the xAI API only with a key."""
-    settings = {"xai_api_key": xai_key, "desk_cli_model": cli_model}
-    primary = build_provider(settings, data_dir)
-    backups = build_backups(primary, data_dir, claude_model, claude_route)
-    health = EngineHealth(data_dir / "desk" / "engines.json")
-    return FallbackProvider(primary, backups, health, work_note)
+CHAT_ENGINES = ("auto", "grok", "claude", "xai", "ondevice")
+CHAT_MODELS = {
+    "grok": [DEFAULT_CLI_MODEL, "grok-4.7"],
+    "claude": ["auto", "haiku", "sonnet", "opus"],
+    "xai": [DEFAULT_XAI_MODEL],
+    "ondevice": [],
+}
+
+
+def build_fallback(xai_key: str, data_dir: Path, *, chat: str = "auto", model: str = "", cli_model: str = "",
+                   claude_model: str | None = None, claude_route: str | None = "auto", work_note=None) -> FallbackProvider:
+    """The Agent tab's engines, the chosen chat AI first and the rest as backups.
+
+    chat: auto (the xAI API with a key, else the Grok subscription), grok, claude, xai or ondevice.
+    model: that engine's model (grok CLI model; claude auto/haiku/sonnet/opus; xAI API model)."""
+    desk_dir = data_dir / "desk"
+    chat = chat if chat in CHAT_ENGINES else "auto"
+    if chat == "auto":
+        chat = "xai" if xai_key else "grok"
+    if chat == "xai" and not xai_key:
+        chat = "grok"
+    route = model if chat == "claude" and model in ("auto", "haiku", "sonnet", "opus") else claude_route
+    router = ClaudeRouter(route, claude_model)
+    claude_quick = router.model("haiku")
+    grok_model = (model if chat == "grok" and model else "") or cli_model or DEFAULT_CLI_MODEL
+    grok = [GrokSessionProvider(desk_dir / "session", grok_model), GrokCLIProvider(desk_dir / "cli-scratch", grok_model)]
+    claude = [ClaudeSessionProvider(model=claude_quick, router=router), ClaudeCLIProvider(model=claude_quick, router=router)]
+    ondevice = [OnDeviceProvider(desk_dir / "ondevice")]
+    if chat == "xai":
+        order = [XAIProvider(xai_key, model or DEFAULT_XAI_MODEL), *grok, *claude, *ondevice]
+    elif chat == "claude":
+        order = [*claude, *grok, *ondevice]
+    elif chat == "ondevice":
+        order = [*ondevice, *grok, *claude]
+    else:
+        order = [*grok, *claude, *ondevice]
+    health = EngineHealth(desk_dir / "engines.json")
+    return FallbackProvider(order[0], order[1:], health, work_note)

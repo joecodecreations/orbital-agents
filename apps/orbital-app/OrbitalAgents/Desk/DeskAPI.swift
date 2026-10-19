@@ -268,6 +268,23 @@ struct DeskAPI {
         return try await decode(TrackerSettings.self, request("/v1/tracker/settings", method: "POST", json: ["evidence": level.rawValue]))
     }
 
+    // MARK: Agent settings (System → Settings)
+
+    func agentSettings() async throws -> AgentSettingsResponse {
+        #if DEBUG
+        if OrbitalPreview.isActive { return try preview(AgentSettingsResponse.self, "settings.json") }
+        #endif
+        return try await decode(AgentSettingsResponse.self, request("/v1/desk/settings"))
+    }
+
+    /// Sends only the keys that changed; the hub answers with the whole settings.
+    func saveAgentSettings(_ changes: [String: Any]) async throws -> AgentSettingsResponse {
+        #if DEBUG
+        if OrbitalPreview.isActive { return try preview(AgentSettingsResponse.self, "settings.json") }
+        #endif
+        return try await decode(AgentSettingsResponse.self, request("/v1/desk/settings", method: "PUT", json: changes))
+    }
+
     #if DEBUG
     private func preview<T: Decodable>(_ type: T.Type, _ name: String) throws -> T {
         guard let data = OrbitalPreview.deskData(name) else { throw OrbitalAPIError.http(404, "{\"error\": \"no preview \(name)\"}") }

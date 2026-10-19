@@ -304,6 +304,8 @@ class TrackerStore:
         self._update(item_id, cmd, quiet=True)
         item = self.item(item_id)
         if item is not None:
+            if item.get("progress") is not None:
+                item["progress"] = 100
             if item["status"] == "active":
                 by = normalize_agent(cmd["agent"]) if cmd.get("agent") is not None else (item.get("agent") or "agent")
                 self._complete(item, by, cmd.get("summary"))
@@ -349,6 +351,12 @@ class TrackerStore:
         if note:
             node["notes"].append({"at": now_iso(), "text": note})
             del node["notes"][:-MAX_NOTES]
+        progress = cmd.get("progress")
+        if isinstance(progress, (int, float)) and not isinstance(progress, bool):
+            node["progress"] = max(0, min(100, int(round(progress))))
+        usage = cmd.get("usage")
+        if isinstance(usage, dict):
+            node["usage"] = {**usage, "updatedAt": usage.get("updatedAt") or now_iso()}
         node["media"] += self._accept_media(cmd.get("media"), parent_id, sub_id, machine)
         del node["media"][:-MAX_MEDIA]
         node["updatedAt"] = now_iso()

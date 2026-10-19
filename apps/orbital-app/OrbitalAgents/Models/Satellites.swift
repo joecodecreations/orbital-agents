@@ -387,9 +387,10 @@ struct AgentJob: Codable, Equatable, Identifiable {
     var outputTail: String?
     var error: String?
     var trackerID: String?
+    var usage: AIUsage?
 
     enum CodingKeys: String, CodingKey {
-        case id, machine, agent, title, prompt, cwd, status, error, satellite, started, finished, created, output
+        case id, machine, agent, title, prompt, cwd, status, error, satellite, started, finished, created, output, usage
         case jobID = "job_id"
         case satelliteID = "satellite_id"
         case exitCode = "exit_code"
@@ -440,6 +441,7 @@ struct AgentJob: Codable, Equatable, Identifiable {
         outputTail = c.lenientString(.outputTail) ?? c.lenientString(.output)
         error = c.lenientString(.error)
         trackerID = c.lenientString(.trackerID)
+        usage = try? c.decodeIfPresent(AIUsage.self, forKey: .usage)
     }
 
     func encode(to encoder: Encoder) throws {
@@ -459,6 +461,7 @@ struct AgentJob: Codable, Equatable, Identifiable {
         try c.encodeIfPresent(outputTail, forKey: .outputTail)
         try c.encodeIfPresent(error, forKey: .error)
         try c.encodeIfPresent(trackerID, forKey: .trackerID)
+        try c.encodeIfPresent(usage, forKey: .usage)
     }
 
     var isActive: Bool { status == "queued" || status == "running" || status == "starting" }

@@ -623,6 +623,14 @@ struct TrackerLiveCard: View {
                     .foregroundStyle(.white.opacity(item.lastNote == nil ? 0.65 : 0.92))
                     .lineLimit(2)
                     .multilineTextAlignment(.leading)
+                if let progress = item.progress {
+                    ProgressStrip(percent: progress, tint: .white)
+                }
+                if let usage = item.usage {
+                    Text(usage.short)
+                        .font(.caption2.weight(.semibold).monospacedDigit())
+                        .foregroundStyle(.white.opacity(0.8))
+                }
                 if item.mediaCount > 0 || (item.subagents?.total ?? 0) > 0 {
                     HStack(spacing: 8) {
                         if let subs = item.subagents, subs.total > 0 {
@@ -688,6 +696,12 @@ struct TrackerRow: View {
                         .font(.footnote)
                         .foregroundStyle(OrbitalTheme.textSecondary)
                         .lineLimit(2)
+                }
+                if item.isActive, let progress = item.progress {
+                    ProgressStrip(percent: progress)
+                }
+                if let usage = item.usage {
+                    UsageLine(usage: usage)
                 }
                 HStack(spacing: 10) {
                     status
@@ -859,6 +873,12 @@ struct TrackerItemView: View {
                     .font(.caption)
                     .foregroundStyle(OrbitalTheme.textTertiary)
             }
+            if let progress = item.progress {
+                ProgressStrip(percent: progress)
+            }
+            if let usage = item.usage {
+                UsageLine(usage: usage, showsBreakdown: true)
+            }
         }
     }
 
@@ -917,6 +937,12 @@ struct SubagentCard: View {
                             .font(.caption)
                             .foregroundStyle(sub.status == "active" ? OrbitalTheme.success : OrbitalTheme.textTertiary)
                             .lineLimit(1)
+                        if sub.status == "active", let progress = sub.progress {
+                            ProgressStrip(percent: progress)
+                        }
+                        if let usage = sub.usage {
+                            UsageLine(usage: usage)
+                        }
                     }
                     Spacer()
                     Image(systemName: "chevron.down")

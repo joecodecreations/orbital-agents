@@ -25,13 +25,15 @@ enum ContentBlock: Identifiable, Equatable {
     case series(SeriesBlock)
     case insightCards(InsightCardsBlock)
     case videos(VideosBlock)
+    case docket(DocketBlock)
+    case marketing(MarketingBlock)
     case unsupported(id: String, raw: Data)
 
     /// Every type this build draws, as the payload names it.
     static let knownTypes: Set<String> = [
         "heading", "paragraph", "bullets", "callout", "metrics", "key_value", "table", "timeline", "divider",
         "chart", "image", "hero", "buttons", "progress", "status", "links", "product", "ledger", "tasks",
-        "series", "insight_cards", "videos",
+        "series", "insight_cards", "videos", "docket", "marketing",
     ]
 
     var id: String {
@@ -58,6 +60,8 @@ enum ContentBlock: Identifiable, Equatable {
         case .series(let b): return b.id
         case .insightCards(let b): return b.id
         case .videos(let b): return b.id
+        case .docket(let b): return b.id
+        case .marketing(let b): return b.id
         case .unsupported(let id, _): return id
         }
     }
@@ -87,6 +91,8 @@ enum ContentBlock: Identifiable, Equatable {
         case .series: return "series"
         case .insightCards: return "insight_cards"
         case .videos: return "videos"
+        case .docket: return "docket"
+        case .marketing: return "marketing"
         case .unsupported(_, let raw):
             let object = try? JSONSerialization.jsonObject(with: raw) as? [String: Any]
             return object?["type"] as? String ?? "unknown"
@@ -124,6 +130,8 @@ extension ContentBlock: Codable {
             case "series": self = .series(try SeriesBlock(from: decoder))
             case "insight_cards": self = .insightCards(try InsightCardsBlock(from: decoder))
             case "videos": self = .videos(try VideosBlock(from: decoder))
+            case "docket": self = .docket(try DocketBlock(from: decoder))
+            case "marketing": self = .marketing(try MarketingBlock(from: decoder))
             default:
                 self = Self.preserved(container, decoder)
             }
@@ -163,6 +171,8 @@ extension ContentBlock: Codable {
         case .series(let b): try b.encode(to: encoder)
         case .insightCards(let b): try b.encode(to: encoder)
         case .videos(let b): try b.encode(to: encoder)
+        case .docket(let b): try b.encode(to: encoder)
+        case .marketing(let b): try b.encode(to: encoder)
         case .unsupported(_, let raw):
             let obj = try JSONSerialization.jsonObject(with: raw)
             var container = encoder.singleValueContainer()

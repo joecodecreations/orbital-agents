@@ -16,7 +16,8 @@ MAIN agents (talking to the user directly):
   orbital-track start --agent <claude|chatgpt|grok|gemini|NAME> --title "2-5 word title" \\
                       [--details "markdown"] [--workspace DIR] [--label "Claude Code"] [--media FILE]...
       → prints the new ITEM ID. Remember it (shell variables don't survive between tool calls).
-  orbital-track update <ID> [--note "progress"] [--details "markdown" [--append]] [--title "..."] [--media FILE]...
+  orbital-track update <ID> [--note "progress"] [--progress 0-100] [--details "markdown" [--append]] [--title "..."] [--media FILE]...
+      --progress: how far along the whole job is, in percent (report it at each milestone).
   orbital-track done   <ID> [--summary "markdown: what changed, where, what's next"] [--media FILE]...
       Done items leave the floating panel immediately and stay in history.
 
@@ -262,6 +263,17 @@ case "update", "note", "done", "complete", "finish":
     cmd.appendDetails = p.flags.contains("append") ? true : nil
     cmd.note = text("note") ?? (verb == "note" && p.positional.count > 2 ? p.positional[2...].joined(separator: " ") : nil)
     cmd.summary = text("summary")
+    if let raw = p.value("progress") {
+        let digits = raw.trimmingCharacters(in: CharacterSet(charactersIn: "% "))
+        guard let value = Double(digits), (0...100).contains(value) else { fail("--progress takes a percent from 0 to 100") }
+        cmd.progress = Int(value.rounded())
+    }
+    if let raw = p.value("usage-json") {
+        guard let usage = try? TrackerJSON.decoder().decode(TokenUsage.self, from: Data(raw.utf8)) else {
+            fail("--usage-json must be a JSON object like {\"engine\":\"grok\",\"inputTokens\":1200,\"outputTokens\":300}")
+        }
+        cmd.usage = usage
+    }
     cmd.media = mediaInputs(itemID: id, markdown: [cmd.details, cmd.note, cmd.summary])
     deliver(cmd)
     print("ok")

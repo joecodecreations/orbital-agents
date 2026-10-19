@@ -184,6 +184,9 @@ final class DeskState: ObservableObject {
         return DeskAPI(baseURL: store.baseURL, token: store.imageToken, deviceID: store.deviceID)
     }
 
+    /// For screens outside the desk that talk to the same hub endpoints (System → Settings → Agent).
+    var client: DeskAPI? { api }
+
     /// The desk is turned off on the hub (no model key). Talking and typing are disabled; Agents still works.
     var isUnavailable: Bool { configured == false }
 

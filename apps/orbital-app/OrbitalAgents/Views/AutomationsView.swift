@@ -28,6 +28,7 @@ struct AutomationsView: View {
                         diskLow(disk)
                     }
                     overview(snapshot)
+                    SubscriptionUsageCard(report: store.usageReport, jobs: snapshot.jobs) { id in detail = JobSheetID(id: id) }
                     if let batch = snapshot.activeBatch {
                         BatchProgressCard(snapshot: snapshot, batch: batch)
                     }
@@ -339,6 +340,7 @@ struct JobRow: View {
                                 .font(.subheadline.weight(.semibold))
                                 .foregroundStyle(OrbitalTheme.text)
                                 .lineLimit(2)
+                            JobKindChip(job: job)
                             Spacer(minLength: 4)
                             JobClock(job: job)
                         }
@@ -346,6 +348,9 @@ struct JobRow: View {
                             .font(.caption)
                             .foregroundStyle(OrbitalTheme.textTertiary)
                             .lineLimit(1)
+                        if job.isAgent, let usage = job.usageLive ?? job.last?.usage {
+                            UsageLine(usage: usage)
+                        }
                         if let issue = job.last?.issues?.first, job.health != .ok {
                             Text(issue)
                                 .font(.caption)
@@ -501,6 +506,9 @@ struct JobDetailView: View {
                         if let last = job.last {
                             lastRun(job, last)
                         }
+                        if job.isAgent {
+                            usageCard(job)
+                        }
                         historyCard(job)
                         scheduleCard(job)
                         pagesCard(job)
@@ -655,6 +663,56 @@ struct JobDetailView: View {
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .orbitalCard(padding: 14, tint: job.health == .ok ? nil : job.tint)
+    }
+
+    @ViewBuilder
+    private func usageCard(_ job: FeedJob) -> some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack {
+                OrbitalEyebrow(text: "Subscription usage")
+                Spacer(minLength: 0)
+                JobKindChip(job: job)
+            }
+            if let total = job.usageTotal, let runs = total.runs, runs > 0 {
+                HStack(spacing: 0) {
+                    usageTile("Per run", AIUsage.compact(job.averageTokens ?? 0) + " tok",
+                              job.averagePlanPercent.map { AIUsage.percent($0) + " of plan" })
+                    Spacer(minLength: 8)
+                    usageTile("Total", AIUsage.compact(total.totalTokens) + " tok",
+                              total.planPercent.map { AIUsage.percent($0) + " of plan" })
+                    Spacer(minLength: 8)
+                    usageTile("Runs measured", "\(runs)", OrbitalDates.relative(total.since).map { "since \($0)" })
+                }
+                if let live = job.usageLive {
+                    Text("Running now").font(.caption.weight(.semibold)).foregroundStyle(OrbitalTheme.accent)
+                    UsageLine(usage: live, showsBreakdown: true)
+                } else if let last = job.last?.usage {
+                    Text("Last run").font(.caption.weight(.semibold)).foregroundStyle(OrbitalTheme.textSecondary)
+                    UsageLine(usage: last, showsBreakdown: true)
+                }
+            } else {
+                Text("This job starts an AI agent. Its tokens and share of the plan show here after its next run.")
+                    .font(.footnote)
+                    .foregroundStyle(OrbitalTheme.textTertiary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        }
+        .orbitalCard(padding: 14)
+    }
+
+    private func usageTile(_ label: String, _ value: String, _ caption: String?) -> some View {
+        VStack(alignment: .leading, spacing: 2) {
+            Text(label.uppercased())
+                .font(.system(size: 9.5, weight: .bold))
+                .tracking(0.4)
+                .foregroundStyle(OrbitalTheme.textTertiary)
+            Text(value)
+                .font(.subheadline.weight(.bold).monospacedDigit())
+                .foregroundStyle(OrbitalTheme.text)
+            if let caption {
+                Text(caption).font(.caption2).foregroundStyle(OrbitalTheme.textTertiary)
+            }
+        }
     }
 
     @ViewBuilder
@@ -917,5 +975,116 @@ struct PageFeedStrip: View {
         let every = main.map(\.everyS).min().map { JobFormat.every($0) } ?? ""
         guard let next else { return "Paused" }
         return "Next in \(JobFormat.countdown(to: next, now: now)) · \(every.lowercased())"
+    }
+}
+
+
+// MARK: - AI usage
+
+/// "Agent" for a job that spins up an AI agent, "Automation" for a plain script.
+struct JobKindChip: View {
+    let job: FeedJob
+
+    var body: some View {
+        if job.isAgent {
+            OrbitalChip(text: "Agent", symbol: "sparkles", tint: OrbitalTheme.violet)
+        } else {
+            OrbitalChip(text: "Automation", symbol: "gearshape.2", tint: OrbitalTheme.textTertiary)
+        }
+    }
+}
+
+/// The subscription plans, then the work that used the most of them: is anything eating the plan?
+struct SubscriptionUsageCard: View {
+    let report: UsageReport?
+    let jobs: [FeedJob]
+    let openJob: (String) -> Void
+    @EnvironmentObject private var router: AppRouter
+
+    private var agentJobs: [FeedJob] { jobs.filter(\.isAgent) }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack {
+                OrbitalEyebrow(text: "Subscription usage")
+                Spacer(minLength: 0)
+                Text("\(agentJobs.count) of \(jobs.count) jobs use an agent")
+                    .font(.caption)
+                    .foregroundStyle(OrbitalTheme.textTertiary)
+            }
+            if let report {
+                ForEach(report.plans) { plan in
+                    VStack(alignment: .leading, spacing: 4) {
+                        HStack {
+                            Text([AgentStyle.displayName(plan.engine), plan.tier].compactMap { $0 }.joined(separator: " · "))
+                                .font(.subheadline.weight(.semibold))
+                                .foregroundStyle(OrbitalTheme.text)
+                            Spacer(minLength: 0)
+                            Text(AIUsage.percent(plan.usedPercent) + " used")
+                                .font(.subheadline.weight(.bold).monospacedDigit())
+                                .foregroundStyle(plan.usedPercent >= 80 ? OrbitalTheme.danger : plan.usedPercent >= 60 ? OrbitalTheme.warning : OrbitalTheme.text)
+                        }
+                        ProgressStrip(percent: Int(plan.usedPercent.rounded()), tint: plan.usedPercent >= 80 ? OrbitalTheme.danger : OrbitalTheme.accent)
+                        Text([plan.period.map { $0 == "weekly" ? "This week" : $0.capitalized }, OrbitalDates.relative(plan.resetsAt).map { "resets \($0)" }].compactMap { $0 }.joined(separator: ", "))
+                            .font(.caption2)
+                            .foregroundStyle(OrbitalTheme.textTertiary)
+                    }
+                }
+                if let totals = report.totals {
+                    Text("\(AIUsage.compact(totals.tokensToday)) tokens today · \(AIUsage.compact(totals.tokensWeek)) this week" + (totals.planPercentWeek > 0 ? " · \(AIUsage.percent(totals.planPercentWeek)) of the plan" : ""))
+                        .font(.caption.monospacedDigit())
+                        .foregroundStyle(OrbitalTheme.textSecondary)
+                }
+                if !report.top.isEmpty {
+                    Text("Used the most")
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(OrbitalTheme.textSecondary)
+                        .padding(.top, 2)
+                    VStack(spacing: 0) {
+                        ForEach(Array(report.top.prefix(5).enumerated()), id: \.element.id) { index, row in
+                            if index > 0 { Rectangle().fill(OrbitalTheme.hairline.opacity(0.6)).frame(height: 1) }
+                            Button {
+                                if row.kind == "automation" { openJob(row.id) } else { router.openTracker(item: row.id) }
+                            } label: { topRow(row) }
+                                .buttonStyle(OrbitalPressStyle())
+                        }
+                    }
+                }
+            } else {
+                Text("Loading usage…").font(.footnote).foregroundStyle(OrbitalTheme.textTertiary)
+            }
+        }
+        .orbitalCard(padding: 14)
+    }
+
+    private func topRow(_ row: UsageTop) -> some View {
+        HStack(spacing: 10) {
+            Image(systemName: row.kind == "automation" ? "clock.arrow.2.circlepath" : AgentStyle.symbol(row.agent ?? "agent"))
+                .font(.caption.weight(.bold))
+                .foregroundStyle(row.kind == "automation" ? OrbitalTheme.violet : AgentStyle.color(row.agent ?? "agent"))
+                .frame(width: 22)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(row.title ?? row.id)
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(OrbitalTheme.text)
+                    .lineLimit(1)
+                Text([row.kind == "automation" ? row.runs.map { "\($0) runs" } : row.machine, row.progress.map { "\($0)%" }].compactMap { $0 }.joined(separator: " · "))
+                    .font(.caption2)
+                    .foregroundStyle(OrbitalTheme.textTertiary)
+            }
+            Spacer(minLength: 8)
+            VStack(alignment: .trailing, spacing: 2) {
+                Text(AIUsage.compact(row.tokens) + " tok")
+                    .font(.caption.weight(.bold).monospacedDigit())
+                    .foregroundStyle(OrbitalTheme.text)
+                if let plan = row.planPercent, plan > 0 {
+                    Text(AIUsage.percent(plan) + " of plan")
+                        .font(.caption2.monospacedDigit())
+                        .foregroundStyle(plan >= 5 ? OrbitalTheme.danger : plan >= 2 ? OrbitalTheme.warning : OrbitalTheme.textTertiary)
+                }
+            }
+        }
+        .padding(.vertical, 8)
+        .contentShape(Rectangle())
     }
 }

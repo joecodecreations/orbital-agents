@@ -59,7 +59,7 @@ Your reply:
 - Sound like a quick, capable assistant. Confirm what you're doing in the user's terms ("On it, I've got two agents on it: one fixing the login bug, one checking the store listing.").
 - Never say work is finished unless the live state below shows it finished. Don't invent results.
 - If it's genuinely unclear which project or what they want, ask one short question instead of acting.
-- Status questions ("what's running", "is X done", "what did the agent do"): answer from the live state below.
+- Status questions ("what's running", "is X done", "did the emails go out", "how's the server", "any alerts"): answer straight from the live state below, which already has every agent job, automation, alert, machine and page summary. Never start a task to look up something the live state already shows; dispatch only for details it doesn't have, and say that's what you're doing.
 - The user can talk over you, like in a real conversation. When their message says they cut you off, deal with what they just said first (start the work if it's a request). Then, only if the part they missed still matters, come back to it in a few words. Never repeat what they already heard.
 
 Actions: after your reply, write zero or more lines that start with >>> and hold one JSON object each, on one line:
@@ -78,6 +78,54 @@ When to use which:
 - clear: the user asks you to clear or reset your context. Running work is not affected; say so.
 - No action only for chat, a quick fact you plainly know, or questions the live state answers.
 """
+
+DISPATCH_NOTES = {
+    "parallel": "Dispatch mode: parallel. Split separate jobs into separate tasks so agents work at the same time.",
+    "single": "Dispatch mode: one agent. Put all the work in one request into a single task, never several.",
+    "off": ("Dispatch mode: talk only. The user turned agents off: write no task, followup or cancel lines. "
+            "Answer from what you know and the live state, and take to-dos and reminders."),
+}
+DISPATCH_MODES = tuple(DISPATCH_NOTES)
+MAX_RULES = 40
+
+
+def clean_settings(raw: object, *, default_chat: str = "auto", strict: bool = False) -> dict:
+    """The Agent tab's settings, with anything unknown dropped (strict: refused)."""
+    from orbital.hub.desk_engines import CHAT_ENGINES
+
+    raw = raw if isinstance(raw, dict) else {}
+    chat = str(raw.get("chat") or default_chat).lower()
+    if chat not in CHAT_ENGINES:
+        if strict:
+            raise ValueError(f"chat must be one of {', '.join(CHAT_ENGINES)}")
+        chat = "auto"
+    model = str(raw.get("model") or "").strip()
+    if len(model) > 80 or not re.fullmatch(r"[A-Za-z0-9._:-]*", model):
+        if strict:
+            raise ValueError("model must be a model name")
+        model = ""
+    dispatch = str(raw.get("dispatch") or "parallel").lower()
+    if dispatch not in DISPATCH_MODES:
+        if strict:
+            raise ValueError(f"dispatch must be one of {', '.join(DISPATCH_MODES)}")
+        dispatch = "parallel"
+    rules = []
+    for i, row in enumerate(raw.get("rules") or []):
+        text = str((row or {}).get("text") if isinstance(row, dict) else row or "").strip()
+        if not text:
+            continue
+        if len(text) > 400:
+            if strict:
+                raise ValueError(f"rule {i + 1} is longer than 400 characters")
+            text = text[:400]
+        ident = (str(row.get("id") or "") if isinstance(row, dict) else "") or f"r{i + 1}"
+        rules.append({"id": ident[:40], "text": text, "enabled": bool(row.get("enabled", True)) if isinstance(row, dict) else True})
+    if len(rules) > MAX_RULES:
+        if strict:
+            raise ValueError(f"at most {MAX_RULES} rules")
+        rules = rules[:MAX_RULES]
+    return {"chat": chat, "model": model, "dispatch": dispatch, "rules": rules}
+
 
 # Clearing the model's context. The thread in the app stays; the model only sees what came after
 # the last clear, plus the notes written at the clear and the live state (tasks, tracker).
@@ -306,15 +354,21 @@ class Desk:
         if str(self.hub.cfg.get("desk.provider") or "auto").lower() in ("off", "none"):
             return None
         key = self.hub.auth.get("XAI_API_KEY") or ""
-        if key != self._provider_key or self._provider is None:
+        settings = self.settings()
+        cache_key = json.dumps([key, settings["chat"], settings["model"]])
+        if cache_key != self._provider_key or self._provider is None:
             from orbital.hub.desk_engines import build_fallback
+            old = self._provider
             self._provider = build_fallback(
-                key, self.hub.paths.hub_data,
+                key, self.hub.paths.hub_data, chat=settings["chat"], model=settings["model"],
                 cli_model=str(self.hub.cfg.get("desk.cli_model") or ""),
                 claude_model=str(self.hub.cfg.get("desk.claude_model") or "") or None,
                 work_note=lambda: "Agents you start run on the satellites as usual.",
             )
-            self._provider_key = key
+            self._provider_key = cache_key
+            if old is not None:
+                with contextlib.suppress(RuntimeError):
+                    asyncio.get_running_loop().create_task(old.close())
         return self._provider
 
     def model_info(self) -> dict:
@@ -325,6 +379,62 @@ class Desk:
         return {"configured": True, "provider": current.name, "model": current.label, "note": None,
                 "engines": current.public() if hasattr(current, "public") else [],
                 "worker_agent": self.hub.cfg.get("desk.worker_agent")}
+
+    # Settings the app edits (System → Settings → Agent): the chat AI, its model, how work is handed out,
+    # and the user's routing rules in plain words.
+
+    @property
+    def settings_path(self) -> Path:
+        return self.dir / "settings.json"
+
+    def settings(self) -> dict:
+        try:
+            raw = json.loads(self.settings_path.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError):
+            raw = {}
+        return clean_settings(raw, default_chat=str(self.hub.cfg.get("desk.provider") or "auto"))
+
+    def save_settings(self, raw: dict) -> dict:
+        current = self.settings()
+        merged = {**current, **{k: v for k, v in raw.items() if k in ("chat", "model", "dispatch", "rules")}}
+        clean = clean_settings(merged, strict=True)
+        tmp = self.settings_path.with_suffix(".tmp")
+        tmp.write_text(json.dumps(clean, indent=1, ensure_ascii=False), encoding="utf-8")
+        tmp.replace(self.settings_path)
+        return clean
+
+    def settings_options(self) -> dict:
+        from orbital.hub.desk_engines import CHAT_MODELS
+        agents: list[str] = []
+        machines = []
+        for row in self.hub.satellites.listing():
+            offered = [a for a in (row.get("capabilities") or {}).get("agents") or [] if a != "echo"]
+            agents.extend(a for a in offered if a not in agents)
+            machines.append({"id": row["id"], "name": row.get("name") or row["id"], "status": row.get("status"), "agents": offered})
+        return {
+            "chats": [
+                {"id": "auto", "title": "Automatic", "detail": "Grok subscription, or the xAI API when a key is set"},
+                {"id": "grok", "title": "Grok", "detail": "Grok subscription (grok CLI)"},
+                {"id": "claude", "title": "Claude", "detail": "Claude subscription (claude CLI)"},
+                {"id": "xai", "title": "xAI API", "detail": "Paid per token; needs XAI_API_KEY"},
+                {"id": "ondevice", "title": "On-device", "detail": "The Mac's built-in Apple model, offline"},
+            ],
+            "models": CHAT_MODELS,
+            "dispatch": [
+                {"id": "parallel", "title": "Parallel agents", "detail": "Every real ask goes to agents, split into parallel jobs"},
+                {"id": "single", "title": "One agent", "detail": "One agent per request, never split"},
+                {"id": "off", "title": "Talk only", "detail": "No agents; it only chats, notes to-dos and reminders"},
+            ],
+            "machines": machines,
+            "agents": agents,
+            "xai_key": bool(self.hub.auth.get("XAI_API_KEY")),
+        }
+
+    def rules_block(self) -> str:
+        rules = [r["text"] for r in self.settings()["rules"] if r.get("enabled", True)]
+        if not rules:
+            return ""
+        return "\n".join(f"- {text}" for text in rules)
 
     # Workers: which agent on which machine
 
@@ -358,6 +468,55 @@ class Desk:
             here = " (this hub)" if row["id"] == local else ""
             lines.append(f"- {row.get('name') or row['id']}{here} [{row.get('status')}]: {names}")
         return "\n".join(lines)
+
+    def system_lines(self) -> list[str]:
+        """Everything the hub already holds, so status questions are answered from here without an agent:
+        jobs on every machine, automations, unread alerts, and each page's latest summary."""
+        out: list[str] = []
+        desk_jobs = {t.get("job_id") for t in self.runner.tasks if t.get("job_id")}
+        jobs = []
+        for row in self.hub.satellites.all():
+            for job in row.get("running_jobs") or []:
+                if job.get("status") in ("queued", "running") and job.get("id") not in desk_jobs:
+                    jobs.append((row.get("name") or row["id"], job))
+        if jobs:
+            out.append("Other agent jobs running on machines:")
+            for machine, job in jobs[:12]:
+                title = job.get("title") or first_sentence(job.get("prompt"), 80) or "job"
+                out.append(f"- {machine}: {job.get('agent') or 'agent'} — {title} [{job.get('status')}, started {_ago(job.get('started_at') or job.get('created_at'))}]")
+        try:
+            autos = (self.hub.jobs.snapshot() or {}).get("jobs") or []
+        except Exception:
+            autos = []
+        if autos:
+            failing = [j for j in autos if j.get("failing_since") or (j.get("last") or {}).get("status") not in (None, "ok")]
+            running = [j for j in autos if j.get("state") == "running"]
+            agentic = sum(1 for j in autos if j.get("kind") == "agent")
+            out.append(f"Automations: {len(autos)} scheduled ({agentic} start an agent), {len(running)} running now, {len(failing)} failing.")
+            for job in running[:6]:
+                out.append(f"- running: {job.get('name') or job['id']} (started {_ago(job.get('started_at'))})")
+            for job in failing[:8]:
+                last = job.get("last") or {}
+                why = first_sentence(last.get("summary") or last.get("error") or "", 140)
+                out.append(f"- failing: {job.get('name') or job['id']} since {_ago(job.get('failing_since') or last.get('finished_at'))}: {why}")
+        try:
+            alerts = [a for a in self.hub.store.load_alerts() if not a.get("acked")]
+        except Exception:
+            alerts = []
+        if alerts:
+            out.append(f"Unread alerts ({len(alerts)}), newest first:")
+            for alert in sorted(alerts, key=lambda a: a.get("created_at") or "", reverse=True)[:8]:
+                out.append(f"- {alert.get('title')} ({_ago(alert.get('created_at'))})")
+        try:
+            pages = self.hub.store.catalog()["sections"]
+        except Exception:
+            pages = []
+        if pages:
+            out.append("Pages in the app (title: latest summary, updated):")
+            for page in pages[:40]:
+                summary = page.get("summary") or page.get("subtitle") or ""
+                out.append(f"- {page.get('title')}: {summary} (updated {_ago(page.get('updated_at'))})")
+        return out
 
     def choose_worker(self, task: dict) -> dict:
         """{"agent", "satellite"} for a task, or {"wait": why} when nothing can take it now."""
@@ -531,12 +690,18 @@ class Desk:
 
     def system_prompt(self) -> str:
         now = datetime.now().astimezone()
-        lines = [SYSTEM_RULES, "Projects (name: about):", self.projects().prompt_block(), "", "Live state"]
+        settings = self.settings()
+        lines = [SYSTEM_RULES, DISPATCH_NOTES[settings["dispatch"]]]
+        rules = self.rules_block()
+        if rules:
+            lines += ["", "The user's routing rules. Follow them when you set agent and machine on a task (they override your own pick):", rules]
+        lines += ["", "Projects (name: about):", self.projects().prompt_block(), "", "Live state"]
         lines.append(f"Now: {now.strftime('%A %Y-%m-%d %H:%M')} ({now.tzname()}).")
         machines = self.machines_block()
         if machines:
             lines.append("Machines (name [status]: agents that can run there):")
             lines.append(machines)
+        lines.extend(self.system_lines())
         carry = self._carried()
         if carry:
             lines.append("Notes from before your context was last cleared (still true unless the user changed it since):")
@@ -820,6 +985,8 @@ class Desk:
 
     async def _run_action(self, action: dict, origin: str) -> tuple[dict | None, str | None]:
         kind = str(action.get("type") or "").lower()
+        if kind in ("task", "followup") and self.settings()["dispatch"] == "off":
+            return None, None
         if kind == "task":
             projects = self.projects()
             wanted = action.get("project")
@@ -985,6 +1152,27 @@ def add_routes(app, hub) -> None:
         if hub.background:
             asyncio.create_task(desk.warm())
         return JSONResponse(desk.snapshot(limit))
+
+    @app.get("/v1/desk/settings")
+    async def desk_settings(request: Request) -> JSONResponse:
+        denied = hub.require(request)
+        if denied:
+            return denied
+        return JSONResponse({"settings": desk.settings(), "options": desk.settings_options(), "model": desk.model_info()})
+
+    @app.put("/v1/desk/settings")
+    async def desk_settings_put(request: Request) -> JSONResponse:
+        """{chat?, model?, dispatch?, rules?: [{id?, text, enabled?}]}: what's sent replaces those keys."""
+        denied = hub.require(request)
+        if denied:
+            return denied
+        try:
+            settings = desk.save_settings(await body_of(request))
+        except ValueError as exc:
+            return fail(str(exc), 400)
+        info = desk.model_info()
+        await hub.live.broadcast({"type": "desk_settings", "settings": settings, "model": info})
+        return JSONResponse({"ok": True, "settings": settings, "model": info})
 
     @app.get("/v1/desk/messages")
     async def desk_messages(request: Request, before: str | None = None, limit: int = 60) -> JSONResponse:

@@ -271,9 +271,12 @@ struct TrackerSummary: Identifiable, Equatable, Decodable {
     var processing: Bool?
     /// The Mac bubble color. Missing on an older payload, which falls back to the first swatch.
     var colorIndex: Int?
+    /// Percent complete as the agent reports it, and what the work cost so far.
+    var progress: Int?
+    var usage: AIUsage?
 
     enum CodingKeys: String, CodingKey {
-        case id, title, status, source, agent, machine, project, summary, cover, subagents, processing
+        case id, title, status, source, agent, machine, project, summary, cover, subagents, processing, progress, usage
         case agentName = "agent_name"
         case agentLabel = "agent_label"
         case createdAt = "created_at"
@@ -301,9 +304,11 @@ struct TrackerSub: Identifiable, Equatable, Decodable {
     var completedAt: String?
     var notes: [TrackerNote]
     var media: [TrackerMedia]
+    var progress: Int?
+    var usage: AIUsage?
 
     enum CodingKeys: String, CodingKey {
-        case id, title, status, details, summary, notes, media
+        case id, title, status, details, summary, notes, media, progress, usage
         case agentName = "agent_name"
         case createdAt = "created_at"
         case completedAt = "completed_at"
@@ -331,9 +336,11 @@ struct TrackerDetail: Identifiable, Equatable, Decodable {
     var media: [TrackerMedia]
     var subagents: [TrackerSub]
     var deskTask: DeskTask?
+    var progress: Int?
+    var usage: AIUsage?
 
     enum CodingKeys: String, CodingKey {
-        case id, title, status, source, agent, machine, project, details, transcript, summary, notes, media, subagents
+        case id, title, status, source, agent, machine, project, details, transcript, summary, notes, media, subagents, progress, usage
         case agentName = "agent_name"
         case agentLabel = "agent_label"
         case createdAt = "created_at"

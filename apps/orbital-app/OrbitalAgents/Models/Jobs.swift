@@ -171,9 +171,10 @@ struct JobRun: Codable, Equatable {
     var summary: String?
     var issues: [String]?
     var reason: String?
+    var usage: AIUsage?
 
     enum CodingKeys: String, CodingKey {
-        case status, summary, issues, reason
+        case status, summary, issues, reason, usage
         case startedAt = "started_at"
         case finishedAt = "finished_at"
         case durationS = "duration_s"
@@ -187,10 +188,13 @@ struct JobHistoryEntry: Codable, Equatable, Hashable {
     var durationS: Double?
     var summary: String?
     var reason: String?
+    var tokens: Int?
+    var planPercent: Double?
 
     enum CodingKeys: String, CodingKey {
-        case at, status, summary, reason
+        case at, status, summary, reason, tokens
         case durationS = "duration_s"
+        case planPercent = "plan_percent"
     }
 }
 
@@ -236,9 +240,16 @@ struct FeedJob: Codable, Equatable, Identifiable {
     var failingSince: String?
     var history: [JobHistoryEntry]
     var logs: [String]?
+    /// "agent" when the job spins up an AI agent, else "automation" (a plain script).
+    var kind: String
+    /// Agent jobs: tokens and plan share over every measured run, and the run in progress.
+    var usageTotal: AIUsage?
+    var usageLive: AIUsage?
 
     enum CodingKeys: String, CodingKey {
-        case id, name, group, reads, targets, lane, schedule, watches, paused, state, last, history, logs
+        case id, name, group, reads, targets, lane, schedule, watches, paused, state, last, history, logs, kind
+        case usageTotal = "usage_total"
+        case usageLive = "usage_live"
         case everyS = "every_s"
         case defaultEveryS = "default_every_s"
         case offsetS = "offset_s"
@@ -276,6 +287,22 @@ struct FeedJob: Codable, Equatable, Identifiable {
         failingSince = try? c.decode(String.self, forKey: .failingSince)
         history = (try? c.decode([JobHistoryEntry].self, forKey: .history)) ?? []
         logs = try? c.decode([String].self, forKey: .logs)
+        kind = (try? c.decode(String.self, forKey: .kind)) ?? "automation"
+        usageTotal = try? c.decode(AIUsage.self, forKey: .usageTotal)
+        usageLive = try? c.decode(AIUsage.self, forKey: .usageLive)
+    }
+
+    var isAgent: Bool { kind == "agent" }
+
+    /// Average tokens and plan share per measured run.
+    var averageTokens: Int? {
+        guard let total = usageTotal, let runs = total.runs, runs > 0 else { return nil }
+        return total.totalTokens / runs
+    }
+
+    var averagePlanPercent: Double? {
+        guard let total = usageTotal, let runs = total.runs, runs > 0, let plan = total.planPercent else { return nil }
+        return plan / Double(runs)
     }
 
     var isRunning: Bool { state == "running" }

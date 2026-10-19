@@ -33,6 +33,7 @@ from orbital.core.config import Config
 from orbital.core.limits import MAX_PROMPT_CHARS
 from orbital.satellite.agents import build_argv, child_env, configured_agents
 from orbital.satellite.tracker import TrackerReporter
+from orbital.satellite.usage import UsageMeter, prepare_argv
 from orbital.satellite.util import NO_CONSOLE, atomic_write_json, iso, now, parse_iso, read_json
 
 ACTIVE = ("queued", "running")
@@ -40,6 +41,7 @@ FINISHED = ("done", "failed", "cancelled")
 JOB_ID_RE = re.compile(r"^[A-Za-z0-9_-]{1,80}$")
 DEFAULT_OUTPUT_CAP = 2_000_000
 HEAD_BYTES = 64_000
+USAGE_EVERY = 20.0  # seconds between token measurements of a running agent
 TAIL_CHARS = 4_000
 DROP_ENV = ("CLAUDECODE", "CLAUDE_CODE_ENTRYPOINT")  # a nested agent CLI must not think it runs inside another
 
@@ -515,12 +517,29 @@ class JobManager:
         self._save(record)
         self._records.pop(record["id"], None)
 
+    def _measure(self, record: dict, meter: UsageMeter, final: bool = False) -> None:
+        """Tokens and plan share so far: kept on the job, and sent to its tracker item when they changed."""
+        usage = meter.snapshot()
+        if not usage:
+            return
+        comparable = {k: v for k, v in usage.items() if k != "updatedAt"}
+        with self._lock:
+            previous = {k: v for k, v in (record.get("usage") or {}).items() if k != "updatedAt"}
+            if comparable == previous and not final:
+                return
+            record["usage"] = usage
+            if not final:
+                self._save(record)
+        if record.get("tracker_id") and comparable != previous:
+            self.tracker.usage(record["tracker_id"], usage)
+
     def _run(self, job_id: str) -> None:
         with self._lock:
             record = self._records[job_id]
             active = self._active[job_id]
         status, code, error = "failed", None, None
         sink: OutputSink | None = None
+        meter: UsageMeter | None = None
         try:
             if record.get("track"):
                 details = (f"{record['agent']} job `{job_id}` on {self.machine}, in `{record['cwd']}`.\n\n"
@@ -537,6 +556,7 @@ class JobManager:
                 error = f"agent {record['agent']} is no longer available"
                 return
             argv, prompt_on_stdin = build_argv(spec, record["prompt"], record["cwd"])
+            argv, session = prepare_argv(argv)
             env = child_env({
                 "ORBITAL_JOB_ID": job_id,
                 "ORBITAL_AGENT": record["agent"],
@@ -567,6 +587,8 @@ class JobManager:
                     active.killed_at = now()
                     _kill_group(proc.pid, signal.SIGTERM)
             self._info("job started", job=job_id, agent=record["agent"], pid=proc.pid)
+            meter = UsageMeter(argv[0], proc.pid, started, session)
+            next_measure = started + USAGE_EVERY
             if prompt_on_stdin:
                 threading.Thread(target=_feed_stdin, args=(proc, record["prompt"]), daemon=True).start()
             reader = threading.Thread(target=_pump, args=(proc.stdout, sink), daemon=True)
@@ -579,6 +601,9 @@ class JobManager:
                 except subprocess.TimeoutExpired:
                     pass
                 t = now()
+                if t >= next_measure:
+                    next_measure = t + USAGE_EVERY
+                    self._measure(record, meter)
                 with self._lock:
                     if active.killed_at is None and t > deadline:
                         active.stop_reason = "timeout"
@@ -614,6 +639,8 @@ class JobManager:
                 with self._lock:
                     record["output_bytes"] = sink.total
                     record["output_truncated"] = sink.truncated
+            if meter is not None:
+                self._measure(record, meter, final=True)
             with self._lock:
                 self._finish_record(record, status, exit_code=code, error=error)
                 self._active.pop(job_id, None)

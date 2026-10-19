@@ -36,6 +36,35 @@ public struct MediaRef: Codable, Identifiable, Hashable, Sendable {
     public var fileName: String { (originalPath as NSString).lastPathComponent }
 }
 
+/// What a piece of AI work cost: tokens, and how much of the subscription it used.
+/// Measured by the satellite that ran the agent (Grok's log by process, Claude's session transcript),
+/// or reported by the agent. Each report replaces the last: it is a running total, not a delta.
+public struct TokenUsage: Codable, Hashable, Sendable {
+    public var engine: String?
+    public var model: String?
+    public var inputTokens: Int?
+    public var cachedTokens: Int?
+    public var outputTokens: Int?
+    public var reasoningTokens: Int?
+    public var costUSD: Double?
+    /// Share of the subscription period this work used, in percent (Grok: change in the plan's usage).
+    public var planPercent: Double?
+    /// The whole plan's usage right now, in percent, and its period.
+    public var planUsedPercent: Double?
+    public var planPeriod: String?
+    public var planResetsAt: Date?
+    public var measuredBy: String?
+    public var updatedAt: Date?
+
+    public init(engine: String? = nil, inputTokens: Int? = nil, outputTokens: Int? = nil) {
+        self.engine = engine
+        self.inputTokens = inputTokens
+        self.outputTokens = outputTokens
+    }
+
+    public var totalTokens: Int { (inputTokens ?? 0) + (outputTokens ?? 0) + (reasoningTokens ?? 0) }
+}
+
 public struct ProgressNote: Codable, Hashable, Sendable {
     public var at: Date
     public var text: String
@@ -63,6 +92,9 @@ public struct SubTask: Codable, Identifiable, Hashable, Sendable {
     public var summary: String?
     public var notes: [ProgressNote]
     public var media: [MediaRef]
+    /// Percent complete as the agent reports it (0–100).
+    public var progress: Int?
+    public var usage: TokenUsage?
 
     public init(id: String, agent: String, agentLabel: String? = nil, machine: String? = nil, title: String,
                 details: String = "", createdAt: Date = Date()) {
@@ -94,6 +126,8 @@ public struct SubTask: Codable, Identifiable, Hashable, Sendable {
         summary = try c.decodeIfPresent(String.self, forKey: .summary)
         notes = try c.decodeIfPresent([ProgressNote].self, forKey: .notes) ?? []
         media = try c.decodeIfPresent([MediaRef].self, forKey: .media) ?? []
+        progress = try? c.decodeIfPresent(Int.self, forKey: .progress)
+        usage = try? c.decodeIfPresent(TokenUsage.self, forKey: .usage)
     }
 }
 
@@ -124,6 +158,10 @@ public struct TrackedItem: Codable, Identifiable, Hashable, Sendable {
     public var notes: [ProgressNote]
     public var media: [MediaRef]
     public var subagents: [SubTask]
+    /// Percent complete as the agent reports it (0–100); 100 when done.
+    public var progress: Int?
+    /// Tokens and subscription share, for this item and its subagents together.
+    public var usage: TokenUsage?
 
     public init(id: String = IDGen.make(), title: String, details: String = "",
                 transcript: String? = nil, source: ItemSource, agent: String? = nil,
@@ -177,6 +215,8 @@ public struct TrackedItem: Codable, Identifiable, Hashable, Sendable {
         notes = try c.decodeIfPresent([ProgressNote].self, forKey: .notes) ?? []
         media = try c.decodeIfPresent([MediaRef].self, forKey: .media) ?? []
         subagents = try c.decodeIfPresent([SubTask].self, forKey: .subagents) ?? []
+        progress = try? c.decodeIfPresent(Int.self, forKey: .progress)
+        usage = try? c.decodeIfPresent(TokenUsage.self, forKey: .usage)
     }
 }
 

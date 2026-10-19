@@ -934,6 +934,9 @@ struct AgentJobView: View {
                     }
                 }
             }
+            if let usage = job.usage {
+                UsageLine(usage: usage, showsBreakdown: true)
+            }
             if let error = Insights.nonEmpty(job.error) {
                 Label(error, systemImage: "exclamationmark.triangle.fill")
                     .font(.footnote)

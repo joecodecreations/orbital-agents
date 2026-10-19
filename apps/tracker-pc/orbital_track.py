@@ -33,7 +33,8 @@ MAIN agents (talking to the user directly):
   orbital-track start --agent <claude|chatgpt|grok|gemini|NAME> --title "2-5 word title" \\
                       [--details "markdown"] [--workspace DIR] [--label "Claude Code"] [--media FILE]...
       → prints the new ITEM ID. Remember it (shell variables don't survive between tool calls).
-  orbital-track update <ID> [--note "progress"] [--details "markdown" [--append]] [--title "..."] [--media FILE]...
+  orbital-track update <ID> [--note "progress"] [--progress 0-100] [--details "markdown" [--append]] [--title "..."] [--media FILE]...
+      --progress: how far along the whole job is, in percent (report it at each milestone).
   orbital-track done   <ID> [--summary "markdown: what changed, where, what's next"] [--media FILE]...
       Done items leave the floating panel immediately and stay in history.
 
@@ -365,6 +366,24 @@ class CLI:
         summary = self.text("summary")
         if summary is not None:
             cmd["summary"] = summary
+        raw = p.value("progress")
+        if raw is not None:
+            try:
+                value = float(str(raw).strip().rstrip("%"))
+            except ValueError:
+                value = -1
+            if not 0 <= value <= 100:
+                self.fail("--progress takes a percent from 0 to 100")
+            cmd["progress"] = int(round(value))
+        raw = p.value("usage-json")
+        if raw is not None:
+            try:
+                usage = json.loads(raw)
+            except json.JSONDecodeError:
+                usage = None
+            if not isinstance(usage, dict):
+                self.fail('--usage-json must be a JSON object like {"engine":"grok","inputTokens":1200,"outputTokens":300}')
+            cmd["usage"] = usage
         media = self.media_inputs(item_id, [details, note, summary])
         if media:
             cmd["media"] = media

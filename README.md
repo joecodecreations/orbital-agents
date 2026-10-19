@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="docs/assets/orbital-agents-system.jpg" alt="Orbital Agents: a Mac app, a floating Agent Satellite Tracker and an iPhone app around AI agents running on several machines" width="900">
+  <img src="docs/assets/orbital-agents-hero.jpg" alt="Orbital Agents: a self-hosted hub with agents, machines and work orbiting a private Tailscale network" width="900">
 </p>
 
 # Orbital Agents
@@ -8,6 +8,10 @@
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
 Run, watch and steer AI agents (Claude, Codex, Grok, Gemini, or your own command-line tools) across all your machines. A floating tracker on your Mac shows what every agent is working on right now. An iPhone and Mac app shows your dashboards, alerts, machines and agent jobs, and starts new work on any machine. Agents can drive a real Chrome browser, here or on another machine. Everything runs on your own computers and talks over your private Tailscale network; there is no cloud service in the middle.
+
+<p align="center">
+  <img src="docs/assets/capabilities.png" alt="Four capabilities: AI agents on every machine, real browser automation, feeds dashboards and alerts, and visibility into every stream of work" width="900">
+</p>
 
 ## What you get
 
@@ -21,6 +25,10 @@ Run, watch and steer AI agents (Claude, Codex, Grok, Gemini, or your own command
 | **Feeds and scheduler** | Small scripts that read anything (a server, a website, an API) and push it to the app as pages, charts, tables, to-do lists and buttons. The scheduler runs them on a timetable. |
 | **Self-healing** | Login services that restart on crash, a watchdog that restarts what stops answering and tells your phone, and a janitor that keeps logs and data from growing without limit. |
 | **Agent skills** | Instructions installed into Claude Code, Codex, Grok and Gemini, so your agents know how to report work, push data, use other machines and drive the browser. |
+
+<p align="center">
+  <img src="docs/assets/visibility-flow.png" alt="Work visibility flow: many agents report with orbital-track, the floating tracker shows bubbles with notes and screenshots, and the same view mirrors on your phone" width="900">
+</p>
 
 <p align="center">
   <img src="apps/tracker/docs/screenshot.png" alt="The Agent Satellite Tracker: bubbles for four pieces of work from different agents, one opened to show its task list, progress, a screenshot and two subagents" width="420">
@@ -79,25 +87,9 @@ Secrets such as the app password and the join token can come from environment va
 
 ## How it works
 
-```
-                          ┌──────────────── your main Mac (hub) ────────────────┐
-  iPhone / Mac app ──────▶│ hub :7700 ── data API, alerts, machines, relays     │
-  (over Tailscale)        │ scheduler ── runs your feeds, pushes to the hub     │
-                          │ tracker ──── the floating panel (orbital-track)     │
-                          │ satellite :7704 ── starts agent CLIs here           │
-                          │ browser bridge :7703 ◀── Chrome extension           │
-                          │ watchdog ─── health checks, restarts, trimming      │
-                          └───────────────────────▲─────────────────────────────┘
-                                                  │ Tailscale: join once, heartbeats,
-                                                  │ agent runs, browser commands, tracker relay
-                  ┌───────────────────────────────┼───────────────────────────────┐
-         ┌────────┴────────┐             ┌────────┴────────┐             ┌────────┴────────┐
-         │ laptop (macOS)  │             │ build box       │             │ home server     │
-         │ satellite       │             │ (Linux)         │             │ (Linux)         │
-         │ tracker, bridge │             │ satellite       │             │ satellite       │
-         │ watchdog        │             │ watchdog        │             │ watchdog        │
-         └─────────────────┘             └─────────────────┘             └─────────────────┘
-```
+<p align="center">
+  <img src="docs/assets/how-it-fits.png" alt="Architecture: hub in the center with data API, alerts, scheduler, relays, satellite and watchdog; Agent Satellite Tracker and Browser Controller on the left; iPhone app and feeds on the right; satellites on a laptop, build box and home server linked over Tailscale" width="900">
+</p>
 
 Every machine keeps its settings, secrets, data and logs in `~/.orbital-agents`. The contracts between the pieces are in [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 

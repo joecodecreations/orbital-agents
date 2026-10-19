@@ -1,0 +1,118 @@
+{
+ "settings": {
+  "chat": "grok",
+  "model": "",
+  "dispatch": "parallel",
+  "rules": [
+   {
+    "id": "r1",
+    "text": "Always route iOS and Mac builds to studio with claude",
+    "enabled": true
+   },
+   {
+    "id": "r2",
+    "text": "Use grok for research and web lookups",
+    "enabled": true
+   },
+   {
+    "id": "r3",
+    "text": "Send long video renders to nas-01",
+    "enabled": false
+   }
+  ]
+ },
+ "options": {
+  "chats": [
+   {
+    "id": "auto",
+    "title": "Automatic",
+    "detail": "Grok subscription, or the xAI API when a key is set"
+   },
+   {
+    "id": "grok",
+    "title": "Grok",
+    "detail": "Grok subscription (grok CLI)"
+   },
+   {
+    "id": "claude",
+    "title": "Claude",
+    "detail": "Claude subscription (claude CLI)"
+   },
+   {
+    "id": "xai",
+    "title": "xAI API",
+    "detail": "Paid per token; needs XAI_API_KEY"
+   },
+   {
+    "id": "ondevice",
+    "title": "On-device",
+    "detail": "The Mac's built-in Apple model, offline"
+   }
+  ],
+  "models": {
+   "grok": [
+    "grok-4.7-build-fast",
+    "grok-4.7"
+   ],
+   "claude": [
+    "auto",
+    "haiku",
+    "sonnet",
+    "opus"
+   ],
+   "xai": [
+    "grok-4.20-0309-non-reasoning"
+   ],
+   "ondevice": []
+  },
+  "dispatch": [
+   {
+    "id": "parallel",
+    "title": "Parallel agents",
+    "detail": "Every real ask goes to agents, split into parallel jobs"
+   },
+   {
+    "id": "single",
+    "title": "One agent",
+    "detail": "One agent per request, never split"
+   },
+   {
+    "id": "off",
+    "title": "Talk only",
+    "detail": "No agents; it only chats, notes to-dos and reminders"
+   }
+  ],
+  "machines": [
+   {
+    "id": "sat-studio",
+    "name": "studio",
+    "status": "online",
+    "agents": [
+     "claude",
+     "codex",
+     "grok"
+    ]
+   },
+   {
+    "id": "sat-nas",
+    "name": "nas-01",
+    "status": "online",
+    "agents": [
+     "claude",
+     "codex"
+    ]
+   }
+  ],
+  "agents": [
+   "claude",
+   "codex",
+   "grok",
+   "gemini"
+  ],
+  "xai_key": false
+ },
+ "model": {
+  "configured": true,
+  "model": "grok-4.7-build-fast \u00b7 Grok subscription"
+ }
+}

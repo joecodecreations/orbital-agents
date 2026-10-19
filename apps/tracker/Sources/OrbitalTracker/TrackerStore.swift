@@ -317,6 +317,7 @@ final class TrackerStore {
             guard let id = cmd.id else { throw StoreError(message: "id is required") }
             _ = try update(id: id, cmd: cmd, quiet: true)
             if let i = items.firstIndex(where: { $0.id == id }) {
+                if items[i].progress != nil { items[i].progress = 100 }
                 if items[i].status == .active {
                     let by = cmd.agent.map(Agents.normalize) ?? items[i].agent ?? "agent"
                     withAnimation(.easeOut(duration: 0.3)) { complete(index: i, by: by, summary: cmd.summary) }
@@ -357,6 +358,8 @@ final class TrackerStore {
                     ? items[i].details + "\n\n" + details : details
             }
             if let note = clean(cmd.note) { Self.appendNote(&items[i].notes, note) }
+            if let progress = cmd.progress { items[i].progress = min(100, max(0, progress)) }
+            if let usage = cmd.usage { items[i].usage = Self.stamped(usage) }
             Self.appendMedia(&items[i].media, acceptMedia(cmd.media, itemID: id, subID: nil, machine: machine))
             items[i].updatedAt = Date()
             archiveInlineMarkdown(itemID: id, subID: nil, texts: [cmd.details, cmd.note, cmd.summary], machine: machine)
@@ -371,6 +374,8 @@ final class TrackerStore {
                 items[p].subagents[s].details = cmd.appendDetails == true && !old.isEmpty ? old + "\n\n" + details : details
             }
             if let note = clean(cmd.note) { Self.appendNote(&items[p].subagents[s].notes, note) }
+            if let progress = cmd.progress { items[p].subagents[s].progress = min(100, max(0, progress)) }
+            if let usage = cmd.usage { items[p].subagents[s].usage = Self.stamped(usage) }
             Self.appendMedia(&items[p].subagents[s].media,
                              acceptMedia(cmd.media, itemID: items[p].id, subID: id, machine: machine))
             items[p].subagents[s].updatedAt = Date()
@@ -379,6 +384,12 @@ final class TrackerStore {
             return id
         }
         throw StoreError(message: "unknown id '\(id)'")
+    }
+
+    private static func stamped(_ usage: TokenUsage) -> TokenUsage {
+        var out = usage
+        out.updatedAt = out.updatedAt ?? Date()
+        return out
     }
 
     private static func appendNote(_ notes: inout [ProgressNote], _ text: String) {
