@@ -106,6 +106,12 @@ Every other machine. It runs its satellite service and the watchdog, plus the tr
 git clone https://github.com/joecodecreations/orbital-agents && cd orbital-agents && ./setup
 ```
 
+On Windows (PowerShell, with [Git](https://git-scm.com/download/win) and [Tailscale](https://tailscale.com/download/windows) installed), run `setup.cmd` instead, or `.\setup.ps1`:
+
+```powershell
+git clone https://github.com/joecodecreations/orbital-agents; cd orbital-agents; .\setup.cmd
+```
+
 **[1/9] Checking this machine.** As on the hub.
 
 **[2/9] Role.** It finds the hub on your tailnet ("found hub … on …") and suggests **satellite**.

@@ -71,7 +71,13 @@ On the other machine, the same command:
 git clone https://github.com/joecodecreations/orbital-agents && cd orbital-agents && ./setup
 ```
 
-It finds the hub over Tailscale and asks for the join token (on the hub, `orbital satellites invite` prints it). After that, `orbital satellites` on any machine lists it, and you can start agents there from the app or the command line. Details: [docs/SATELLITES.md](docs/SATELLITES.md).
+On Windows (PowerShell, with [Git](https://git-scm.com/download/win) and [Tailscale](https://tailscale.com/download/windows) installed), run `setup.cmd` instead, or `.\setup.ps1`:
+
+```powershell
+git clone https://github.com/joecodecreations/orbital-agents; cd orbital-agents; .\setup.cmd
+```
+
+It finds the hub over Tailscale and asks for the join token (on the hub, `orbital satellites invite` prints it). Without a terminal to answer in (an AI agent running setup, or `--yes`), pass it: `ORBITAL_JOIN_TOKEN='<token>' ./setup --yes`, or join afterwards with `orbital satellite join <hub_url> <token>`. After that, `orbital satellites` on any machine lists it, and you can start agents there from the app or the command line. Details: [docs/SATELLITES.md](docs/SATELLITES.md).
 
 ## Set up with an AI agent
 
