@@ -140,3 +140,21 @@ def discover_hubs(port: int = 7700, timeout: float = 2.0) -> list[dict]:
                 found.append(result)
     found.sort(key=lambda h: (not h.get("is_self", False), h["name"].lower()))
     return found
+
+
+def own_tailnet_peer(client_ip: str | None) -> Peer | None:
+    """The tailnet device at client_ip when it belongs to the same Tailscale user as this machine
+    (devices shared in from other accounts don't count), else None."""
+    if not client_ip:
+        return None
+    status = tailscale_status()
+    if not status or not status.get("Self"):
+        return None
+    owner = status["Self"].get("UserID")
+    want = client_ip.split("%")[0]
+    for node in (status.get("Peer") or {}).values():
+        if want in (node.get("TailscaleIPs") or []):
+            if owner is not None and node.get("UserID") == owner:
+                return _peer(node, False)
+            return None
+    return None

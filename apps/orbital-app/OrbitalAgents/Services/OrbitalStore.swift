@@ -43,6 +43,8 @@ final class OrbitalStore: ObservableObject {
     @Published var nav = NavDoc.empty
     /// Subscription plans and the AI work that used the most (`/v1/usage`).
     @Published var usageReport: UsageReport?
+    /// Whether new machines can join without a token right now.
+    @Published var joinWindow: JoinWindowStatus?
     /// One short line at the bottom of the shell ("Marked done · syncing"). Clears itself.
     @Published private(set) var toast: String?
     /// Bumped when a scheduled reminder comes due, so the badge and the inbox move it to Waiting.
@@ -927,6 +929,11 @@ final class OrbitalStore: ObservableObject {
             default:
                 break
             }
+        case "join_window":
+            if let raw = event["join_window"], let data = try? JSONSerialization.data(withJSONObject: raw),
+               let window = try? JSONDecoder().decode(JoinWindowStatus.self, from: data) {
+                joinWindow = window
+            }
         case "nav":
             if let raw = event["nav"] as? [String: Any] {
                 let doc = NavDoc(json: raw)
@@ -1176,6 +1183,16 @@ extension OrbitalStore {
 
 extension OrbitalStore {
     /// Machines and jobs, fresh from the hub.
+    /// Opens (or closes) joining for new machines; returns an error message when the hub refused.
+    func setJoinWindow(open: Bool, minutes: Int = 15) async -> String? {
+        do {
+            joinWindow = open ? try await api.openJoinWindow(minutes: minutes) : try await api.closeJoinWindow()
+            return nil
+        } catch {
+            return Self.reason(error)
+        }
+    }
+
     func refreshAgents() async {
         #if DEBUG
         if OrbitalPreview.isActive { return }
@@ -1187,6 +1204,7 @@ extension OrbitalStore {
             let (m, j) = try await (machines, jobs)
             satellites = Self.sortedSatellites(m)
             applyAgentJobs(j)
+            if let window = try? await api.joinWindow(), window != joinWindow { joinWindow = window }
             agentsError = nil
         } catch {
             agentsError = OrbitalAPIError.friendly(error)

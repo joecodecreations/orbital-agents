@@ -263,6 +263,20 @@ final class OrbitalAPI {
 
     // MARK: Satellites and agents
 
+    func joinWindow() async throws -> JoinWindowStatus {
+        try decoder.decode(JoinWindowStatus.self, from: try await send("/v1/satellites/invite"))
+    }
+
+    /// Opens joining: for `minutes`, machines on your Tailscale account connect without a token.
+    func openJoinWindow(minutes: Int = 15) async throws -> JoinWindowStatus {
+        let body = try JSONSerialization.data(withJSONObject: ["minutes": minutes, "by": "app"])
+        return try decoder.decode(JoinWindowStatus.self, from: try await send("/v1/satellites/invite", method: "POST", body: body))
+    }
+
+    func closeJoinWindow() async throws -> JoinWindowStatus {
+        try decoder.decode(JoinWindowStatus.self, from: try await send("/v1/satellites/invite", method: "DELETE"))
+    }
+
     func satellites() async throws -> [Satellite] {
         try decoder.decode(SatelliteList.self, from: try await send("/v1/satellites")).satellites
     }

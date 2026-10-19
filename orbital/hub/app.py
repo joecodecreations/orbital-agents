@@ -96,6 +96,7 @@ class Hub:
                                    port=int(cfg.get("tracker.port", 7701) or 0), run_dir=self.paths.run)
         self.satellites = Registry(self.paths.hub_data / "satellites.json",
                                    heartbeat_seconds=int(cfg.get("satellite.heartbeat_seconds", 60) or 60), clock=clock)
+        self.join_window = satellites_module.JoinWindow(self.paths.hub_data / "join_window.json", clock=clock)
         self.voices = FishVoices(self.auth.get("FISH_API_KEY"), str(cfg.get("speech.fish_model") or ""))
         self.speech_models = SpeechModels(self.paths.hub_data)
         self.apns = APNs(cfg, self.auth.get, self.store, clock=clock)

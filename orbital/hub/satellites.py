@@ -82,6 +82,66 @@ class JoinError(ValueError):
     pass
 
 
+JOIN_WINDOW_MINUTES = 15
+JOIN_WINDOW_MAX_MINUTES = 24 * 60
+
+
+class JoinWindow:
+    """While open, any machine on the hub owner's own tailnet joins without the join token.
+
+    `orbital satellites invite` or Add machines in the app opens it (15 minutes by default); it closes
+    by itself, or with `orbital satellites invite --close`. Kept in join_window.json so a hub restart
+    doesn't lose it. Machines outside the owner's tailnet always need the token."""
+
+    def __init__(self, path: Path, clock: Callable[[], float] = time.time) -> None:
+        self.path = path
+        self.clock = clock
+        self._lock = threading.Lock()
+
+    def _read(self) -> dict:
+        try:
+            data = json.loads(self.path.read_text(encoding="utf-8"))
+            return data if isinstance(data, dict) else {}
+        except (OSError, json.JSONDecodeError):
+            return {}
+
+    def _write(self, data: dict) -> None:
+        self.path.parent.mkdir(parents=True, exist_ok=True)
+        tmp = self.path.with_suffix(".json.tmp")
+        tmp.write_text(json.dumps(data), encoding="utf-8")
+        os.replace(tmp, self.path)
+
+    def status(self) -> dict:
+        data = self._read()
+        until = float(data.get("until") or 0)
+        remaining = max(0, int(until - self.clock()))
+        return {"open": remaining > 0, "until": _iso(until) if remaining else None, "seconds_left": remaining,
+                "joined": data.get("joined") or [] if remaining else []}
+
+    def is_open(self) -> bool:
+        return self.status()["open"]
+
+    def open(self, minutes: float = JOIN_WINDOW_MINUTES, by: str = "") -> dict:
+        minutes = max(1.0, min(float(minutes or JOIN_WINDOW_MINUTES), JOIN_WINDOW_MAX_MINUTES))
+        with self._lock:
+            self._write({"until": self.clock() + minutes * 60, "opened_at": self.clock(), "by": by[:40], "joined": []})
+        return self.status()
+
+    def close(self) -> dict:
+        with self._lock:
+            self._write({"until": 0})
+        return self.status()
+
+    def note_join(self, machine: str) -> None:
+        with self._lock:
+            data = self._read()
+            joined = list(data.get("joined") or [])
+            if machine not in joined:
+                joined.append(machine)
+            data["joined"] = joined[-50:]
+            self._write(data)
+
+
 def _capabilities(raw: object) -> dict:
     caps = raw if isinstance(raw, dict) else {}
     agents = caps.get("agents") or []
@@ -431,11 +491,26 @@ def add_routes(app, hub) -> None:
             code="not_configured",
         )
 
+    window: JoinWindow = hub.join_window
+
+    def owner_device(ip: str | None):
+        from orbital.core.net import own_tailnet_peer
+        return own_tailnet_peer(ip)
+
     @app.post("/v1/satellites/join")
     async def satellites_join(request: Request) -> JSONResponse:
+        ip = hub.client_ip(request)
+        through_window = False
         if not hub.auth.join_token_ok(request.headers.get("x-orbital-join-token")):
-            log().warning("satellite join refused: bad join token", extra={"fields": {"ip": hub.client_ip(request)}})
-            return fail("bad or missing X-Orbital-Join-Token", 401, code="unauthorized")
+            # No token: let it in only while joining is open, and only from the owner's own tailnet.
+            if window.is_open() and await asyncio.to_thread(owner_device, ip) is not None:
+                through_window = True
+            elif request.headers.get("x-orbital-join-token"):
+                log().warning("satellite join refused: bad join token", extra={"fields": {"ip": ip}})
+                return fail("bad X-Orbital-Join-Token", 401, code="unauthorized")
+            else:
+                return fail("joining is closed: run `orbital satellites invite` on the hub (or tap Add machines in the app) "
+                            "and this machine joins by itself", 401, code="join_closed")
         body = await body_of(request)
         try:
             row, hub_token = registry.join(body, hub.client_ip(request), hub.networks)
@@ -443,8 +518,11 @@ def add_routes(app, hub) -> None:
             return fail(str(exc), 400)
         log().info("satellite joined", extra={"fields": {
             "satellite": row["id"], "machine": row["machine"], "ip": row.get("ip") or "",
-            "reachability": row.get("reachability") or "callback",
+            "reachability": row.get("reachability") or "callback", "through": "join window" if through_window else "join token",
         }})
+        if through_window:
+            window.note_join(row.get("name") or row["machine"])
+            await hub.live.broadcast({"type": "join_window", "join_window": window.status()})
         await hub.live.broadcast({"type": "satellites", "satellites": registry.listing()})
         # One browser token for the whole fleet: the satellite's bridge takes the hub's, so the
         # browser relay (which calls every bridge with the hub's token) works after a normal setup.
@@ -458,6 +536,9 @@ def add_routes(app, hub) -> None:
             "browser_token": browser_token,
             "reachability": row.get("reachability") or "callback",
         }
+        if through_window:
+            # It came in without the token: hand it over, so it can join again later (after a reinstall) by itself.
+            answer["join_token"] = hub.auth.get("ORBITAL_JOIN_TOKEN") or ""
         if (row.get("reachability") or "callback") == "pull":
             # Paths for the control channel (PR 4); satellites may ignore until then.
             answer["control"] = {
@@ -486,7 +567,37 @@ def add_routes(app, hub) -> None:
         denied = hub.require_machine(request)
         if denied:
             return denied
-        return JSONResponse({"satellites": registry.listing(), "hub_id": hub.hub_id})
+        return JSONResponse({"satellites": registry.listing(), "hub_id": hub.hub_id, "join_window": window.status()})
+
+    @app.get("/v1/satellites/invite")
+    async def invite_status(request: Request) -> JSONResponse:
+        denied = hub.require(request)
+        if denied:
+            return denied
+        return JSONResponse(window.status())
+
+    @app.post("/v1/satellites/invite")
+    async def invite_open(request: Request) -> JSONResponse:
+        """Open joining: for `minutes` (default 15), machines on your own tailnet join without the token."""
+        denied = hub.require(request)
+        if denied:
+            return denied
+        body = await body_of(request)
+        minutes = body.get("minutes") if isinstance(body.get("minutes"), (int, float)) and not isinstance(body.get("minutes"), bool) else JOIN_WINDOW_MINUTES
+        status = window.open(minutes, by=str(body.get("by") or "app"))
+        log().info("join window opened", extra={"fields": {"minutes": minutes, "by": body.get("by") or "app"}})
+        await hub.live.broadcast({"type": "join_window", "join_window": status})
+        return JSONResponse(status)
+
+    @app.delete("/v1/satellites/invite")
+    async def invite_close(request: Request) -> JSONResponse:
+        denied = hub.require(request)
+        if denied:
+            return denied
+        status = window.close()
+        log().info("join window closed")
+        await hub.live.broadcast({"type": "join_window", "join_window": status})
+        return JSONResponse(status)
 
     @app.get("/v1/satellites/{ident}")
     async def satellites_one(ident: str, request: Request) -> JSONResponse:

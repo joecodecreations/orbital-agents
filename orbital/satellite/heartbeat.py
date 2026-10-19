@@ -19,11 +19,12 @@ import httpx
 from orbital import __version__
 from orbital.core.config import Config, load_config
 from orbital.core.secrets import Secrets
-from orbital.satellite.join import (HUB_TOKEN_KEY, JOIN_TOKEN_KEY, JoinError, capabilities, clear_identity,
+from orbital.satellite.join import (HUB_TOKEN_KEY, JOIN_TOKEN_KEY, JoinClosed, JoinError, capabilities, clear_identity,
                                     browser_status, join_hub, read_identity, system_disk, system_metrics)
 from orbital.satellite.util import atomic_write_json, iso, now
 
 COMPLAIN_EVERY = 3600.0
+AUTO_JOIN_EVERY = 20.0
 JOIN_RETRY = 10.0
 JOIN_GRACE = 120.0
 
@@ -81,6 +82,8 @@ class Heartbeat(threading.Thread):
         self._halt = threading.Event()
         self._last_complaint = 0.0
         self._join_failing_since: float | None = None
+        self._next_auto_join = 0.0
+        self._said_waiting = 0.0
         self.last: dict = {}
         self.beats = 0
 
@@ -128,11 +131,43 @@ class Heartbeat(threading.Thread):
             self.log.info("joined the local hub", extra={"fields": {"satellite_id": info["satellite_id"]}})
         return True
 
+    def auto_join(self, cfg: Config) -> bool:
+        """A satellite that isn't joined: find the hub (hub.url, else on the tailnet) and join. Without the
+        join token the hub lets it in while its join window is open (`orbital satellites invite`)."""
+        if time.monotonic() < self._next_auto_join:
+            return False
+        self._next_auto_join = time.monotonic() + AUTO_JOIN_EVERY
+        url = cfg.hub_url()
+        if not url:
+            from orbital.core.net import discover_hubs
+            found = [h for h in discover_hubs(port=int(cfg.get("hub.port", 7700) or 7700)) if not h.get("is_self")]
+            if not found:
+                return False
+            url = found[0]["url"]
+        try:
+            info = join_hub(url, "", cfg, write_config=True)
+        except JoinClosed:
+            if self.log and time.monotonic() - self._said_waiting > COMPLAIN_EVERY:
+                self._said_waiting = time.monotonic()
+                self.log.info("found the hub; waiting for it to open joining (run `orbital satellites invite` there)",
+                              extra={"fields": {"hub": url}})
+            return False
+        except JoinError as exc:
+            self._complain("joining the hub failed; will retry", hub=url, error=str(exc)[:200])
+            return False
+        if self.log:
+            self.log.info("joined the hub", extra={"fields": {"hub": url, "satellite_id": info["satellite_id"]}})
+        return True
+
     def tick(self) -> float:
         cfg = load_config(self.home)
         interval = float(self.interval or cfg.get("satellite.heartbeat_seconds", 60) or 60)
         if cfg.role == "hub" and not self.ensure_local_join(cfg):
             return min(interval, JOIN_RETRY)
+        if cfg.role != "hub" and not (read_identity(cfg).get("satellite_id") and Secrets(cfg.paths).get(HUB_TOKEN_KEY)):
+            if not self.auto_join(cfg):
+                return min(interval, AUTO_JOIN_EVERY)
+            cfg = load_config(self.home)
         result = beat_once(cfg, self.manager)
         self.last = result
         self.beats += 1
@@ -144,8 +179,10 @@ class Heartbeat(threading.Thread):
             if cfg.role == "hub":
                 clear_identity(cfg)          # join again on the next tick
                 return min(interval, JOIN_RETRY)
-            self._complain("the hub does not accept this satellite any more; run `orbital satellite join <hub_url> <token>`",
-                           status=result["status"], detail=result["detail"])
+            # The hub forgot this machine: join again (by itself with the saved token, or in the next join window).
+            clear_identity(cfg)
+            self._complain("the hub no longer knew this satellite; joining it again", status=result["status"])
+            return min(interval, AUTO_JOIN_EVERY)
         elif not result["ok"] and result["detail"] not in ("not joined to a hub yet", "no hub configured (hub.url is empty)"):
             self._complain("heartbeat to the hub failed", detail=result["detail"], status=result["status"])
         return interval

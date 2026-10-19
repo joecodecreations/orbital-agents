@@ -54,6 +54,7 @@ struct AgentsView: View {
                         .orbitalCard(padding: 12, tint: OrbitalTheme.warning)
                 }
                 machines
+                AddMachinesCard()
                 systemPages
                 jobsSection
             }
@@ -1221,5 +1222,61 @@ struct RunAgentSheet: View {
             dismiss()
             router.openAgents(route: .agentJob(id))
         }
+    }
+}
+
+
+// MARK: - Add machines
+
+/// Opens joining for a while: any machine on your Tailscale account running the satellite connects by itself.
+struct AddMachinesCard: View {
+    @EnvironmentObject private var store: OrbitalStore
+    @State private var busy = false
+    @State private var error: String?
+
+    var body: some View {
+        let window = store.joinWindow
+        let open = window.map { $0.open && ($0.untilDate ?? .distantPast) > Date() } ?? false
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(spacing: 10) {
+                IconTile(symbol: open ? "antenna.radiowaves.left.and.right" : "plus.circle", tint: open ? OrbitalTheme.success : OrbitalTheme.accent, size: 34, filled: open)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(open ? "Joining is open" : "Add machines")
+                        .font(.subheadline.weight(.bold))
+                        .foregroundStyle(OrbitalTheme.text)
+                    if open, let until = window?.untilDate {
+                        TimelineView(.periodic(from: .now, by: 1)) { context in
+                            let left = max(0, Int(until.timeIntervalSince(context.date)))
+                            Text("\(left / 60):\(String(format: "%02d", left % 60)) left · machines on your Tailscale join by themselves")
+                                .font(.caption.monospacedDigit())
+                                .foregroundStyle(OrbitalTheme.textSecondary)
+                        }
+                    } else {
+                        Text("Opens joining for 15 minutes. Run ./setup (Windows: setup.cmd) on the new machine and it connects, no token.")
+                            .font(.caption)
+                            .foregroundStyle(OrbitalTheme.textTertiary)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                }
+                Spacer(minLength: 0)
+            }
+            if open, let joined = window?.joined, !joined.isEmpty {
+                Label("Joined: " + joined.joined(separator: ", "), systemImage: "checkmark.circle.fill")
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(OrbitalTheme.success)
+            }
+            OrbitalActionButton(title: busy ? "One moment…" : open ? "Close joining" : "Open joining for 15 minutes",
+                                symbol: open ? "lock.fill" : "lock.open.fill", kind: open ? .secondary : .primary, busy: busy) {
+                busy = true
+                Task {
+                    error = await store.setJoinWindow(open: !open)
+                    busy = false
+                }
+            }
+            if let error {
+                Text(error).font(.caption).foregroundStyle(OrbitalTheme.danger)
+            }
+        }
+        .orbitalCard(padding: 14, tint: open ? OrbitalTheme.success : nil)
     }
 }

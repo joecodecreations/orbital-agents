@@ -1,7 +1,8 @@
 """`orbital satellites`: the machines joined to this hub.
 
     orbital satellites [list]          every satellite, online or offline, with its agents
-    orbital satellites invite          the join token and the hub address(es) a new machine needs
+    orbital satellites invite          open joining for 15 minutes: your other machines connect by themselves
+                                       (--minutes N, --close, --token to print the join token instead)
     orbital satellites remove <id>     forget a machine (it can join again later)
     orbital satellites discover        find hubs on this Tailscale network
 
@@ -23,6 +24,9 @@ def register(p):
     p.add_argument("action", nargs="?", default="list", choices=["list", "invite", "remove", "discover"])
     p.add_argument("id", nargs="?", help="satellite id or machine name (remove)")
     p.add_argument("--json", action="store_true", help="print JSON")
+    p.add_argument("--minutes", type=float, default=15, help="invite: how long joining stays open (default 15)")
+    p.add_argument("--close", action="store_true", help="invite: close joining now")
+    p.add_argument("--token", action="store_true", help="invite: print the join token and addresses instead")
 
 
 def _ago(stamp: str | None) -> str:
@@ -86,6 +90,34 @@ def _list(args) -> int:
 
 
 def _invite(args) -> int:
+    if getattr(args, "token", False):
+        return _invite_token(args)
+    from orbital.feeds import HubClient, HubError
+
+    try:
+        with HubClient.from_config(startup_wait=0) as hub:
+            if args.close:
+                status = hub.request("DELETE", "/v1/satellites/invite")
+            else:
+                status = hub.request("POST", "/v1/satellites/invite", json_body={"minutes": args.minutes, "by": "cli"})
+    except HubError as exc:
+        print(f"orbital satellites invite: {exc.message}", file=sys.stderr)
+        return 1
+    if args.json:
+        print(json.dumps(status, indent=2))
+        return 0
+    if not status.get("open"):
+        print("Joining is closed. Machines that aren't joined yet wait until you open it again.")
+        return 0
+    minutes = round(status.get("seconds_left", 0) / 60)
+    print(f"Joining is open for {minutes} minutes.")
+    print("Any machine on your Tailscale account running the satellite connects by itself (within ~20 s).")
+    print("New machine: clone the repo and run ./setup (Windows: setup.cmd), pick satellite; no token needed.")
+    print("Watch them arrive: orbital satellites · close early: orbital satellites invite --close")
+    return 0
+
+
+def _invite_token(args) -> int:
     from orbital.core.config import load_config
     from orbital.core.net import tailscale_self
     from orbital.core.secrets import Secrets

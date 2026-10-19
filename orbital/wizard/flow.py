@@ -509,11 +509,10 @@ class Wizard:
             ui._chosen("Join token", "not needed", f"already joined as {identity.get('satellite_id')}")
             self.extras["join_token"] = ""
             return
-        token = ui.ask_secret("Join token (the hub's setup printed it; `orbital satellites invite` shows it again)",
-                              preset=tok, why=why, allow_empty=False) if (tok or ui.interactive) else ""
-        if not token:
-            self.problems.append("no join token: pass satellite.join_token in the answers file or set ORBITAL_JOIN_TOKEN")
-        self.extras["join_token"] = token
+        # No token needed when the hub's join window is open (`orbital satellites invite` there): leave it empty.
+        token = ui.ask_secret("Join token (leave empty: run `orbital satellites invite` on the hub and this machine "
+                              "joins by itself)", preset=tok, why=why, allow_empty=True) if (tok or ui.interactive) else ""
+        self.extras["join_token"] = token or ""
 
     def _identity(self) -> dict:
         f = self.paths.satellite_data / "identity.json"
@@ -898,16 +897,20 @@ class Wizard:
                 self.problems.append("the hub doesn't accept this machine's token any more: re-run with --reconfigure "
                                      "and a fresh join token")
             return
-        token = self.extras.get("join_token")
-        if not token:
-            ui.fail("not joined: no join token")
-            return
+        token = self.extras.get("join_token") or ""
         self.ops.note(f"join the hub at {url} (POST /v1/satellites/join)")
         if self.opts.dry_run:
             return
         try:
             info = self.deps["join_hub"](url, token, cfg)
         except Exception as exc:  # noqa: BLE001 (JoinError and network errors)
+            from orbital.satellite.join import JoinClosed
+            if isinstance(exc, JoinClosed):
+                # Not a failure: the satellite service keeps trying and joins as soon as the hub opens joining.
+                ui.warn("the hub isn't open for new machines right now. On the hub run `orbital satellites invite` "
+                        "(or tap Add machines in the app): this machine joins by itself within a minute.")
+                self.notes.append("waiting to join: open joining on the hub with `orbital satellites invite`")
+                return
             ui.fail(f"join failed: {exc}")
             self.problems.append(f"join failed: {exc}")
             return

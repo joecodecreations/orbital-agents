@@ -578,3 +578,27 @@ enum AgentJobsSort {
         }
     }
 }
+
+
+/// The hub's join window (`/v1/satellites/invite`): while open, machines on your Tailscale account join by themselves.
+struct JoinWindowStatus: Codable, Equatable {
+    var open: Bool
+    var until: String?
+    var secondsLeft: Int
+    var joined: [String]
+
+    enum CodingKeys: String, CodingKey {
+        case open, until, joined
+        case secondsLeft = "seconds_left"
+    }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        open = (try? c.decode(Bool.self, forKey: .open)) ?? false
+        until = try? c.decode(String.self, forKey: .until)
+        secondsLeft = (try? c.decode(Int.self, forKey: .secondsLeft)) ?? 0
+        joined = (try? c.decode([String].self, forKey: .joined)) ?? []
+    }
+
+    var untilDate: Date? { OrbitalDates.parse(until) }
+}

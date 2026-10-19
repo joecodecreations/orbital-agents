@@ -226,7 +226,8 @@ Windows machines run the satellite service, the watchdog and, if you want, the b
 | Symptom | Fix |
 |---|---|
 | The wizard or `orbital satellite find` finds no hub | `tailscale status` on both machines; is the hub's service up (`orbital status` on the hub)? Try `curl http://<hub>:7700/v1/hub/info` from the satellite |
-| `join failed: the hub refused the join (401)` | wrong join token; run `orbital satellites invite` on the hub again |
+| `the hub isn't open for new machines` / `joining is closed` | on the hub run `orbital satellites invite` (or Add machines in the app); the machine joins by itself within ~20 s |
+| `join failed: the hub refused the join (401)` | wrong join token (`orbital satellites invite --token` shows it), or the machine isn't on the same Tailscale account as the hub |
 | `join failed: … ip … is not inside hub.allow_networks` | the satellite reported a non-Tailscale address; check `tailscale ip` on it, or that `satellite.bind` is `tailscale` |
 | A machine shows offline | `orbital satellite status` there; `orbital logs satellite`; is Tailscale up on both ends? |
 | `502 … join it again` when starting a job | the hub's copy of that machine's token is stale; run `orbital satellite join` on the machine again |

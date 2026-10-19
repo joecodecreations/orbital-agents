@@ -77,7 +77,7 @@ On Windows (PowerShell, with [Git](https://git-scm.com/download/win) and [Tailsc
 git clone https://github.com/joecodecreations/orbital-agents; cd orbital-agents; .\setup.cmd
 ```
 
-It finds the hub over Tailscale and asks for the join token (on the hub, `orbital satellites invite` prints it). Without a terminal to answer in (an AI agent running setup, or `--yes`), pass it: `ORBITAL_JOIN_TOKEN='<token>' ./setup --yes`, or join afterwards with `orbital satellite join <hub_url> <token>`. After that, `orbital satellites` on any machine lists it, and you can start agents there from the app or the command line. Details: [docs/SATELLITES.md](docs/SATELLITES.md).
+First open joining on the hub: `orbital satellites invite`, or **Add machines** in the app under System → Satellites. For the next 15 minutes any machine on your Tailscale account that runs the satellite connects by itself, no token to copy. Setup finds the hub, and a machine that was set up while joining was closed connects on its own as soon as you open it. Outside that window only the join token works (`orbital satellites invite --token`). After that, `orbital satellites` on any machine lists it, and you can start agents there from the app or the command line. Details: [docs/SATELLITES.md](docs/SATELLITES.md).
 
 ## Set up with an AI agent
 

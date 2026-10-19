@@ -149,9 +149,14 @@ def test_orbital_satellites_and_agents(hub_server, capsys, monkeypatch):
     server, hub = hub_server
     assert orbital(["satellites"]) == 0
     assert "No satellites yet" in capsys.readouterr().out
-    assert orbital(["satellites", "invite", "--json"]) == 0
+    assert orbital(["satellites", "invite", "--token", "--json"]) == 0
     invite = json.loads(capsys.readouterr().out)
     assert invite["join_token"] == JOIN and invite["hub_urls"]
+    assert orbital(["satellites", "invite", "--json", "--minutes", "5"]) == 0
+    window = json.loads(capsys.readouterr().out)
+    assert window["open"] is True and 0 < window["seconds_left"] <= 300
+    assert orbital(["satellites", "invite", "--close", "--json"]) == 0
+    assert json.loads(capsys.readouterr().out)["open"] is False
 
     sat_app, state = fake_satellite()
     with Server(sat_app) as sat:

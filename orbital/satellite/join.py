@@ -46,6 +46,10 @@ class JoinError(RuntimeError):
     pass
 
 
+class JoinClosed(JoinError):
+    """The hub isn't accepting machines without the token right now (its join window is closed)."""
+
+
 # --------------------------------------------------------------------------- identity
 
 
@@ -460,24 +464,27 @@ def join_hub(hub_url: str, join_token: str, cfg: Config | None = None, *, write_
     cfg = cfg or load_config()
     cfg.paths.ensure()
     url = normalize_hub_url(hub_url)
-    if not join_token:
-        raise JoinError("no join token given (the hub prints one: `orbital satellites invite`)")
     store = Secrets(cfg.paths)
+    # No token: the hub lets this machine in while its join window is open (`orbital satellites invite`).
+    join_token = join_token or store.get(JOIN_TOKEN_KEY) or ""
     satellite_token = store.get(SATELLITE_TOKEN_KEY) or store.ensure_token(SATELLITE_TOKEN_KEY)
     caps = capabilities(cfg)
     body = describe_self(cfg, local=local)
     body.update({"satellite_token": satellite_token, "capabilities": caps, "version": __version__,
                  "heartbeat_seconds": int(float(cfg.get("satellite.heartbeat_seconds", 60) or 60))})
     try:
-        response = httpx.post(f"{url}/v1/satellites/join", json=body,
-                              headers={"X-Orbital-Join-Token": join_token}, timeout=timeout)
+        headers = {"X-Orbital-Join-Token": join_token} if join_token else {}
+        response = httpx.post(f"{url}/v1/satellites/join", json=body, headers=headers, timeout=timeout)
     except httpx.HTTPError as exc:
         raise JoinError(f"could not reach the hub at {url}: {exc.__class__.__name__}: {exc}") from exc
     if response.status_code != 200:
         try:
-            detail = response.json().get("detail")
+            answer = response.json()
+            detail, code = answer.get("detail") or answer.get("error"), answer.get("code")
         except ValueError:
-            detail = response.text[:200]
+            detail, code = response.text[:200], None
+        if code == "join_closed":
+            raise JoinClosed(str(detail))
         raise JoinError(f"the hub refused the join ({response.status_code}): {detail}")
     try:
         data = response.json()
@@ -487,6 +494,8 @@ def join_hub(hub_url: str, join_token: str, cfg: Config | None = None, *, write_
     if not satellite_id or not hub_token:
         raise JoinError("the hub's join answer has no satellite_id or hub_token")
     store.set(HUB_TOKEN_KEY, str(hub_token))
+    if isinstance(data.get("join_token"), str) and data["join_token"] and data["join_token"] != store.get(JOIN_TOKEN_KEY):
+        store.set(JOIN_TOKEN_KEY, data["join_token"])  # joined through the open window: rejoin later by itself
     # One browser token for the fleet: the hub relays to every bridge with its own, so this
     # machine's bridge takes it (every join refreshes it). A running bridge picks it up on restart.
     browser_token = data.get("browser_token")
