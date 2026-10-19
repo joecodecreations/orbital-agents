@@ -9,6 +9,7 @@ fractional seconds, unescaped slashes, and nil optionals left out.
 from __future__ import annotations
 
 import json
+import math
 import os
 import re
 import secrets
@@ -308,7 +309,7 @@ class Settings:
 _OPS = {"start": "start", "add": "start", "sub": "sub", "update": "update", "note": "update",
         "done": "done", "complete": "done", "finish": "done"}
 COMMAND_KEYS = ("op", "id", "parent", "agent", "agentLabel", "machine", "title", "details", "appendDetails",
-                "note", "summary", "workspace", "media", "sentAt")
+                "note", "summary", "workspace", "media", "progress", "usage", "sentAt")
 
 
 class CommandError(ValueError):
@@ -363,6 +364,15 @@ def parse_command(obj: Any) -> dict:
         if not isinstance(obj["appendDetails"], bool):
             raise CommandError("appendDetails must be true or false")
         cmd["appendDetails"] = obj["appendDetails"]
+    if obj.get("progress") is not None:
+        p = obj["progress"]
+        if isinstance(p, bool) or not isinstance(p, (int, float)):
+            raise CommandError("progress must be a number from 0 to 100")
+        cmd["progress"] = p
+    if obj.get("usage") is not None:
+        if not isinstance(obj["usage"], dict):
+            raise CommandError("usage must be a JSON object")
+        cmd["usage"] = obj["usage"]
     if obj.get("sentAt") is not None:
         sent = norm_date(obj["sentAt"])
         if sent is None:
@@ -515,6 +525,69 @@ def _opt(out: dict, src: dict, key: str) -> None:
         out[key] = src[key]
 
 
+def clamp_progress(v: Any) -> int | None:
+    """A percent 0-100 from the wire or items.json; None when it isn't a number."""
+    if isinstance(v, bool) or not isinstance(v, (int, float)) or v != v:
+        return None
+    return max(0, min(100, int(_round_half_up(v))))
+
+
+def _round_half_up(x: float) -> float:
+    """Swift's .rounded() (Python's round() is banker's rounding)."""
+    return math.floor(x + 0.5) if x >= 0 else -math.floor(-x + 0.5)
+
+
+def _opt_progress(out: dict, src: dict) -> None:
+    p = clamp_progress(src.get("progress"))
+    if p is not None:
+        out["progress"] = p
+    if isinstance(src.get("usage"), dict):
+        out["usage"] = src["usage"]
+
+
+# MARK: the progress bar (same rule as ShownProgress in Models.swift and the iPhone app)
+
+_CHECKBOX_RE = re.compile(r"^[ \t]*[-*+] +\[([ xX])\]")
+PROGRESS_CAPTIONS = {
+    "done": "done",
+    "reported": "reported by the agent",
+    "checklist": "estimated from the task list",
+    "subagents": "estimated from subagents",
+}
+
+
+def checklist(markdown: str | None) -> tuple[int, int] | None:
+    """(checked, total) markdown task boxes: `- [ ]`, `* [x]`, `+ [X]`; None when there are none."""
+    checked = total = 0
+    for line in (markdown or "").split("\n"):
+        m = _CHECKBOX_RE.match(line)
+        if m:
+            total += 1
+            checked += m.group(1) != " "
+    return (checked, total) if total else None
+
+
+def shown_progress(node: dict, subagents: list[dict] | None = None) -> dict | None:
+    """What the bar shows for an item (pass its subagents) or a subagent (pass none):
+    done → 100; else the agent's reported figure; else checked task boxes in the details; else the
+    subagents' average. Estimates stop at 99 until the work is done and show as "~40%".
+    Returns {"percent", "source", "estimate", "label", "caption"} or None."""
+    if node.get("status") == "done":
+        percent, source = 100, "done"
+    elif clamp_progress(node.get("progress")) is not None:
+        percent, source = clamp_progress(node.get("progress")), "reported"
+    elif (boxes := checklist(node.get("details"))) is not None:
+        percent, source = min(99, int(_round_half_up(boxes[0] / boxes[1] * 100))), "checklist"
+    elif subagents:
+        total = sum(100 if s.get("status") == "done" else (clamp_progress(s.get("progress")) or 0) for s in subagents)
+        percent, source = min(99, int(_round_half_up(total / len(subagents)))), "subagents"
+    else:
+        return None
+    estimate = source in ("checklist", "subagents")
+    return {"percent": percent, "source": source, "estimate": estimate,
+            "label": ("~" if estimate else "") + f"{percent}%", "caption": PROGRESS_CAPTIONS[source]}
+
+
 def normalize_note(n: Any) -> dict | None:
     if not isinstance(n, dict) or not isinstance(n.get("text"), str):
         return None
@@ -539,6 +612,7 @@ def normalize_sub(s: Any) -> dict | None:
     }
     for key in ("agentLabel", "machine", "summary"):
         _opt(out, s, key)
+    _opt_progress(out, s)
     if norm_date(s.get("completedAt")):
         out["completedAt"] = norm_date(s.get("completedAt"))
     return out
@@ -567,6 +641,7 @@ def normalize_item(i: Any) -> dict | None:
     }
     for key in ("transcript", "agent", "agentLabel", "machine", "workspace", "completedBy", "summary"):
         _opt(out, i, key)
+    _opt_progress(out, i)
     if norm_date(i.get("completedAt")):
         out["completedAt"] = norm_date(i.get("completedAt"))
     return out

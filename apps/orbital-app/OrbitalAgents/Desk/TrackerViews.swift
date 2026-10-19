@@ -120,6 +120,8 @@ struct TrackerListView: View {
     @AppStorage("tracker.who") private var whoRaw = TrackerWho.all.rawValue
     @State private var query = ""
     @State private var items: [TrackerSummary] = []
+    /// Live items' estimated % (task list or subagents), for those the agent has not given one.
+    @State private var estimates: [String: TrackerProgress] = [:]
     @State private var total = 0
     @State private var done = 0
     /// How far the server page has been read, so Show more stays aligned when a row is dropped.
@@ -196,7 +198,7 @@ struct TrackerListView: View {
                 if pane == .live {
                     ForEach(visibleItems) { item in
                         NavigationLink(value: BrowseRoute.trackerItem(item.id)) {
-                            TrackerLiveCard(item: item)
+                            TrackerLiveCard(item: item, estimate: estimates[item.id])
                         }
                         .buttonStyle(OrbitalPressStyle())
                     }
@@ -461,7 +463,26 @@ struct TrackerListView: View {
             // A newer filter or search replaced this load.
             if Task.isCancelled || (error as? URLError)?.code == .cancelled || error is CancellationError { return }
             self.error = (error as? OrbitalAPIError)?.shortReason ?? error.localizedDescription
+            return
         }
+        loading = false
+        if live { await refreshEstimates(api) }
+    }
+
+    /// A list row carries only the agent's own %. A live item without one reads its task list and
+    /// subagents for an estimate, the way the Mac tracker does. A failed read keeps the last one.
+    private func refreshEstimates(_ api: DeskAPI) async {
+        var next: [String: TrackerProgress] = [:]
+        for item in items where item.isActive && item.progress == nil && !item.hubSentProgress {
+            guard !Task.isCancelled else { return }
+            if let detail = try? await api.trackerItem(item.id) {
+                if let shown = detail.shownProgress { next[item.id] = shown }
+            } else if let old = estimates[item.id] {
+                next[item.id] = old
+            }
+        }
+        guard !Task.isCancelled else { return }
+        estimates = next
     }
 }
 
@@ -584,11 +605,55 @@ struct TrackerBlinkOverlay: View {
     }
 }
 
+/// A tracker progress bar: a thin rounded track, a fill that slides to each new figure, and the
+/// percent at its right ("~40%" for an estimate). `onColor` draws it in white for a coloured card.
+struct TrackerProgressBar: View {
+    let progress: TrackerProgress
+    var onColor = false
+    var tint: Color = OrbitalTheme.accent
+    var height: CGFloat = 5
+    var showsLabel = true
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    private var track: Color { onColor ? .white.opacity(0.25) : .white.opacity(0.08) }
+    private var fill: Color {
+        if onColor { return .white.opacity(0.9) }
+        return progress.percent >= 100 ? OrbitalTheme.success : tint
+    }
+
+    var body: some View {
+        HStack(spacing: 8) {
+            GeometryReader { geo in
+                ZStack(alignment: .leading) {
+                    Capsule().fill(track)
+                    Capsule().fill(fill)
+                        .frame(width: max(height, geo.size.width * CGFloat(min(max(progress.percent, 0), 100)) / 100))
+                }
+            }
+            .frame(height: height)
+            .animation(reduceMotion ? nil : .spring(response: 0.5, dampingFraction: 0.85), value: progress.percent)
+            if showsLabel {
+                Text(progress.label)
+                    .font(.caption2.weight(.bold).monospacedDigit())
+                    .foregroundStyle(onColor ? .white : OrbitalTheme.textSecondary)
+                    .contentTransition(.numericText())
+                    .animation(reduceMotion ? nil : .default, value: progress.percent)
+            }
+        }
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("Progress")
+        .accessibilityValue(progress.spoken)
+    }
+}
+
 /// One running item: who, title, and the latest note, on the same color as its Mac bubble.
 struct TrackerLiveCard: View {
     let item: TrackerSummary
+    /// The task list or subagents' estimate, when the agent has not sent its own % yet.
+    var estimate: TrackerProgress?
 
     private var color: Color { TrackerPalette.color(item.colorIndex ?? 0) }
+    private var progress: TrackerProgress? { item.shownProgress ?? estimate }
 
     private var who: String {
         var parts = [item.agentLabel ?? item.agentName]
@@ -623,8 +688,13 @@ struct TrackerLiveCard: View {
                     .foregroundStyle(.white.opacity(item.lastNote == nil ? 0.65 : 0.92))
                     .lineLimit(2)
                     .multilineTextAlignment(.leading)
-                if let progress = item.progress {
-                    ProgressStrip(percent: progress, tint: .white)
+                if let progress {
+                    TrackerProgressBar(progress: progress, onColor: true)
+                        .padding(.top, 2)
+                } else {
+                    Text("No % yet")
+                        .font(.caption2.weight(.semibold))
+                        .foregroundStyle(.white.opacity(0.6))
                 }
                 if let usage = item.usage {
                     Text(usage.short)
@@ -656,7 +726,7 @@ struct TrackerLiveCard: View {
         )
         .shadow(color: color.opacity(0.35), radius: 8, y: 4)
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel("\(who). \(item.title). \(item.lastNote ?? "Just started"). Working.")
+        .accessibilityLabel("\(who). \(item.title). \(item.lastNote ?? "Just started"). Working. \(progress.map { "Progress \($0.spoken)." } ?? "No percent yet.")")
     }
 
     private func meta(_ text: String, system: String) -> some View {
@@ -697,8 +767,8 @@ struct TrackerRow: View {
                         .foregroundStyle(OrbitalTheme.textSecondary)
                         .lineLimit(2)
                 }
-                if item.isActive, let progress = item.progress {
-                    ProgressStrip(percent: progress)
+                if item.isActive, let progress = item.shownProgress {
+                    TrackerProgressBar(progress: progress, tint: AgentStyle.color(item.agentName))
                 }
                 if let usage = item.usage {
                     UsageLine(usage: usage)
@@ -785,7 +855,7 @@ struct TrackerItemView: View {
                         section("Details") { DeskMarkdown(text: item.details, onImage: openImage) }
                     }
                     if !item.notes.isEmpty {
-                        section("Progress") { NotesTimeline(notes: item.notes) }
+                        section("Progress notes") { NotesTimeline(notes: item.notes) }
                     }
                     if !item.subagents.isEmpty {
                         section("Subagents") {
@@ -873,13 +943,40 @@ struct TrackerItemView: View {
                     .font(.caption)
                     .foregroundStyle(OrbitalTheme.textTertiary)
             }
-            if let progress = item.progress {
-                ProgressStrip(percent: progress)
-            }
+            progressRow(item)
             if let usage = item.usage {
                 UsageLine(usage: usage, showsBreakdown: true)
             }
         }
+    }
+
+    /// The % in full: a wide bar, the figure, and where it comes from.
+    private func progressRow(_ item: TrackerDetail) -> some View {
+        let shown = item.shownProgress
+        let caption = shown?.caption ?? TrackerProgress.waitingCaption
+        return VStack(alignment: .leading, spacing: 6) {
+            HStack(alignment: .firstTextBaseline) {
+                Text("Progress")
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(OrbitalTheme.textSecondary)
+                Spacer()
+                Text(shown?.label ?? "No % yet")
+                    .font((shown == nil ? Font.caption : .subheadline).weight(.bold).monospacedDigit())
+                    .foregroundStyle(shown == nil ? OrbitalTheme.textTertiary : OrbitalTheme.text)
+            }
+            if let shown {
+                TrackerProgressBar(progress: shown, tint: TrackerPalette.color(item.colorIndex ?? 0), height: 8, showsLabel: false)
+            } else {
+                Capsule().fill(Color.white.opacity(0.08)).frame(height: 8)
+            }
+            Text(caption.prefix(1).uppercased() + caption.dropFirst())
+                .font(.caption2)
+                .foregroundStyle(OrbitalTheme.textTertiary)
+        }
+        .padding(.top, 2)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("Progress")
+        .accessibilityValue(shown.map { $0.isEstimate ? $0.spoken : "\($0.spoken), \($0.caption)" } ?? "No percent yet, \(caption)")
     }
 
     private func section<Content: View>(_ title: String, @ViewBuilder content: () -> Content) -> some View {
@@ -937,14 +1034,15 @@ struct SubagentCard: View {
                             .font(.caption)
                             .foregroundStyle(sub.status == "active" ? OrbitalTheme.success : OrbitalTheme.textTertiary)
                             .lineLimit(1)
-                        if sub.status == "active", let progress = sub.progress {
-                            ProgressStrip(percent: progress)
+                        if let progress = sub.shownProgress {
+                            TrackerProgressBar(progress: progress, tint: AgentStyle.color(sub.agentName), height: 4)
+                                .padding(.top, 2)
                         }
                         if let usage = sub.usage {
                             UsageLine(usage: usage)
                         }
                     }
-                    Spacer()
+                    .frame(maxWidth: .infinity, alignment: .leading)
                     Image(systemName: "chevron.down")
                         .font(.caption.weight(.bold))
                         .rotationEffect(.degrees(open ? 180 : 0))

@@ -63,6 +63,7 @@ struct BubbleView: View {
     private var color: Color { Palette.color(item.colorIndex) }
     private var done: Bool { item.status == .done }
     private var runningSubs: Int { item.subagents.filter { $0.status == .active }.count }
+    private var shown: ShownProgress? { item.shownProgress }
 
     var body: some View {
         HStack(spacing: 6) {
@@ -79,13 +80,14 @@ struct BubbleView: View {
                 .truncationMode(.tail)
                 .frame(maxWidth: 230, alignment: .leading)
                 .fixedSize(horizontal: true, vertical: false)
-            if !done, let progress = item.progress {
-                Text("\(progress)%")
+            if !done, let shown {
+                Text(shown.label)
                     .font(.system(size: 10.5, weight: .bold, design: .rounded).monospacedDigit())
                     .foregroundStyle(.white.opacity(0.85))
                     .padding(.horizontal, 5)
                     .padding(.vertical, 1)
                     .background(Capsule().fill(.white.opacity(0.16)))
+                    .help("\(shown.label) · \(shown.caption)")
             }
             if item.processing {
                 ProgressView().controlSize(.mini).tint(.white)
@@ -117,6 +119,9 @@ struct BubbleView: View {
         .frame(height: 30)
         .background(background)
         .overlay { if !done { BlinkOverlay() } }
+        .overlay(alignment: .bottom) {
+            if !done, let shown { BubbleProgressBar(percent: shown.percent, estimate: shown.isEstimate) }
+        }
         .scaleEffect(hover ? 1.025 : 1)
         .animation(.easeOut(duration: 0.12), value: hover)
         .contentShape(Capsule())
@@ -134,6 +139,32 @@ struct BubbleView: View {
             Capsule().strokeBorder(isSelected ? Color.white.opacity(0.95) : color.opacity(0.95),
                                    lineWidth: isSelected ? 1.6 : 1)
         }
+    }
+}
+
+/// A thin bar along the bottom of a bubble. Estimates (from a checklist or subagents) are dimmer.
+struct BubbleProgressBar: View {
+    let percent: Int
+    var estimate = false
+
+    var body: some View {
+        GeometryReader { geo in
+            let width = geo.size.width
+            ZStack(alignment: .leading) {
+                Capsule().fill(Color.black.opacity(0.3))
+                Capsule()
+                    .fill(Color.white.opacity(estimate ? 0.6 : 0.95))
+                    .frame(width: max(3, width * CGFloat(min(100, max(0, percent))) / 100))
+            }
+        }
+        .frame(height: 3)
+        .padding(.horizontal, 13)
+        .padding(.bottom, 2.5)
+        .animation(.easeOut(duration: 0.4), value: percent)
+        .allowsHitTesting(false)
+        .accessibilityElement()
+        .accessibilityLabel("Progress")
+        .accessibilityValue("\(percent) percent")
     }
 }
 

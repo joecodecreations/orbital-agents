@@ -46,8 +46,10 @@ struct ItemDetailBody: View {
             if !item.details.isEmpty {
                 section(item.isAI ? "Task" : "Details") { MarkdownView(text: item.details, store: store) }
             }
-            if item.progress != nil || item.usage != nil {
-                section("Progress and cost") { UsageSummary(progress: item.progress, usage: item.usage) }
+            if item.isAI || item.shownProgress != nil || item.usage != nil {
+                section(item.usage == nil ? "Progress" : "Progress and cost") {
+                    UsageSummary(progress: item.shownProgress, usage: item.usage, waiting: item.status == .active)
+                }
             }
             if !item.notes.isEmpty {
                 section("Progress") {
@@ -178,6 +180,15 @@ struct SubagentList: View {
                 withAnimation(.easeOut(duration: 0.15)) {
                     if isOpen { expanded.remove(sub.id) } else { expanded.insert(sub.id) }
                 }
+            }
+            if sub.status == .active, let shown = sub.shownProgress {
+                HStack(spacing: 6) {
+                    ProgressBar(percent: shown.percent, estimate: shown.isEstimate, height: 4)
+                    Text(shown.label)
+                        .font(.system(size: 9.5, weight: .bold).monospacedDigit())
+                        .foregroundStyle(.white.opacity(0.7))
+                }
+                .padding(.leading, 26)
             }
             if !isOpen, !sub.details.isEmpty {
                 Text(sub.details)
@@ -362,21 +373,60 @@ struct DetailWindowView: View {
 }
 
 
+/// A rounded bar, green at 100%. Estimates fill a little dimmer.
+struct ProgressBar: View {
+    let percent: Int
+    var estimate = false
+    var height: CGFloat = 5
+
+    var body: some View {
+        GeometryReader { geo in
+            ZStack(alignment: .leading) {
+                Capsule().fill(Color.white.opacity(0.15))
+                if percent > 0 {
+                    Capsule()
+                        .fill(percent >= 100 ? Palette.ok : Color.white.opacity(estimate ? 0.6 : 0.9))
+                        .frame(width: max(height, geo.size.width * CGFloat(min(100, percent)) / 100))
+                }
+            }
+        }
+        .frame(height: height)
+        .animation(.easeOut(duration: 0.4), value: percent)
+        .accessibilityElement()
+        .accessibilityLabel("Progress")
+        .accessibilityValue("\(percent) percent")
+    }
+}
+
 /// Percent complete as a bar, then tokens and the share of the subscription the work used.
 struct UsageSummary: View {
-    let progress: Int?
+    let progress: ShownProgress?
     let usage: TokenUsage?
+    /// Active work with no figure yet says it is waiting for one.
+    var waiting = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
             if let progress {
                 HStack(spacing: 8) {
-                    ProgressView(value: Double(progress), total: 100)
-                        .tint(progress >= 100 ? Palette.ok : .white.opacity(0.85))
-                    Text("\(progress)%")
+                    ProgressBar(percent: progress.percent, estimate: progress.isEstimate, height: 7)
+                    Text(progress.label)
                         .font(.system(size: 11, weight: .bold).monospacedDigit())
                         .foregroundStyle(.white.opacity(0.85))
                 }
+                Text(progress.caption)
+                    .font(.system(size: 10, weight: .medium))
+                    .foregroundStyle(.white.opacity(0.5))
+            } else if waiting {
+                HStack(spacing: 8) {
+                    ProgressBar(percent: 0, height: 7)
+                    Text("–")
+                        .font(.system(size: 11, weight: .bold).monospacedDigit())
+                        .foregroundStyle(.white.opacity(0.5))
+                }
+                Text("waiting for the agent's first %")
+                    .font(.system(size: 10, weight: .medium))
+                    .foregroundStyle(.white.opacity(0.5))
             }
             if let usage {
                 Text(Self.tokensLine(usage))

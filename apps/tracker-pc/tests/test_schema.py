@@ -20,9 +20,10 @@ from tracker_pc.store import TrackerStore
 
 ITEM_REQUIRED = {"id", "title", "details", "source", "colorIndex", "status", "createdAt", "updatedAt",
                  "dismissed", "processing", "notes", "media", "subagents"}
-ITEM_OPTIONAL = {"transcript", "agent", "agentLabel", "machine", "workspace", "completedAt", "completedBy", "summary"}
+ITEM_OPTIONAL = {"transcript", "agent", "agentLabel", "machine", "workspace", "completedAt", "completedBy", "summary",
+                 "progress", "usage"}
 SUB_REQUIRED = {"id", "agent", "title", "details", "status", "createdAt", "updatedAt", "notes", "media"}
-SUB_OPTIONAL = {"agentLabel", "machine", "completedAt", "summary"}
+SUB_OPTIONAL = {"agentLabel", "machine", "completedAt", "summary", "progress", "usage"}
 MEDIA_REQUIRED = {"id", "kind", "originalPath", "addedAt"}
 MEDIA_OPTIONAL = {"archivePath", "caption", "originalBytes", "durationSeconds", "machine"}
 DATE = re.compile(r"^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\dZ$")

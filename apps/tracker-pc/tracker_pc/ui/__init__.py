@@ -20,7 +20,7 @@ from typing import TYPE_CHECKING, Any
 
 from .. import PRODUCT_NAME, VERSION
 from ..config import platform_name
-from ..model import dumps, evidence_level, valid_id, write_atomic
+from ..model import dumps, evidence_level, shown_progress, valid_id, write_atomic
 
 if TYPE_CHECKING:
     from ..app import TrackerApp
@@ -28,6 +28,16 @@ if TYPE_CHECKING:
 HERE = Path(__file__).resolve().parent
 WIDTH = 500
 MIN_HEIGHT = 64
+
+
+def with_shown_progress(items: list[dict]) -> list[dict]:
+    """Adds `shown` (what the progress bar shows, model.shown_progress) to each item and subagent
+    of a snapshot copy for the panel; items.json and the HTTP API never carry it."""
+    for item in items:
+        for sub in item.get("subagents") or []:
+            sub["shown"] = shown_progress(sub)
+        item["shown"] = shown_progress(item, item.get("subagents") or [])
+    return items
 
 
 class Api:
@@ -49,7 +59,7 @@ class Api:
             toast = {"text": app.toast[0], "at": app.toast[1], "age": time.time() - app.toast[1]}
         return {
             "version": current,
-            "items": app.store.snapshot(all_items=True),
+            "items": with_shown_progress(app.store.snapshot(all_items=True)),
             "settings": app.settings.json(),
             "toast": toast,
             "machine": app.cfg.machine_name,

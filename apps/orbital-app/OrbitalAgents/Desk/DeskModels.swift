@@ -284,9 +284,18 @@ struct TrackerSummary: Identifiable, Equatable, Decodable {
     /// Percent complete as the agent reports it, and what the work cost so far.
     var progress: Int?
     var usage: AIUsage?
+    /// The hub's bar figure (`{percent, source}`): the agent's own %, or its estimate from the
+    /// task list or subagents. Missing from older hubs.
+    var shown: ShownFigure?
+
+    struct ShownFigure: Codable, Hashable {
+        var percent: Int
+        var source: String
+    }
 
     enum CodingKeys: String, CodingKey {
         case id, title, status, source, agent, machine, project, summary, cover, subagents, processing, progress, usage
+        case shown = "shown_progress"
         case agentName = "agent_name"
         case agentLabel = "agent_label"
         case createdAt = "created_at"
@@ -348,6 +357,8 @@ struct TrackerDetail: Identifiable, Equatable, Decodable {
     var deskTask: DeskTask?
     var progress: Int?
     var usage: AIUsage?
+    /// The Mac bubble color, so the progress bar matches the item's card.
+    var colorIndex: Int?
 
     enum CodingKeys: String, CodingKey {
         case id, title, status, source, agent, machine, project, details, transcript, summary, notes, media, subagents, progress, usage
@@ -358,9 +369,86 @@ struct TrackerDetail: Identifiable, Equatable, Decodable {
         case completedAt = "completed_at"
         case completedBy = "completed_by"
         case deskTask = "desk_task"
+        case colorIndex = "color_index"
     }
 
     var isActive: Bool { status == "active" }
+    var shownProgress: TrackerProgress? {
+        TrackerProgress.of(status: status, progress: progress, details: details, subagents: subagents.map { ($0.status, $0.progress) })
+    }
+}
+
+extension TrackerSummary {
+    /// The hub's figure when it sends one; otherwise done or the agent's own %. An older hub sends
+    /// no estimates, so those come from the item itself (`TrackerDetail.shownProgress`).
+    var shownProgress: TrackerProgress? {
+        if let shown, let source = TrackerProgress.Source(rawValue: shown.source) {
+            return TrackerProgress(percent: min(100, max(0, shown.percent)), source: status == "done" ? .done : source)
+        }
+        return TrackerProgress.of(status: status, progress: progress, details: "")
+    }
+
+    /// The hub sent its own figure (or nothing to estimate), so no detail read is needed.
+    var hubSentProgress: Bool { shown != nil }
+}
+
+extension TrackerSub {
+    var shownProgress: TrackerProgress? { TrackerProgress.of(status: status, progress: progress, details: details ?? "") }
+}
+
+/// What a tracker progress bar shows and where the number came from. The Mac tracker
+/// (`ShownProgress` in apps/tracker) uses the same rule, so both read the same.
+struct TrackerProgress: Equatable {
+    enum Source: String { case done, reported, checklist, subagents }
+    var percent: Int
+    var source: Source
+
+    /// Checklist and subagent figures are estimates and show as "~40%".
+    var isEstimate: Bool { source == .checklist || source == .subagents }
+    var label: String { (isEstimate ? "~" : "") + "\(percent)%" }
+
+    var caption: String {
+        switch source {
+        case .done: return "done"
+        case .reported: return "reported by the agent"
+        case .checklist: return "estimated from the task list"
+        case .subagents: return "estimated from subagents"
+        }
+    }
+
+    /// Read out as "Progress, 40 percent" or "about 40 percent, estimated from the task list".
+    var spoken: String { isEstimate ? "about \(percent) percent, \(caption)" : "\(percent) percent" }
+
+    static let waitingCaption = "waiting for the agent's first %"
+
+    /// Done → 100; the agent's own figure; else checked boxes in the markdown; else the subagents'
+    /// average. Estimates stop at 99 until the work is marked done.
+    static func of(status: String, progress: Int?, details: String, subagents: [(status: String, progress: Int?)] = []) -> TrackerProgress? {
+        if status == "done" { return TrackerProgress(percent: 100, source: .done) }
+        if let progress { return TrackerProgress(percent: min(100, max(0, progress)), source: .reported) }
+        if let (checked, total) = checklist(details), total > 0 {
+            return TrackerProgress(percent: min(99, Int((Double(checked) / Double(total) * 100).rounded())), source: .checklist)
+        }
+        if !subagents.isEmpty {
+            let sum = subagents.reduce(0) { $0 + ($1.status == "done" ? 100 : min(100, max(0, $1.progress ?? 0))) }
+            return TrackerProgress(percent: min(99, Int((Double(sum) / Double(subagents.count)).rounded())), source: .subagents)
+        }
+        return nil
+    }
+
+    /// Markdown task boxes: `- [ ]`, `* [x]`, `+ [X]`.
+    static func checklist(_ markdown: String) -> (checked: Int, total: Int)? {
+        var checked = 0, total = 0
+        for line in markdown.split(separator: "\n", omittingEmptySubsequences: true) {
+            let t = line.drop { $0 == " " || $0 == "\t" }
+            guard let bullet = t.first, "-*+".contains(bullet) else { continue }
+            let rest = t.dropFirst()
+            guard rest.first == " " else { continue }
+            let box = rest.drop { $0 == " " }.prefix(3)
+            if box == "[ ]" { total += 1 } else if box == "[x]" || box == "[X]" { total += 1; checked += 1 }
+        }
+        return total > 0 ? (checked, total) : nil
+    }
 }
 
 struct TrackerPage: Decodable {

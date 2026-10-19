@@ -342,12 +342,12 @@ struct DeskNowStrip: View {
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 8) {
                     ForEach(running) { task in
-                        nowCard(agent: task.model ?? "agent", title: task.title, line: task.lastNote ?? "\(task.projectName) · \(task.status == "queued" ? "queued" : DeskTime.elapsed(since: task.startedAt))", spinning: task.status == "running") {
+                        nowCard(agent: task.model ?? "agent", title: task.title, line: task.lastNote ?? "\(task.projectName) · \(task.status == "queued" ? "queued" : DeskTime.elapsed(since: task.startedAt))", spinning: task.status == "running", progress: desk.trackerNow.first { $0.id == task.trackerId }?.shownProgress) {
                             if let tracker = task.trackerId { router.push(.trackerItem(tracker)) }
                         }
                     }
                     ForEach(others) { item in
-                        nowCard(agent: item.agentName, title: item.title, line: item.lastNote ?? item.project ?? DeskTime.short(item.updatedAt), spinning: false) {
+                        nowCard(agent: item.agentName, title: item.title, line: item.lastNote ?? item.project ?? DeskTime.short(item.updatedAt), spinning: false, progress: item.shownProgress) {
                             router.push(.trackerItem(item.id))
                         }
                     }
@@ -358,7 +358,7 @@ struct DeskNowStrip: View {
         }
     }
 
-    private func nowCard(agent: String, title: String, line: String, spinning: Bool, action: @escaping () -> Void) -> some View {
+    private func nowCard(agent: String, title: String, line: String, spinning: Bool, progress: TrackerProgress?, action: @escaping () -> Void) -> some View {
         Button(action: action) {
             HStack(alignment: .top, spacing: 8) {
                 AgentBadge(name: agent, size: 24)
@@ -374,6 +374,10 @@ struct DeskNowStrip: View {
                         .font(.caption2)
                         .foregroundStyle(OrbitalTheme.textTertiary)
                         .lineLimit(2)
+                    if let progress {
+                        TrackerProgressBar(progress: progress, tint: AgentStyle.color(agent), height: 4)
+                            .padding(.top, 3)
+                    }
                 }
             }
             .frame(width: 190, alignment: .leading)

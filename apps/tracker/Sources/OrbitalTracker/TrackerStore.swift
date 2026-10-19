@@ -280,6 +280,7 @@ final class TrackerStore {
                                    workspace: cmd.workspace, colorIndex: takeColor(),
                                    createdAt: min(cmd.sentAt ?? Date(), Date()))
             item.media = acceptMedia(cmd.media, itemID: id, subID: nil, machine: machine)
+            item.progress = cmd.progress.map { min(100, max(0, $0)) }
             withAnimation(.spring(response: 0.35, dampingFraction: 0.8)) { items.append(item) }
             event("added", ["id": id, "title": title, "source": "agent", "agent": agent, "machine": machine,
                             "workspace": cmd.workspace])
@@ -297,6 +298,7 @@ final class TrackerStore {
             var sub = SubTask(id: id, agent: agent, agentLabel: cmd.agentLabel, machine: machine,
                               title: String(title.prefix(200)), details: cmd.details ?? "")
             sub.media = acceptMedia(cmd.media, itemID: parent, subID: id, machine: machine)
+            sub.progress = cmd.progress.map { min(100, max(0, $0)) }
             withAnimation {
                 items[p].subagents.append(sub)
                 if items[p].subagents.count > Self.maxSubagents {
@@ -317,7 +319,7 @@ final class TrackerStore {
             guard let id = cmd.id else { throw StoreError(message: "id is required") }
             _ = try update(id: id, cmd: cmd, quiet: true)
             if let i = items.firstIndex(where: { $0.id == id }) {
-                if items[i].progress != nil { items[i].progress = 100 }
+                items[i].progress = 100
                 if items[i].status == .active {
                     let by = cmd.agent.map(Agents.normalize) ?? items[i].agent ?? "agent"
                     withAnimation(.easeOut(duration: 0.3)) { complete(index: i, by: by, summary: cmd.summary) }
@@ -331,6 +333,7 @@ final class TrackerStore {
                         items[p].subagents[s].completedAt = Date()
                     }
                 }
+                items[p].subagents[s].progress = 100
                 if let summary = cmd.summary { items[p].subagents[s].summary = summary }
                 event("sub_completed", ["id": id, "parent": items[p].id, "title": items[p].subagents[s].title])
             }

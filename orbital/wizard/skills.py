@@ -72,7 +72,8 @@ description: Use Orbital Agents from an AI agent - report work to the Agent Sate
 # Orbital Agents
 
 - Report work: `orbital-track start --agent <you> --title "2-5 words" --details "goal"` prints an ID;
-  `orbital-track update <ID> --note "..."`; `orbital-track done <ID> --summary "..."`.
+  `orbital-track update <ID> --note "..." --progress <0-100>` (every update; the tracker draws a bar);
+  `orbital-track done <ID> --summary "..."`.
 - Subagents (prompt contains `ORBITAL_TRACK_PARENT=<ID>`): `orbital-track sub <ID> --agent <you> --title "..."`.
 - Health: `orbital doctor` (add `--fix` for safe repairs); services: `orbital services status`.
 - Machines: `orbital satellites`; run an agent elsewhere through the hub.
@@ -86,7 +87,8 @@ You are **{{agent}}**. Report real work to the Agent Satellite Tracker with `orb
 
 1. Starting multi-step work: `orbital-track start --agent {{agent}} --title "<2-5 word title>" --details "<goal, project>"`.
    It prints an ID; remember it (shell variables don't survive between tool calls).
-2. Milestones: `orbital-track update <ID> --note "<what just happened>"` (attach screenshots with `--media /abs/file.png`).
+2. Every milestone: `orbital-track update <ID> --note "<what just happened>" --progress <0-100>` (required: how much of the
+   whole job is done; it drives the progress bar). Attach screenshots with `--media /abs/file.png`.
 3. Finished or stopping: `orbital-track done <ID> --summary "<what changed, where, what's left>"`.
 4. If your prompt contains `ORBITAL_TRACK_PARENT=<ID>`, you are a subagent: use
    `orbital-track sub <ID> --agent {{agent}} --title "<your piece>"` and `orbital-track done <SUB_ID>`, never `start`.

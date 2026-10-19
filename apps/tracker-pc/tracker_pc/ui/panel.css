@@ -87,6 +87,12 @@ button { font: inherit; color: inherit; border: 0; background: none; cursor: poi
 .bubble .subs { display: inline-flex; align-items: center; gap: 2px; font-size: 9.5px; font-weight: 800; padding: 2px 5px; border-radius: 8px; background: rgba(0,0,0,0.28); }
 .bubble .x { width: 17px; height: 17px; border-radius: 50%; display: grid; place-items: center; background: rgba(0,0,0,0.25); color: rgba(255,255,255,0.85); font-size: 9px; font-weight: 900; flex: none; position: relative; z-index: 1; }
 .bubble .x:hover { background: rgba(0,0,0,0.5); color: #fff; }
+.bubble .pct { font-size: 10.5px; font-weight: 800; font-variant-numeric: tabular-nums; color: rgba(255,255,255,0.9); flex: none; }
+.bubble .pct.est { color: rgba(255,255,255,0.72); }
+/* A thin bar along the bottom of a live bubble; estimates (task list / subagents) fill dimmer. */
+.bubble .pbar { position: absolute; left: 12px; right: 12px; bottom: 2px; height: 3px; border-radius: 2px; background: rgba(255,255,255,0.2); overflow: hidden; pointer-events: none; z-index: 1; }
+.bubble .pbar > span { display: block; height: 100%; min-width: 3px; border-radius: 2px; background: rgba(255,255,255,0.9); transition: width 0.45s ease-out; }
+.bubble .pbar.est > span { background: rgba(255,255,255,0.62); }
 .empty { padding: 10px 14px; color: var(--fg-2); font-size: 12px; border-radius: 14px; }
 
 /* Agent icons */
@@ -120,6 +126,19 @@ button { font: inherit; color: inherit; border: 0; background: none; cursor: poi
 .md a { color: #8fc2ff; text-decoration: none; cursor: pointer; }
 .md img.inline { max-width: 100%; max-height: 180px; border-radius: 8px; display: block; margin: 4px 0; cursor: zoom-in; }
 .md .img-missing { color: var(--fg-3); font-style: italic; }
+.prog { position: relative; flex: 1; min-width: 0; height: 5px; border-radius: 4px; background: rgba(255,255,255,0.15); overflow: hidden; }
+.prog > span { display: block; height: 100%; border-radius: 4px; background: rgba(255,255,255,0.9); transition: width 0.45s ease-out; }
+.prog > span[data-to="0"] { min-width: 0; opacity: 0; }
+.prog.est > span { background: rgba(255,255,255,0.6); }
+.prog.full > span { background: var(--ok); }
+.prog.big { height: 7px; }
+.prog.mini { height: 4px; }
+.progress-row { display: flex; align-items: center; gap: 8px; }
+.progress-row .plabel { font-size: 12px; font-weight: 800; font-variant-numeric: tabular-nums; min-width: 34px; text-align: right; }
+.progress-row .plabel.none { color: var(--fg-3); }
+.pcaption { font-size: 10.5px; font-weight: 500; color: var(--fg-3); margin: 2px 0 6px; }
+.sub .sub-prog { display: flex; align-items: center; gap: 6px; margin: 3px 0 1px 32px; }
+.sub .sub-prog .plabel { font-size: 9.5px; font-weight: 800; font-variant-numeric: tabular-nums; color: var(--fg-2); }
 .notes { display: grid; grid-template-columns: auto 1fr; gap: 3px 12px; font-size: 12.3px; }
 .notes .t { color: var(--fg-3); font-size: 11.5px; white-space: nowrap; }
 .media { display: flex; flex-wrap: wrap; gap: 7px; }

@@ -11,7 +11,7 @@
   "created_at": "@now-6m",
   "updated_at": "@now-1m",
   "last_note": "Primary upstream slow since 13:05",
-  "details": "Read the DNS filter logs and explain the slow lookups.",
+  "details": "Read the DNS filter logs and explain the slow lookups.\n\n- [x] Pull the last hour of resolver logs\n- [x] Time each upstream server\n- [ ] Find when the slowdown started\n- [ ] Check the router's DNS settings\n- [ ] Write up the cause and a fix",
   "notes": [
     {
       "at": "@now-1m",

@@ -14,15 +14,18 @@ orbital-track — report AI work to Orbital Agents - Agent Satellite Tracker
 
 MAIN agents (talking to the user directly):
   orbital-track start --agent <claude|chatgpt|grok|gemini|NAME> --title "2-5 word title" \\
-                      [--details "markdown"] [--workspace DIR] [--label "Claude Code"] [--media FILE]...
+                      [--details "markdown"] [--progress 0-100] [--workspace DIR] [--label "Claude Code"] [--media FILE]...
       → prints the new ITEM ID. Remember it (shell variables don't survive between tool calls).
-  orbital-track update <ID> [--note "progress"] [--progress 0-100] [--details "markdown" [--append]] [--title "..."] [--media FILE]...
-      --progress: how far along the whole job is, in percent (report it at each milestone).
+  orbital-track update <ID> --progress 0-100 [--note "what just happened"] [--details "markdown" [--append]] [--title "..."] [--media FILE]...
+      --progress is REQUIRED at every update: how far along the WHOLE job is, 0-100 (your honest
+      estimate). It drives the bar on the tracker and the phone. Raise it as steps complete, e.g.
+      plan 10 → first change 30 → most done 60 → tests passing 85; `done` sets 100.
   orbital-track done   <ID> [--summary "markdown: what changed, where, what's next"] [--media FILE]...
       Done items leave the floating panel immediately and stay in history.
 
 SUBAGENTS (only when your prompt contains ORBITAL_TRACK_PARENT=<ID>):
   orbital-track sub <PARENT_ID> --agent <name> --title "..." [--details "..."]   → prints SUB ID
+  orbital-track update <SUB_ID> --progress 0-100 [--note "..."]   (at each milestone)
   orbital-track done <SUB_ID> --summary "..."
   Subagents never call `start`.
 
@@ -220,6 +223,14 @@ func resolveAgent() -> String {
     Agents.normalize(p.value("agent") ?? Agents.detectFromEnvironment(env) ?? "other")
 }
 
+/// `--progress 40`, `--progress 40%`: how far along the whole job is.
+func progressOption() -> Int? {
+    guard let raw = p.value("progress") else { return nil }
+    let digits = raw.trimmingCharacters(in: CharacterSet(charactersIn: "% "))
+    guard let value = Double(digits), (0...100).contains(value) else { fail("--progress takes a percent from 0 to 100") }
+    return Int(value.rounded())
+}
+
 // MARK: Commands
 
 switch verb {
@@ -244,6 +255,7 @@ case "start", "add", "sub":
     cmd.title = title
     cmd.details = text("details")
     cmd.workspace = p.value("workspace").map { MediaArchiver.normalizePath($0) } ?? FileManager.default.currentDirectoryPath
+    cmd.progress = progressOption()
     cmd.media = mediaInputs(itemID: parent ?? id, markdown: [cmd.details])
     deliver(cmd)
     print(id)
@@ -263,11 +275,7 @@ case "update", "note", "done", "complete", "finish":
     cmd.appendDetails = p.flags.contains("append") ? true : nil
     cmd.note = text("note") ?? (verb == "note" && p.positional.count > 2 ? p.positional[2...].joined(separator: " ") : nil)
     cmd.summary = text("summary")
-    if let raw = p.value("progress") {
-        let digits = raw.trimmingCharacters(in: CharacterSet(charactersIn: "% "))
-        guard let value = Double(digits), (0...100).contains(value) else { fail("--progress takes a percent from 0 to 100") }
-        cmd.progress = Int(value.rounded())
-    }
+    cmd.progress = progressOption()
     if let raw = p.value("usage-json") {
         guard let usage = try? TrackerJSON.decoder().decode(TokenUsage.self, from: Data(raw.utf8)) else {
             fail("--usage-json must be a JSON object like {\"engine\":\"grok\",\"inputTokens\":1200,\"outputTokens\":300}")
@@ -277,6 +285,10 @@ case "update", "note", "done", "complete", "finish":
     cmd.media = mediaInputs(itemID: id, markdown: [cmd.details, cmd.note, cmd.summary])
     deliver(cmd)
     print("ok")
+    if !isDone, cmd.progress == nil, !quiet {
+        FileHandle.standardError.write(Data(
+            "orbital-track: add --progress <0-100> to every update so the tracker's bar moves (e.g. --progress 40).\n".utf8))
+    }
     if isDone {
         let level = currentSettings().evidence
         if level != .off {

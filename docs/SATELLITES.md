@@ -147,7 +147,7 @@ Over HTTP: `POST /v1/satellites/{id}/agents/run {"agent", "prompt", "cwd"?, "tit
 - Output (stdout and stderr together) goes to `data/satellite/out/<job>.log`, capped at `satellite.max_output_bytes` (2 MB): the first 64 KB and the end are kept.
 - Status goes `queued` → `running` → `done`, `failed` or `cancelled`. Records stay `satellite.job_retention_days` (14), the newest 20 always.
 - With `track` on (the default) the job appears in the tracker as a bubble with the agent's icon and the machine name, and is closed when the job ends. Where `orbital-track` is installed (macOS with the tracker) the satellite reports through it. Where it isn't (Linux, or a Mac without the tracker app or with `tracker.enabled = false`), a joined satellite sends the same start and done commands straight to the hub's tracker relay (`POST /v1/tracker/command` with its hub token), from a background thread: the job never waits for the hub, commands queue in memory and are retried while the hub is unreachable, and a failure is logged once. On the hub machine without a tracker app there is nothing to relay to, so reporting is skipped.
-- The agent process gets `ORBITAL_JOB_ID`, `ORBITAL_AGENT`, `ORBITAL_MACHINE` and, when tracked, `ORBITAL_TRACK_ID` (its tracker item, so it can add notes with `orbital-track update $ORBITAL_TRACK_ID --note …`).
+- The agent process gets `ORBITAL_JOB_ID`, `ORBITAL_AGENT`, `ORBITAL_MACHINE` and, when tracked, `ORBITAL_TRACK_ID` (its tracker item, so it reports notes and progress with `orbital-track update $ORBITAL_TRACK_ID --note … --progress 0-100`).
 - A job still running when the satellite service restarts is marked failed ("interrupted"), and its leftover process is stopped.
 
 ## Custom agents

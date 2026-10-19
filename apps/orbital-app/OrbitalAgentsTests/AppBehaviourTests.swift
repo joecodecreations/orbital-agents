@@ -69,7 +69,7 @@ final class AppBehaviourTests: XCTestCase {
     func testConnectLinkHandsOverTheHub() {
         let router = AppRouter()
         var received: String?
-        router.handle(URL(string: "orbital://connect?hub=http://my-hub.example.ts.net:7700")!) { received = $0 }
+        router.handle(URL(string: "orbital://connect?hub=http://my-hub.example.ts.net:7700")!) { hub, _ in received = hub }
         XCTAssertEqual(received, "http://my-hub.example.ts.net:7700")
     }
 

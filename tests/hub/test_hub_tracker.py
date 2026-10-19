@@ -182,3 +182,16 @@ def test_an_agent_finishing_raises_an_alert(ports):
     assert alerts[0]["id"] == "tracker-a1-done"
     assert alerts[0]["body"] == "Login works again."
     assert alerts[0]["launch_url"] == "orbital://tracker?id=a1"
+
+
+def test_shown_progress_matches_the_mac_rule():
+    from orbital.hub.tracker import shown_progress
+
+    assert shown_progress({"status": "done", "progress": 30}) == {"percent": 100, "source": "done"}
+    assert shown_progress({"status": "active", "progress": 40, "details": "- [x] a\n- [ ] b"}) == {"percent": 40, "source": "reported"}
+    checklist = "Task\n- [x] cart\n  * [X] address\n+ [ ] payment\n- not a box"
+    assert shown_progress({"status": "active", "details": checklist}) == {"percent": 67, "source": "checklist"}
+    assert shown_progress({"status": "active", "details": "- [x] a\n- [x] b"})["percent"] == 99
+    subs = [{"status": "done"}, {"status": "active", "progress": 50}]
+    assert shown_progress({"status": "active", "subagents": subs}) == {"percent": 75, "source": "subagents"}
+    assert shown_progress({"status": "active", "details": "Just prose."}) == {"percent": 0, "source": "none"}

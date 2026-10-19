@@ -24,11 +24,17 @@ So the hub (`orbital/hub/tracker.py`), the iPhone/Mac app and every agent work w
   Drag the title to move the panel; it remembers where.
 - **Bubbles**: one per item in progress, oldest first, in the item's colour with the agent's icon
   (Claude, ChatGPT/Codex, Grok, Gemini, or a letter for any other agent; drop a logo at
-  `data/tracker/icons/<agent>.png` to use it), the running-subagent count and an **X** (mark done and clear).
-  Work in progress pulses.
+  `data/tracker/icons/<agent>.png` to use it), the running-subagent count, the percent done and an
+  **X** (mark done and clear), with a thin progress bar along the bottom. Work in progress pulses.
+- **Progress bar**: the same rule as the Mac tracker and the iPhone app (`model.shown_progress`):
+  done → 100%; else the agent's `--progress` (`40%`); else ticked `- [x]` boxes out of all
+  `- [ ]`/`- [x]` boxes in the details (`~40%`, at most 99); else the subagents' average, counting done
+  subagents as 100 (`~40%`, at most 99); else no bar. `~` marks an estimate, which fills dimmer.
 - **Details** (click a bubble): who, machine, start time and running time, workspace, the task as
-  markdown (task lists, code, links), progress notes, screenshots and videos (click for a lightbox;
-  videos play), summary, subagents (click to expand), **Mark done**.
+  markdown (task lists, code, links), **Progress** (a full-width bar, the percent and where it came
+  from: reported by the agent, estimated from the task list or from subagents, or "waiting for the
+  agent's first %"), progress notes, screenshots and videos (click for a lightbox; videos play),
+  summary, subagents (click to expand; running ones show a mini bar), **Mark done**.
 - **History** (⟲): Today / This Week / This Month / All, search across titles, details, notes,
   summaries and subagents, expandable rows, items per page.
 - **Screenshot evidence** (📷): Off / Min 1 / All, shared with the CLI, the hub and the phone through
@@ -116,14 +122,21 @@ with this folder's `.venv`, the repo's `.venv`, `$ORBITAL_PYTHON`, or the system
 identical to the Mac CLI ([`apps/tracker/README.md`](../tracker/README.md#orbital-track-the-agent-cli)):
 
 ```bash
-ID=$(orbital-track start --agent claude --title "Fix Login Redirect" --details "markdown…")
-orbital-track update $ID --note "found it" --media /tmp/shot.png
-orbital-track sub $ID --agent claude --title "Audit Routes"          # subagents → prints SUB_ID
-orbital-track done $ID --summary "markdown…" --media /tmp/after.png
+ID=$(orbital-track start --agent claude --title "Fix Login Redirect" --details "markdown…" [--progress 5])
+orbital-track update $ID --progress 40 --note "found it" --media /tmp/shot.png
+orbital-track sub $ID --agent claude --title "Audit Routes" [--progress 0]   # subagents → prints SUB_ID
+orbital-track update $SUB_ID --progress 50 --note "half the routes checked"
+orbital-track done $ID --summary "markdown…" --media /tmp/after.png      # done sets progress to 100
 orbital-track evidence [--json] | orbital-track evidence set <off|min1|all>
 orbital-track list [--all] [--json]
 orbital-track ping
 ```
+
+`--progress` (0-100, `40%` and decimals accepted) is **required at every update**: it is how far
+along the whole job is, and it moves the bubble's bar. An `update` (or `note`) without it still
+works (stdout `ok`, exit 0) but prints on stderr, unless `--quiet`:
+`orbital-track: add --progress <0-100> to every update so the tracker's bar moves (e.g. --progress 40).`
+`start` and `sub` take `--progress` too, and `done` sets 100 on items and subagents.
 
 Delivery is the same too: HTTP to this machine's tracker → `data/tracker/inbox/` → a per-user temp
 inbox (`/tmp/orbital-tracker-inbox-<uid>`, or `%TEMP%\orbital-tracker-inbox-<user>` on Windows), and on a

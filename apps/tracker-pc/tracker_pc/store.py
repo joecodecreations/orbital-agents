@@ -17,7 +17,7 @@ from .config import OrbitalConfig, TrackerPaths
 from .jsonlog import JSONLineLogger
 from .model import (
     CommandError, canonical_op, dumps, finished_at, make_id, markdown_paths, normalize_agent,
-    normalize_item, normalize_path, now_iso, parse_date, iso, valid_id, validate_command, write_atomic,
+    clamp_progress, normalize_item, normalize_path, now_iso, parse_date, iso, valid_id, validate_command, write_atomic,
 )
 from .relay import prune_files
 
@@ -259,6 +259,8 @@ class TrackerStore:
             if cmd.get("workspace") is not None:
                 item["workspace"] = cmd["workspace"]
             item["media"] = self._accept_media(cmd.get("media"), item_id, None, machine)
+            if clamp_progress(cmd.get("progress")) is not None:
+                item["progress"] = clamp_progress(cmd.get("progress"))
             self.items.append(item)
             self._event("added", id=item_id, title=title, source="agent", agent=agent, machine=machine,
                         workspace=cmd.get("workspace"))
@@ -284,6 +286,8 @@ class TrackerStore:
             if cmd.get("agentLabel") is not None:
                 sub["agentLabel"] = cmd["agentLabel"]
             sub["media"] = self._accept_media(cmd.get("media"), parent_id, sub_id, machine)
+            if clamp_progress(cmd.get("progress")) is not None:
+                sub["progress"] = clamp_progress(cmd.get("progress"))
             parent["subagents"].append(sub)
             del parent["subagents"][:-MAX_SUBAGENTS]
             parent["updatedAt"] = now
@@ -304,8 +308,7 @@ class TrackerStore:
         self._update(item_id, cmd, quiet=True)
         item = self.item(item_id)
         if item is not None:
-            if item.get("progress") is not None:
-                item["progress"] = 100
+            item["progress"] = 100
             if item["status"] == "active":
                 by = normalize_agent(cmd["agent"]) if cmd.get("agent") is not None else (item.get("agent") or "agent")
                 self._complete(item, by, cmd.get("summary"))
@@ -318,6 +321,7 @@ class TrackerStore:
                 if sub["status"] == "active":
                     sub["status"] = "done"
                     sub["completedAt"] = now_iso()
+                sub["progress"] = 100
                 if cmd.get("summary") is not None:
                     sub["summary"] = cmd["summary"]
                 self._event("sub_completed", id=item_id, parent=parent["id"], title=sub["title"])
@@ -351,9 +355,9 @@ class TrackerStore:
         if note:
             node["notes"].append({"at": now_iso(), "text": note})
             del node["notes"][:-MAX_NOTES]
-        progress = cmd.get("progress")
-        if isinstance(progress, (int, float)) and not isinstance(progress, bool):
-            node["progress"] = max(0, min(100, int(round(progress))))
+        progress = clamp_progress(cmd.get("progress"))
+        if progress is not None:
+            node["progress"] = progress
         usage = cmd.get("usage")
         if isinstance(usage, dict):
             node["usage"] = {**usage, "updatedAt": usage.get("updatedAt") or now_iso()}

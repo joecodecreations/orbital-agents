@@ -64,6 +64,10 @@ has the same actions, plus the data folder and the log.
 - **All / AI / Mine** filters bubbles and history. *Mine* is what you typed or said.
 - Bubbles are oldest → newest. Work in progress **blinks**. Done items leave the panel immediately
   (`orbital-track done`, **Mark done**, the bubble's **X**, or saying "I'm done with …").
+- **Progress bars**: each working bubble has a bar along its bottom and a percent. The figure is the
+  agent's own (`--progress`, sent with every update). Until the agent sends one, it is estimated
+  from `- [x]` boxes in the details, then from the subagents, and shows as "~40%". The item's
+  details show a full bar and say where the figure came from.
 - **History**: Today / This Week / This Month / All, newest first, with the machine each item ran on.
   **Items per page** (bottom right, default 10): click the number and type 1–999, or pick a preset.
 - **Item details** (**…** › *Item details*): inline under the bubbles, or one floating glass window

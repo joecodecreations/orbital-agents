@@ -31,15 +31,18 @@ HELP = """orbital-track — report AI work to Orbital Agents - Agent Satellite T
 
 MAIN agents (talking to the user directly):
   orbital-track start --agent <claude|chatgpt|grok|gemini|NAME> --title "2-5 word title" \\
-                      [--details "markdown"] [--workspace DIR] [--label "Claude Code"] [--media FILE]...
+                      [--details "markdown"] [--progress 0-100] [--workspace DIR] [--label "Claude Code"] [--media FILE]...
       → prints the new ITEM ID. Remember it (shell variables don't survive between tool calls).
-  orbital-track update <ID> [--note "progress"] [--progress 0-100] [--details "markdown" [--append]] [--title "..."] [--media FILE]...
-      --progress: how far along the whole job is, in percent (report it at each milestone).
+  orbital-track update <ID> --progress 0-100 [--note "what just happened"] [--details "markdown" [--append]] [--title "..."] [--media FILE]...
+      --progress is REQUIRED at every update: how far along the WHOLE job is, 0-100 (your honest
+      estimate). It drives the bar on the tracker and the phone. Raise it as steps complete, e.g.
+      plan 10 → first change 30 → most done 60 → tests passing 85; `done` sets 100.
   orbital-track done   <ID> [--summary "markdown: what changed, where, what's next"] [--media FILE]...
       Done items leave the floating panel immediately and stay in history.
 
 SUBAGENTS (only when your prompt contains ORBITAL_TRACK_PARENT=<ID>):
   orbital-track sub <PARENT_ID> --agent <name> --title "..." [--details "..."]   → prints SUB ID
+  orbital-track update <SUB_ID> --progress 0-100 [--note "..."]   (at each milestone)
   orbital-track done <SUB_ID> --summary "..."
   Subagents never call `start`.
 
@@ -67,6 +70,8 @@ Settings come from $ORBITAL_HOME/config.resolved.json (default ~/.orbital-agents
 Environment: ORBITAL_TRACK_PARENT=<id> turns `start` into `sub`; ORBITAL_TRACK_DISABLE=1 makes
 every command a no-op (it still prints an id).
 """
+
+PROGRESS_NUDGE = "add --progress <0-100> to every update so the tracker's bar moves (e.g. --progress 40)."
 
 FLAG_NAMES = {"append", "all", "json", "help", "quiet"}
 
@@ -269,6 +274,19 @@ class CLI:
                     return len(sub["media"])
         return None
 
+    def progress(self) -> int | None:
+        """--progress 40 | 40% | 40.5 → 0-100; anything else is a usage error."""
+        raw = self.p.value("progress")
+        if raw is None:
+            return None
+        try:
+            value = float(str(raw).strip().rstrip("%"))
+        except ValueError:
+            value = -1
+        if not 0 <= value <= 100:
+            self.fail("--progress takes a percent from 0 to 100")
+        return int(value + 0.5)
+
     def resolve_agent(self) -> str:
         return normalize_agent(self.p.value("agent") or detect_agent(self.env) or "other")
 
@@ -327,6 +345,9 @@ class CLI:
         details = self.text("details")
         if details is not None:
             cmd["details"] = details
+        progress = self.progress()
+        if progress is not None:
+            cmd["progress"] = progress
         workspace = p.value("workspace")
         cmd["workspace"] = normalize_path(workspace) if workspace is not None else os.getcwd()
         media = self.media_inputs(parent or item_id, [details])
@@ -366,15 +387,9 @@ class CLI:
         summary = self.text("summary")
         if summary is not None:
             cmd["summary"] = summary
-        raw = p.value("progress")
-        if raw is not None:
-            try:
-                value = float(str(raw).strip().rstrip("%"))
-            except ValueError:
-                value = -1
-            if not 0 <= value <= 100:
-                self.fail("--progress takes a percent from 0 to 100")
-            cmd["progress"] = int(round(value))
+        progress = self.progress()
+        if progress is not None:
+            cmd["progress"] = progress
         raw = p.value("usage-json")
         if raw is not None:
             try:
@@ -390,6 +405,8 @@ class CLI:
         self.deliver(cmd)
         print("ok")
         sys.stdout.flush()
+        if not is_done and progress is None:
+            self.warn(PROGRESS_NUDGE)
         if is_done:
             level = self.current_settings().evidence
             if level != "off":

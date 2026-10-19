@@ -220,6 +220,69 @@ public struct TrackedItem: Codable, Identifiable, Hashable, Sendable {
     }
 }
 
+/// What the progress bar shows and where the number came from. The iPhone app and the PC
+/// tracker use the same rule.
+public struct ShownProgress: Hashable, Sendable {
+    public enum Source: String, Sendable { case done, reported, checklist, subagents }
+    public var percent: Int
+    public var source: Source
+
+    public init(percent: Int, source: Source) {
+        self.percent = percent
+        self.source = source
+    }
+
+    /// Checklist and subagent figures are estimates and show as "~40%".
+    public var isEstimate: Bool { source == .checklist || source == .subagents }
+    public var label: String { (isEstimate ? "~" : "") + "\(percent)%" }
+
+    public var caption: String {
+        switch source {
+        case .done: return "done"
+        case .reported: return "reported by the agent"
+        case .checklist: return "estimated from the task list"
+        case .subagents: return "estimated from subagents"
+        }
+    }
+
+    /// Done → 100; the agent's own figure; else checked boxes in the markdown; else the subagents'
+    /// average. Estimates stop at 99 until the work is marked done.
+    public static func of(status: ItemStatus, progress: Int?, details: String, subagents: [SubTask] = []) -> ShownProgress? {
+        if status == .done { return ShownProgress(percent: 100, source: .done) }
+        if let progress { return ShownProgress(percent: min(100, max(0, progress)), source: .reported) }
+        if let (checked, total) = checklist(details), total > 0 {
+            return ShownProgress(percent: min(99, Int((Double(checked) / Double(total) * 100).rounded())), source: .checklist)
+        }
+        if !subagents.isEmpty {
+            let sum = subagents.reduce(0) { $0 + ($1.status == .done ? 100 : min(100, max(0, $1.progress ?? 0))) }
+            return ShownProgress(percent: min(99, Int((Double(sum) / Double(subagents.count)).rounded())), source: .subagents)
+        }
+        return nil
+    }
+
+    /// Markdown task boxes: `- [ ]`, `* [x]`, `+ [X]`.
+    public static func checklist(_ markdown: String) -> (checked: Int, total: Int)? {
+        var checked = 0, total = 0
+        for line in markdown.split(separator: "\n", omittingEmptySubsequences: true) {
+            let t = line.drop { $0 == " " || $0 == "\t" }
+            guard let bullet = t.first, "-*+".contains(bullet) else { continue }
+            let rest = t.dropFirst()
+            guard rest.first == " " else { continue }
+            let box = rest.drop { $0 == " " }.prefix(3)
+            if box == "[ ]" { total += 1 } else if box == "[x]" || box == "[X]" { total += 1; checked += 1 }
+        }
+        return total > 0 ? (checked, total) : nil
+    }
+}
+
+public extension TrackedItem {
+    var shownProgress: ShownProgress? { ShownProgress.of(status: status, progress: progress, details: details, subagents: subagents) }
+}
+
+public extension SubTask {
+    var shownProgress: ShownProgress? { ShownProgress.of(status: status, progress: progress, details: details) }
+}
+
 public enum IDGen {
     private static let alphabet = Array("abcdefghjkmnpqrstuvwxyz23456789")
 

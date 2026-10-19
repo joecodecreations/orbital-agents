@@ -209,6 +209,7 @@ class TrackerFeed:
             "subagents": {"total": len(subs), "active": sum(1 for s in subs if s.get("status") == "active")},
             "processing": bool(item.get("processing")),
             "progress": item.get("progress"),
+            "shown_progress": shown_progress(item),
             "usage": item.get("usage") if isinstance(item.get("usage"), dict) else None,
         }
 
@@ -523,6 +524,37 @@ def _search_text(item: dict) -> str:
     for sub in item.get("subagents") or []:
         parts += [sub.get("title"), sub.get("summary")]
     return "\n".join(part for part in parts if isinstance(part, str)).lower()
+
+
+CHECKBOX = re.compile(r"^[ \t]*[-*+] +\[([ xX])\]")
+
+
+def _percent(value) -> int | None:
+    try:
+        return min(100, max(0, int(round(float(value)))))
+    except (TypeError, ValueError):
+        return None
+
+
+def shown_progress(item: dict) -> dict:
+    """The progress bar's figure, the same rule as the Mac tracker's `ShownProgress`: done is 100;
+    else the agent's own %; else checked `- [x]` boxes in the details; else the subagents' average.
+    Estimates stop at 99 until the work is done. Nothing to go on yet: `{"percent": 0, "source": "none"}`,
+    so the app knows not to look further."""
+    if item.get("status") == "done":
+        return {"percent": 100, "source": "done"}
+    reported = _percent(item.get("progress"))
+    if reported is not None:
+        return {"percent": reported, "source": "reported"}
+    boxes = [m.group(1) for line in str(item.get("details") or "").splitlines() if (m := CHECKBOX.match(line))]
+    if boxes:
+        checked = sum(1 for b in boxes if b in "xX")
+        return {"percent": min(99, int(checked / len(boxes) * 100 + 0.5)), "source": "checklist"}
+    subs = [s for s in item.get("subagents") or [] if isinstance(s, dict)]
+    if subs:
+        total = sum(100 if s.get("status") == "done" else (_percent(s.get("progress")) or 0) for s in subs)
+        return {"percent": min(99, int(total / len(subs) + 0.5)), "source": "subagents"}
+    return {"percent": 0, "source": "none"}
 
 
 def _first_line(text: str | None) -> str | None:

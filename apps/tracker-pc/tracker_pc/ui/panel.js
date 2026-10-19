@@ -17,7 +17,7 @@
   const S = {
     data: null, version: "", filter: "all", view: "active", selected: null, expanded: null,
     range: "today", query: "", page: 0, pageSize: 10, menu: null, typing: false,
-    openSubs: new Set(), lightbox: null, icons: {},
+    openSubs: new Set(), lightbox: null, icons: {}, bars: {},
   };
   const $ = (id) => document.getElementById(id);
   const api = () => (window.pywebview && window.pywebview.api) || null;
@@ -202,6 +202,38 @@
       return `<div class="thumb" data-owner="${esc(owner)}" data-media="${esc(r.id)}" data-kind="${r.kind}" title="${esc(r.caption || name)}">${inner}${label ? `<span class="kind">${label}</span>` : ""}</div>`;
     }).join("")}</div>`;
   }
+  // ---------- progress (computed in Python: model.shown_progress, sent as `shown`) ----------
+  // The HTML is rebuilt on every change, so a fill starts at its last width and slides to the new
+  // one (animateBars, after each render): that is what makes the CSS width transition visible.
+  function pct(p) { return Math.max(0, Math.min(100, p.percent)); }
+  function fill(key, w) {
+    const from = key in S.bars ? S.bars[key] : w;
+    return `<span data-bar="${esc(key)}" data-to="${w}" style="width:${from}%"></span>`;
+  }
+  function bubbleBar(it) {
+    const p = it.shown;
+    if (!p) return "";
+    return `<span class="pct${p.estimate ? " est" : ""}" title="${esc(p.label + " · " + p.caption)}">${esc(p.label)}</span>` +
+      `<span class="pbar${p.estimate ? " est" : ""}" role="progressbar" aria-label="Progress" aria-valuenow="${pct(p)}" aria-valuemin="0" aria-valuemax="100">${fill("b:" + it.id, pct(p))}</span>`;
+  }
+  function progressBar(p, cls, key) {
+    const w = p ? pct(p) : 0;
+    const full = p && w >= 100 ? " full" : "";
+    return `<div class="prog ${cls || ""}${p && p.estimate ? " est" : ""}${full}" role="progressbar" aria-label="Progress" aria-valuenow="${w}" aria-valuemin="0" aria-valuemax="100">${fill(key, w)}</div>`;
+  }
+  function animateBars() {
+    const els = document.querySelectorAll("[data-bar]");
+    els.forEach((el) => { S.bars[el.dataset.bar] = +el.dataset.to; });
+    requestAnimationFrame(() => requestAnimationFrame(() => els.forEach((el) => { el.style.width = el.dataset.to + "%"; })));
+  }
+  function progressSection(it) {
+    const p = it.shown;
+    if (!p && it.status !== "active") return "";
+    const label = p ? esc(p.label) : "–";
+    const caption = p ? p.caption : "waiting for the agent's first %";
+    return `<div class="progress-row">${progressBar(p, "big", "d:" + it.id)}<span class="plabel${p ? "" : " none"}">${label}</span></div>` +
+      `<div class="pcaption">${esc(caption)}</div>`;
+  }
   function notesHtml(notes) {
     if (!notes || !notes.length) return "";
     return `<div class="notes">${notes.slice(-60).map((n) => `<span class="t">${esc(clock(date(n.at)))}</span><span class="md">${inlineMd(n.text)}</span>`).join("")}</div>`;
@@ -232,7 +264,8 @@
     h += `</div>`;
     if (it.details) h += `<h5>Task</h5>${md(it.details, ctx)}`;
     if (it.summary) h += `<h5>Summary</h5>${md(it.summary, ctx)}`;
-    if (it.notes && it.notes.length) h += `<h5>Progress</h5>${notesHtml(it.notes)}`;
+    const prog = progressSection(it);
+    if (prog || (it.notes && it.notes.length)) h += `<h5>Progress</h5>${prog}${notesHtml(it.notes)}`;
     if (it.media && it.media.length) h += `<h5>Screenshots &amp; media</h5>${thumbs(it.media, it.id)}`;
     const subs = it.subagents || [];
     if (subs.length) {
@@ -245,6 +278,7 @@
         h += `<div class="sub ${s.status === "done" ? "done" : ""}" data-sub="${esc(s.id)}">
           <div class="line"><span class="agent">${glyph(s.agent)}</span><span class="dot ${s.status === "done" ? "done" : ""}"></span>
           <span class="name">${esc(s.title)}</span><span class="when">${esc(when)}</span><span class="chev">${open ? "▾" : "▸"}</span></div>`;
+        if (s.status === "active" && s.shown) h += `<div class="sub-prog">${progressBar(s.shown, "mini", "s:" + s.id)}<span class="plabel">${esc(s.shown.label)}</span></div>`;
         if (!open && first) h += `<div class="first">${esc(first)}</div>`;
         if (open) {
           const sctx = { media: (s.media || []).map((ref) => ({ ref, owner: s.id })) };
@@ -314,7 +348,7 @@
       return `<div class="bubble live${S.selected === it.id ? " selected" : ""}" style="${bubbleStyle(it.colorIndex)}" data-id="${esc(it.id)}" title="${esc((it.details || it.title).slice(0, 200))}">
         ${sourceIcon(it)}<span class="title">${esc(it.title)}</span>
         ${subs.length ? `<span class="subs" title="${running} subagent(s) running">👥 ${running || subs.length}</span>` : ""}
-        <span class="x" data-close="${esc(it.id)}" title="Mark done and clear">✕</span></div>`;
+        ${bubbleBar(it)}<span class="x" data-close="${esc(it.id)}" title="Mark done and clear">✕</span></div>`;
     }).join("");
     $("empty").classList.toggle("hidden", items.length > 0 || S.typing);
     const sel = S.selected && S.data.items.find((i) => i.id === S.selected);
@@ -414,6 +448,7 @@
     $("active-view").classList.toggle("hidden", S.view !== "active");
     $("history-view").classList.toggle("hidden", S.view !== "history");
     if (S.view === "active") renderActive(); else renderHistory();
+    animateBars();
     if (!S.lightbox) $("lightbox").dataset.key = "";
     renderLightbox();
     clearTimeout(fitTimer);

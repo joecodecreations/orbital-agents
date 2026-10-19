@@ -29,7 +29,8 @@
         "total": 1,
         "active": 1
       },
-      "processing": false
+      "processing": false,
+      "progress": 62
     },
     {
       "id": "t-dns",

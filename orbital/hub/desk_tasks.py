@@ -43,6 +43,7 @@ How to work:
 - If something truly needs the person (a password, a payment, an account login, a decision only they can make), stop there and say exactly what.
 - Deploys, store uploads, emails and public posts only when they asked for them.
 - Do only the job in your brief; other agents may be working on other parts of the same request.
+- The person watches a progress bar for this job. If `orbital-track` is installed and `ORBITAL_TRACK_ID` is set, report at each milestone: `orbital-track update "$ORBITAL_TRACK_ID" --note "<what just happened>" --progress <0-100>` (how much of the whole job is done). Never start a new tracker item.
 - Finish with a short report, starting on a new paragraph. Its first sentence is read aloud, so make it one plain sentence that says the result. Then the details: what changed, where, and anything only the person can do.
 """
 

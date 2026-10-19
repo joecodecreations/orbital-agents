@@ -14,18 +14,19 @@ Always pass `--agent` with your own short name: `claude`, `codex`, `grok`, `gemi
 ```bash
 # 1. Start real work. Prints the ITEM ID (stdout is only the id): keep it in your context,
 #    shell variables do not survive between tool calls.
-orbital-track start --agent claude --title "Fix Login Redirect" \
+orbital-track start --agent claude --title "Fix Login Redirect" --progress 5 \
   --details "Login sends users to /404 after OAuth. Fixing in **web/app**."
 
-# 2. Milestones (optional)
+# 2. Every milestone: a note AND --progress (how much of the WHOLE job is done, 0-100)
 orbital-track update k7m2x9qa --note "Root cause: callback URL built from the wrong env var" --progress 40
-orbital-track update k7m2x9qa --note "Before and after" --media /abs/before.png --media /abs/after.png
+orbital-track update k7m2x9qa --note "Fix in, before and after" --progress 75 --media /abs/before.png --media /abs/after.png
 
 # 3. Finish, or stop. Always close the item.
 orbital-track done k7m2x9qa --summary "Fixed the redirect in \`auth/callback.ts\`; added a test. Deploy pending." \
   --media /abs/final.png
 ```
 
+- **Percent complete is required.** The tracker and the phone draw a progress bar for every item, and the user watches it. Put `--progress <0-100>` on every `update` (and `sub` updates too), your honest estimate for the whole job, and raise it as steps finish. A rough guide: understood the task and planned 10, first real change 25-40, most of the work in 60-75, tests passing or checked 85-95; `done` sets 100. Never leave it flat for long: if you are stuck, say so in the note and keep the figure where it is. An `update` without `--progress` prints a reminder.
 - **When:** anything with several steps or more than a minute or two of work (coding, research, builds, writing, file or browser work). Skip one-shot questions.
 - **Title:** 2 to 5 words in Title Case that name the thing ("Stripe Webhook Retry", not "Working on stuff").
 - **Details and summary:** markdown; headings, lists, tables, code blocks and links render. Inline images: `![caption](/absolute/path.png)`.
@@ -48,14 +49,15 @@ ORBITAL_TRACK_PARENT=<ITEM ID> — you are a subagent: report only with "orbital
 ```bash
 orbital-track sub <ID> --agent claude --title "Audit Auth Routes" --details "Reading every route under app/api/auth"
 # prints SUB_ID
+orbital-track update <SUB_ID> --note "Half the routes read" --progress 50
 orbital-track done <SUB_ID> --summary "3 routes build the callback URL by hand; listed in the report."
 ```
 
 Never run `start` as a subagent. A subagent whose prompt has no `ORBITAL_TRACK_PARENT` line does nothing with the tracker. As a safety net, `start` turns into `sub` when the `ORBITAL_TRACK_PARENT` environment variable is set.
 
-Jobs the hub starts on a satellite are tracked by the satellite itself; such an agent gets `ORBITAL_TRACK_ID` in its environment and can add notes with `orbital-track update "$ORBITAL_TRACK_ID" --note "..." --progress 50`.
+Jobs the hub starts on a satellite are tracked by the satellite itself; such an agent gets `ORBITAL_TRACK_ID` in its environment and must report its progress on that item: `orbital-track update "$ORBITAL_TRACK_ID" --note "..." --progress 50` at each milestone (don't `start` a second item).
 
-**Progress and cost.** `--progress <0-100>` is how far along the whole job is; report it at each milestone (done sets 100). You don't report tokens: the satellite that runs an agent measures them (Grok from its CLI log, Claude from its session transcript) along with the share of the subscription plan used, and the tracker, the app's Tracker tab and System → Automations show them. Scripts can send totals themselves with `--usage-json '{"engine":"grok","inputTokens":1200,"outputTokens":300}'`.
+**Progress and cost.** `--progress <0-100>` is how far along the whole job is; send it with every update (done sets 100). With no figure yet, the bar is estimated from `- [x]` checkboxes in your details, then from your subagents, and shows as "~40%". You don't report tokens: the satellite that runs an agent measures them (Grok from its CLI log, Claude from its session transcript) along with the share of the subscription plan used, and the tracker, the app's Tracker tab and System → Automations show them. Scripts can send totals themselves with `--usage-json '{"engine":"grok","inputTokens":1200,"outputTokens":300}'`.
 
 ## Media
 
