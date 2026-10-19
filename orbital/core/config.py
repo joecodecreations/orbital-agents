@@ -105,9 +105,9 @@ DEFAULTS: dict[str, Any] = {
         "retention_days": 14,           # older rolled files are deleted
     },
     "desk": {                           # the app's Desk: fast voice replies + starting agents
-        "provider": "xai",              # needs XAI_API_KEY in secrets.env; the tab explains if it's missing
+        "provider": "auto",             # auto: Grok subscription, then Claude, then on-device; XAI_API_KEY puts the xAI API first; "off" disables
         "model": "grok-4-fast-non-reasoning",
-        "worker_agent": "claude",       # agent the desk starts for real work
+        "worker_agent": "grok",         # first choice for real work; the next installed agent takes over when it can't run
         "projects": [],                 # folders the desk may start work in: [{name, path, about?, aliases?}]
         "reminders_list": "",           # macOS Reminders list for "remind me…" (empty = default list)
     },

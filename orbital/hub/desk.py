@@ -52,18 +52,18 @@ NOT_CONFIGURED = (
     "without a restart). Until then, start agents from the Agents tab or with `orbital agents run`."
 )
 
-SYSTEM_RULES = """You are the front desk of Orbital Agents. The user talks to you from the Orbital Agents app, often by voice while away from the computer. Your job is to answer instantly and hand real work to bigger AI agents that run on the user's machines. You are the dispatcher, not the worker.
+SYSTEM_RULES = """You are the front desk of Orbital Agents. The user talks to you from the Orbital Agents app, often by voice while away from the computer. Your only job is to talk with the user: answer instantly and hand every real piece of work to AI agents that run on the user's machines. You are the dispatcher, never the worker, so you stay free to keep talking while the agents work.
 
 Your reply:
 - One or two short sentences that will be read aloud. Plain words only: no markdown, lists, emoji, code, or file paths read out character by character.
-- Sound like a quick, capable assistant. Confirm what you're doing in the user's terms ("On it, I'll get an agent adding dark mode to the website.").
+- Sound like a quick, capable assistant. Confirm what you're doing in the user's terms ("On it, I've got two agents on it: one fixing the login bug, one checking the store listing.").
 - Never say work is finished unless the live state below shows it finished. Don't invent results.
 - If it's genuinely unclear which project or what they want, ask one short question instead of acting.
 - Status questions ("what's running", "is X done", "what did the agent do"): answer from the live state below.
 - The user can talk over you, like in a real conversation. When their message says they cut you off, deal with what they just said first (start the work if it's a request). Then, only if the part they missed still matters, come back to it in a few words. Never repeat what they already heard.
 
 Actions: after your reply, write zero or more lines that start with >>> and hold one JSON object each, on one line:
->>> {"type":"task","project":"<name from the project list, or empty>","title":"<2-5 word title>","brief":"<everything the agent needs>"}
+>>> {"type":"task","project":"<name from the project list, or empty>","title":"<2-5 word title>","brief":"<everything the agent needs>","effort":"high","agent":"<optional: an agent name from Machines>","machine":"<optional: a machine name from Machines>"}
 >>> {"type":"followup","task":"<task id like t3>","message":"<what to add or change>"}
 >>> {"type":"cancel","task":"<task id>"}
 >>> {"type":"todo","title":"<short to-do for the user>","notes":"<optional>"}
@@ -71,12 +71,12 @@ Actions: after your reply, write zero or more lines that start with >>> and hold
 >>> {"type":"clear"}
 
 When to use which:
-- task: anything that needs work on a computer (code, fixes, features, research, builds, writing, checking a site, reading files to answer). One task per separate job. The brief is the agent's only context: restate the request fully, name the project, say what done looks like, and include details from earlier in this conversation.
+- task: any ask that needs doing, finding out, or thinking through: code, fixes, features, builds, research, looking anything up (the web, files, accounts, numbers), writing, marketing, checking a site, or a question you can't answer from what you plainly know or the live state. Don't do the work or the research in your reply; dispatch it and say so. Split a request into one task per separate job so agents work in parallel: several jobs in one message means several task lines. The brief is the agent's only context: restate the request fully, name the project, say what done looks like, and include details from earlier in this conversation. effort: "medium" for small edits and lookups, "high" by default, "xhigh" for big multi-step builds. Leave agent and machine empty unless the user names one or a machine clearly fits the job (its agents and status are under Machines); the desk then picks the best agent that can run.
 - followup: the user adds to, corrects, or extends a task that already exists (running or finished). Prefer this over starting a duplicate.
 - cancel: they want a running task stopped.
 - todo: something the user has to do personally, no time. reminder: there is a time ("tomorrow at 9", "in two hours"); resolve it against the current time below.
 - clear: the user asks you to clear or reset your context. Running work is not affected; say so.
-- No action for chat, quick facts you know, or questions the live state answers.
+- No action only for chat, a quick fact you plainly know, or questions the live state answers.
 """
 
 # Clearing the model's context. The thread in the app stays; the model only sees what came after
@@ -157,28 +157,112 @@ class ReplySplitter:
         return _clean_spoken("\n".join(reply_lines)), actions
 
 
-class Projects:
-    """Where desk tasks may run: [[desk.projects]] in config.toml ({name, path, about?, aliases?}), or none."""
+DOC_NAMES = ("README.md", "readme.md", "AGENTS.md", "CLAUDE.md")
+SKIP_DOC_LINE = re.compile(r"^\s*(<|!\[|\[!|---|```|>|\||[-=─]{3,})")
+CATALOG_REFRESH = 3600
 
-    def __init__(self, rows: object) -> None:
+
+def _describe(folder: Path) -> str:
+    """The first heading and lines of a folder's README / AGENTS.md / CLAUDE.md, one short line."""
+    for name in DOC_NAMES:
+        try:
+            head = (folder / name).read_text(encoding="utf-8", errors="replace")[:4000]
+        except OSError:
+            continue
+        title, body = "", []
+        for raw in head.splitlines():
+            line = raw.strip()
+            if not line or SKIP_DOC_LINE.match(line):
+                continue
+            if line.startswith("#"):
+                if not title:
+                    title = line.lstrip("#").strip()
+                elif body:
+                    break
+                continue
+            body.append(re.sub(r"[*_`]", "", line))
+            if sum(len(b) for b in body) > 160:
+                break
+        text = re.sub(r"\s+", " ", " ".join(body)).strip()
+        out = f"{title}: {text}" if title and text else (title or text)
+        if out:
+            return out[:180]
+    return ""
+
+
+class Projects:
+    """Where desk tasks may run.
+
+    [[desk.projects]] in config.toml ({name, path, about?, aliases?}) when set. Otherwise every folder in
+    desk.projects_root (default ~/projects), described from its README / AGENTS.md / CLAUDE.md, with
+    names, aliases and hidden folders from data/hub/desk/projects.json
+    ({"projects": {"<folder>": {"name", "aliases", "about", "kind"}}, "hidden": ["<folder>"]}).
+    """
+
+    _cache: dict[str, tuple[float, list[dict]]] = {}
+
+    def __init__(self, rows: object, root: object = None, curated: Path | None = None) -> None:
         self.rows: list[dict] = []
         for row in rows if isinstance(rows, list) else []:
             if isinstance(row, dict) and isinstance(row.get("name"), str) and isinstance(row.get("path"), str):
                 aliases = row.get("aliases") if isinstance(row.get("aliases"), list) else []
                 self.rows.append({"name": row["name"], "path": row["path"], "about": str(row.get("about") or ""),
                                   "aliases": [str(a) for a in aliases]})
+        if not self.rows and root:
+            self.rows = self._catalog(Path(str(root)).expanduser(), curated)
+
+    @classmethod
+    def _catalog(cls, root: Path, curated: Path | None) -> list[dict]:
+        key = f"{root}|{curated}"
+        cached = cls._cache.get(key)
+        if cached and time.time() - cached[0] < CATALOG_REFRESH:
+            return cached[1]
+        try:
+            notes = json.loads(curated.read_text(encoding="utf-8")) if curated else {}
+        except (OSError, json.JSONDecodeError):
+            notes = {}
+        hidden = set(notes.get("hidden") or [])
+        named = notes.get("projects") if isinstance(notes.get("projects"), dict) else {}
+        rows: list[dict] = []
+        seen: set[str] = set()
+        for rel, info in named.items():
+            folder = root / rel
+            if rel in hidden or not folder.is_dir() or not isinstance(info, dict):
+                continue
+            seen.add(rel)
+            about = info.get("about") or _describe(folder)
+            if info.get("kind"):
+                about = f"[{info['kind']}] {about}".strip()
+            rows.append({"name": str(info.get("name") or rel), "path": str(folder), "about": about,
+                         "aliases": [str(a) for a in info.get("aliases") or []] + [rel]})
+        try:
+            children = sorted(p for p in root.iterdir() if p.is_dir() and not p.name.startswith("."))
+        except OSError:
+            children = []
+        for folder in children:
+            if folder.name in seen or folder.name in hidden:
+                continue
+            rows.append({"name": folder.name, "path": str(folder), "about": _describe(folder), "aliases": []})
+        cls._cache[key] = (time.time(), rows)
+        return rows
 
     def prompt_block(self) -> str:
         if not self.rows:
             return "(No projects are configured. Leave project empty: the agent starts in the machine's default folder.)"
-        return "\n".join(f"- {r['name']}: {r['about'] or r['path']}" for r in self.rows)
+        lines = []
+        for r in self.rows:
+            alias = f" (aka {', '.join(a for a in r['aliases'][:4] if a != r['name'])})" if [a for a in r["aliases"] if a != r["name"]] else ""
+            lines.append(f"- {r['name']}{alias}: {r['about'] or r['path']}")
+        return "\n".join(lines)
 
     def resolve(self, name: object) -> dict | None:
-        want = str(name or "").strip().lower()
+        want = str(name or "").strip().strip("/").lower()
+        if want.startswith("~/projects/"):
+            want = want[len("~/projects/"):]
         if not want:
             return None
         for row in self.rows:
-            if want in (row["name"].lower(), row["path"].lower(), *(a.lower() for a in row["aliases"])):
+            if want in (row["name"].lower(), row["path"].lower(), Path(row["path"]).name.lower(), *(a.lower() for a in row["aliases"])):
                 return row
         return None
 
@@ -200,6 +284,9 @@ class Desk:
             agent=lambda: str(hub.cfg.get("desk.worker_agent") or "claude"),
             on_change=self._task_changed,
             on_finish=self._task_finished,
+            choose=self.choose_worker,
+            locate=self.locate_machine,
+            engine_down=self.engine_down,
         )
         self.add_reminder = add_reminder or reminders.add
         self.messages: list[dict] = self._load()
@@ -239,8 +326,90 @@ class Desk:
                 "engines": current.public() if hasattr(current, "public") else [],
                 "worker_agent": self.hub.cfg.get("desk.worker_agent")}
 
+    # Workers: which agent on which machine
+
+    def worker_order(self) -> list[str]:
+        """Agents in order of preference for real work: desk.worker_agents, else Grok first (the
+        subscription), then Claude, Codex and Gemini."""
+        raw = self.hub.cfg.get("desk.worker_agents")
+        if isinstance(raw, list) and raw:
+            return [str(a).lower() for a in raw]
+        order = ["grok", "claude", "codex", "gemini"]
+        first = str(self.hub.cfg.get("desk.worker_agent") or "").lower()
+        return [first, *[a for a in order if a != first]] if first else order
+
+    def _engine_out(self, agent: str) -> bool:
+        health = getattr(self._provider, "health", None)
+        return bool(health and agent in ("grok", "claude") and health.family_down(agent))
+
+    def _local_machine(self) -> dict | None:
+        name = str(self.hub.cfg.machine_name or "").lower()
+        rows = self.hub.satellites.all()
+        return next((r for r in rows if str(r.get("machine") or "").lower() == name), None) or next(
+            (r for r in rows if r.get("ip") == "127.0.0.1"), None)
+
+    def machines_block(self) -> str:
+        local = (self._local_machine() or {}).get("id")
+        lines = []
+        for row in self.hub.satellites.listing():
+            agents = [a for a in (row.get("capabilities") or {}).get("agents") or [] if a != "echo"]
+            out = [a for a in agents if self._engine_out(a)]
+            names = ", ".join(f"{a} (out right now)" if a in out else a for a in agents) or "no agents"
+            here = " (this hub)" if row["id"] == local else ""
+            lines.append(f"- {row.get('name') or row['id']}{here} [{row.get('status')}]: {names}")
+        return "\n".join(lines)
+
+    def choose_worker(self, task: dict) -> dict:
+        """{"agent", "satellite"} for a task, or {"wait": why} when nothing can take it now."""
+        want_machine = task.get("machine")
+        if want_machine:
+            row = self.hub.satellites.get(want_machine)
+            if row is None:
+                return {"wait": f"There's no machine called {want_machine}."}
+            if self.hub.satellites.status(row) != "online":
+                return {"wait": f"{row.get('name')} is offline; the job starts when it's back."}
+            if not self.hub.satellites.is_callback(row):
+                return {"wait": f"{row.get('name')} joined in tunnel mode, so the hub can't start agents there yet."}
+            satellite = row["id"] if row["id"] != (self._local_machine() or {}).get("id") else None
+        else:
+            row, satellite = self._local_machine(), None
+        offered = [a for a in ((row or {}).get("capabilities") or {}).get("agents") or [] if a != "echo"]
+        order = [task["agent_wanted"]] if task.get("agent_wanted") else self.worker_order()
+        skip = set(task.get("engines_down") or [])
+        for agent in order:
+            if offered and agent not in offered:
+                continue
+            if agent in skip or self._engine_out(agent):
+                continue
+            return {"agent": agent, "satellite": satellite}
+        if not offered and not task.get("agent_wanted"):
+            return {"agent": str(self.hub.cfg.get("desk.worker_agent") or order[0]), "satellite": satellite}
+        where = (row or {}).get("name") or "this machine"
+        wanted = task.get("agent_wanted")
+        if wanted and offered and wanted not in offered:
+            return {"wait": f"{wanted} isn't installed on {where}."}
+        return {"wait": f"No agent on {where} can run right now (usage or sign-in); the job starts when one is back."}
+
+    def locate_machine(self, satellite_id: str) -> tuple[str, str] | None:
+        row = self.hub.satellites.get(satellite_id)
+        if row is None or not self.hub.satellites.is_callback(row):
+            return None
+        return self.hub.satellites.base_url(row), str(row.get("satellite_token") or "")
+
+    def engine_down(self, agent: str, text: str) -> bool:
+        """A failed run whose output says the engine ran out: mark it down so the next agent takes over."""
+        from orbital.hub.desk_engines import classify
+        kind = classify(text or "")
+        if kind not in ("quota", "auth", "rate", "billing"):
+            return False
+        health = getattr(self.provider, "health", None)
+        if health and agent in ("grok", "claude"):
+            health.fail(agent, text[-400:])
+        return True
+
     def projects(self) -> Projects:
-        return Projects(self.hub.cfg.get("desk.projects", []))
+        return Projects(self.hub.cfg.get("desk.projects", []), self.hub.cfg.get("desk.projects_root", "~/projects"),
+                        self.dir / "projects.json")
 
     # Thread
 
@@ -364,6 +533,10 @@ class Desk:
         now = datetime.now().astimezone()
         lines = [SYSTEM_RULES, "Projects (name: about):", self.projects().prompt_block(), "", "Live state"]
         lines.append(f"Now: {now.strftime('%A %Y-%m-%d %H:%M')} ({now.tzname()}).")
+        machines = self.machines_block()
+        if machines:
+            lines.append("Machines (name [status]: agents that can run there):")
+            lines.append(machines)
         carry = self._carried()
         if carry:
             lines.append("Notes from before your context was last cleared (still true unless the user changed it since):")
@@ -655,7 +828,11 @@ class Desk:
                 return self._event("error", f"There's no project called {wanted}.", speak=f"I couldn't find {wanted}. Which project?"), None
             title = str(action.get("title") or "Agent task")
             brief = str(action.get("brief") or origin)
-            task = await self.runner.create(project["name"] if project else None, project["path"] if project else None, title, brief, origin)
+            task = await self.runner.create(
+                project["name"] if project else None, project["path"] if project else None, title, brief, origin,
+                effort=str(action.get("effort") or "high").lower(), agent=str(action.get("agent") or ""),
+                machine=str(action.get("machine") or ""),
+            )
             await self._task_changed(self.runner.public(task))
             if task["status"] == "failed":
                 return self._event("task_failed", f"Couldn't start {title}: {task.get('error')}", speak="I couldn't start that agent.", task_id=task["id"]), None

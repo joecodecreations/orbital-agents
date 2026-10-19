@@ -90,7 +90,7 @@ provider = "auto"                # auto: your Grok subscription (grok CLI), then
 model = "grok-4-fast-non-reasoning"   # the xAI API model, when a key is set
 cli_model = ""                   # the grok CLI model ("" = its default)
 claude_model = ""                # the claude CLI model ("" = picks Haiku/Sonnet/Opus per turn)
-worker_agent = "claude"          # agent started for real work
+worker_agent = "grok"            # first choice for real work (then claude, codex, gemini: whichever can run)
 reminders_list = ""              # macOS Reminders list for "remind me…" (empty = default list)
 # Folders the desk may start work in (optional, repeat the block for more):
 # [[desk.projects]]

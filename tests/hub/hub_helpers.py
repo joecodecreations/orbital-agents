@@ -35,6 +35,14 @@ def free_port() -> int:
             return port
 
 
+def desk_section(home: Path, extra: str) -> str:
+    """The desk's project catalog reads a folder of projects; point it at the temp home, never the real ~/projects."""
+    root = f'projects_root = "{home / "projects"}"'
+    if "[desk]" in extra:
+        return extra.replace("[desk]", f"[desk]\n{root}", 1)
+    return f"{extra}\n[desk]\n{root}\n"
+
+
 def write_config(home: Path, *, hub_port: int | None = None, tracker_port: int | None = None,
                  satellite_port: int | None = None, extra: str = "") -> dict:
     ports = {
@@ -63,7 +71,7 @@ bridge_port = {ports['browser']}
 
 [logging]
 level = "DEBUG"
-{extra}
+{desk_section(home, extra)}
 """, encoding="utf-8")
     return ports
 

@@ -16,6 +16,7 @@ from __future__ import annotations
 import asyncio
 import json
 import os
+import re
 import threading
 from datetime import datetime, timezone
 from pathlib import Path
@@ -26,6 +27,13 @@ from orbital.hub.satellites import RelayError, call
 
 MAX_WAIT = 24 * 3600
 FINISHED = {"done", "failed", "cancelled"}
+EFFORTS = {"medium", "high", "xhigh"}
+EFFORT_NOTES = {
+    "medium": "Effort: medium. A small edit or lookup; keep it quick.",
+    "high": "Effort: high. Do it properly and check your work.",
+    "xhigh": "Effort: extra high. A big multi-step job: plan it, build it fully, test it, and verify the result end to end.",
+}
+MAX_ENGINE_SWITCHES = 3
 
 WORKER_HEADER = """You were started from the Orbital Agents app's Desk (desk task {task_id}). The person who asked is away from this machine and hears about your work only through the desk.
 
@@ -34,7 +42,8 @@ How to work:
 - Do the whole job end to end. Do not stop to ask questions; nobody can answer mid-run. Make the sensible call and say what you assumed.
 - If something truly needs the person (a password, a payment, an account login, a decision only they can make), stop there and say exactly what.
 - Deploys, store uploads, emails and public posts only when they asked for them.
-- Finish with a short report. Its first sentence is read aloud, so make it one plain sentence that says the result. Then the details: what changed, where, and anything only the person can do.
+- Do only the job in your brief; other agents may be working on other parts of the same request.
+- Finish with a short report, starting on a new paragraph. Its first sentence is read aloud, so make it one plain sentence that says the result. Then the details: what changed, where, and anything only the person can do.
 """
 
 
@@ -51,6 +60,23 @@ def _epoch(iso: str | None) -> float | None:
         return None
 
 
+# Where one streamed message ends and the next begins with no space between them ("…lookups.I'll…").
+RUN_TOGETHER = re.compile(r"(?<=[.!?:)])(?=(?:\*\*[A-Z]|#{1,3} |[A-Z][a-z']))")
+
+
+def final_report(text: str | None, limit: int = 6000) -> str:
+    """The worker's closing report, without the progress chatter some CLIs print before it."""
+    text = (text or "").strip()
+    if not text:
+        return ""
+    parts = [p.strip() for p in RUN_TOGETHER.split(text) if p.strip()]
+    for part in reversed(parts):
+        if len(part) >= 40 or part is parts[0]:
+            start = text.rfind(part)
+            return text[start:][-limit:].strip()
+    return text[-limit:]
+
+
 def _tail(text: str | None, limit: int = 6000) -> str:
     text = (text or "").strip()
     return text[-limit:]
@@ -65,6 +91,9 @@ class TaskRunner:
         agent: Callable[[], str],
         on_change: Callable[[dict], Awaitable[None]],
         on_finish: Callable[[dict], Awaitable[None]],
+        choose: Callable[[dict], dict] | None = None,
+        locate: Callable[[str], tuple[str, str] | None] | None = None,
+        engine_down: Callable[[str, str], bool] | None = None,
     ) -> None:
         self.dir = root / "desk"
         self.dir.mkdir(parents=True, exist_ok=True)
@@ -74,6 +103,11 @@ class TaskRunner:
         self.agent = agent
         self.on_change = on_change
         self.on_finish = on_finish
+        # Which agent and machine a task runs on (the desk's pick), where a machine is, and whether a
+        # failed run's output says its engine is out (usage, sign-in) so the task moves to the next one.
+        self.choose = choose
+        self.locate = locate
+        self.engine_down = engine_down
         self._lock = threading.Lock()
         self.tasks: list[dict] = self._load()
 
@@ -115,6 +149,7 @@ class TaskRunner:
         keys = (
             "id", "title", "project", "status", "agent", "job_id", "tracker_id", "created_at", "started_at",
             "finished_at", "last_note", "summary", "spoken", "error", "followups", "runs", "brief", "waiting",
+            "effort", "machine",
         )
         out = {k: task.get(k) for k in keys}
         out["pending_followups"] = len(task.get("queue") or [])
@@ -122,7 +157,8 @@ class TaskRunner:
 
     # Dispatch
 
-    async def create(self, project: str | None, cwd: str | None, title: str, brief: str, origin: str) -> dict:
+    async def create(self, project: str | None, cwd: str | None, title: str, brief: str, origin: str,
+                     effort: str | None = None, agent: str | None = None, machine: str | None = None) -> dict:
         task = {
             "id": self._next_id(),
             "title": (title or "Agent task").strip()[:60],
@@ -130,7 +166,12 @@ class TaskRunner:
             "cwd": cwd,
             "brief": brief.strip(),
             "origin": origin.strip(),
-            "agent": self.agent(),
+            "agent": None if self.choose else self.agent(),
+            "agent_wanted": (agent or "").strip().lower() or None,
+            "machine": (machine or "").strip() or None,
+            "satellite": None,
+            "effort": effort if effort in EFFORTS else "high",
+            "engines_down": [],
             "status": "queued",
             "created_at": now_iso(),
             "started_at": None,
@@ -173,7 +214,8 @@ class TaskRunner:
             return task
         if task.get("job_id"):
             try:
-                await call(self.satellite_url(), "POST", f"/v1/agents/jobs/{task['job_id']}/cancel", self.satellite_token(), timeout=8)
+                url, token = self._where(task)
+                await call(url, "POST", f"/v1/agents/jobs/{task['job_id']}/cancel", token, timeout=8)
             except RelayError as exc:
                 get_logger("hub").warning("desk cancel failed", extra={"fields": {"task": task_id, "error": str(exc)[:200]}})
         task["status"] = "stopped"
@@ -183,12 +225,22 @@ class TaskRunner:
         self._save()
         return task
 
+    def _where(self, task: dict) -> tuple[str, str]:
+        """The satellite a task runs on: its machine when it has one, else this machine's own."""
+        if task.get("satellite") and self.locate:
+            found = self.locate(task["satellite"])
+            if found:
+                return found
+        return self.satellite_url(), self.satellite_token()
+
     def _prompt(self, task: dict) -> str:
         header = WORKER_HEADER.format(task_id=task["id"])
         body = (
             f"{header}\nTask: {task['title']}\n"
             + (f"Project folder: {task['cwd']}\n" if task.get("cwd") else "")
-            + f"\nThe request (may be a voice transcript with small errors): \"{task['origin']}\"\n\n"
+            + f"{EFFORT_NOTES.get(task.get('effort') or 'high', '')}\n"
+            + f"\nYour job is only the brief below. The person's whole message, for context (it may be a voice transcript with small "
+            f"errors, and other agents may be doing its other parts, so don't do those): \"{task['origin']}\"\n\n"
             f"Brief from the desk:\n{task['brief']}\n"
         )
         if task.get("runs", 0) > 0:
@@ -201,8 +253,22 @@ class TaskRunner:
             body += f"\nAdded since:\n{extra}\n"
         return body
 
+    def _wait(self, task: dict, note: str) -> None:
+        if task.get("waiting") != note:
+            task["waiting"] = note
+            task["waiting_since"] = task.get("waiting_since") or now_iso()
+            task["last_note"] = note
+            self._save()
+
     async def _start(self, task: dict) -> None:
-        token = self.satellite_token()
+        if self.choose and not task.get("agent"):
+            pick = self.choose(task)
+            if pick.get("wait"):
+                self._wait(task, str(pick["wait"]))
+                return
+            task["agent"] = pick["agent"]
+            task["satellite"] = pick.get("satellite")
+        url, token = self._where(task)
         if not token:
             self._fail(task, "ORBITAL_SATELLITE_TOKEN is not set, so the hub can't start agents on this machine")
             return
@@ -210,16 +276,14 @@ class TaskRunner:
         if task.get("cwd"):
             body["cwd"] = task["cwd"]
         try:
-            answer = await call(self.satellite_url(), "POST", "/v1/agents/run", token, json_body=body, timeout=15)
+            answer = await call(url, "POST", "/v1/agents/run", token, json_body=body, timeout=15)
         except RelayError as exc:
             if exc.status in (429, 502, 503):
                 # Busy, or the satellite isn't up yet: keep it queued and try again on the next tick.
-                note = "Waiting for the satellite service on this machine to take the job."
-                if task.get("waiting") != note:
-                    task["waiting"] = note
-                    task["waiting_since"] = task.get("waiting_since") or now_iso()
-                    task["last_note"] = note
-                    self._save()
+                where = task.get("machine") or "this machine"
+                self._wait(task, f"Waiting for {where} to take the job (its agents are busy or it isn't up yet).")
+                if self.choose:
+                    task["agent"] = None  # pick again next time: another agent may be free
                 return
             self._fail(task, str(exc))
             return
@@ -268,7 +332,8 @@ class TaskRunner:
             if task["status"] != "running" or not task.get("job_id"):
                 continue
             try:
-                job = await call(self.satellite_url(), "GET", f"/v1/agents/jobs/{task['job_id']}", self.satellite_token(), timeout=6)
+                url, token = self._where(task)
+                job = await call(url, "GET", f"/v1/agents/jobs/{task['job_id']}", token, timeout=6)
             except RelayError as exc:
                 if exc.status == 404:
                     task["error"] = "the satellite no longer knows this job"
@@ -292,11 +357,24 @@ class TaskRunner:
         status = job.get("status")
         output = _tail(job.get("output_tail"))
         if output:
-            task["summary"] = output
+            task["summary"] = final_report(output)
         if task.get("queue") and status == "done":
             # More was asked while it ran: a new run picks it up with this report.
             task["status"] = "queued"
             task["job_id"] = None
+            self._save()
+            await self.on_change(self.public(task))
+            await self._start(task)
+            return
+        if (status == "failed" and self.choose and self.engine_down and task.get("agent")
+                and len(task.get("engines_down") or []) < MAX_ENGINE_SWITCHES
+                and self.engine_down(task["agent"], output or str(job.get("error") or ""))):
+            # Its engine ran out (usage, sign-in), not the job: the next agent that can run picks it up.
+            task.setdefault("engines_down", []).append(task["agent"])
+            task["last_note"] = f"{task['agent']} can't run right now; handing the job to the next agent."
+            task["status"] = "queued"
+            task["job_id"] = None
+            task["agent"] = None
             self._save()
             await self.on_change(self.public(task))
             await self._start(task)
