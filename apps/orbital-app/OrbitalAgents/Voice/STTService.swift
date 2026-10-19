@@ -31,6 +31,8 @@ final class STTService: ObservableObject {
     /// on-device Whisper on-device: audio of the phrase in progress (16 kHz mono) and Apple's words for it.
     private var phraseAudio: [Float] = []
     private var phraseApple = ""
+    /// Closed Apple segments kept when VAD owns end-of-turn (Apple `isFinal` mid-phrase).
+    private var applePrefix = ""
     /// Phrases being transcribed, in order: each waits for the one before it.
     private var finalChain: Task<Void, Never>?
     /// Audio kept from before Apple hears the first word of a phrase.
@@ -39,6 +41,10 @@ final class STTService: ObservableObject {
 
     var onFinalUtterance: ((String) -> Void)?
     var onPartial: ((String) -> Void)?
+    /// When true (hands-free / desk listen), Apple's own `isFinal` only rotates the
+    /// recognition request — the silence detector decides when the phrase is done.
+    /// Stops mid-sentence cutoffs when Apple segments early during a natural pause.
+    var vadOwnsUtteranceEnd = false
 
     private let settings = SpeechSettings.shared
 
@@ -68,6 +74,7 @@ final class STTService: ObservableObject {
         appleRecognizer = recognizer
         phraseAudio.removeAll(keepingCapacity: true)
         phraseApple = ""
+        applePrefix = ""
         if settings.sttProvider == .onDeviceWhisper {
             onDevice.prepare()
         }
@@ -109,12 +116,25 @@ final class STTService: ObservableObject {
                         VoiceDebug.shared.log("stt \(result.isFinal ? "final" : "partial"): \(text.prefix(60))")
                     }
                     if !self.swapping {
-                        self.phraseApple = text
-                        self.applyPartial(text)
+                        let full = self.mergedAppleText(text)
+                        self.phraseApple = full
+                        self.applyPartial(full)
                     }
                     if result.isFinal, !self.swapping {
-                        self.endPhrase(text)
-                        self.hotSwapAppleRequest()
+                        if self.vadOwnsUtteranceEnd {
+                            // Keep phrase audio; stitch this segment and keep listening.
+                            // VAD / forceFinalizeFromSilence ends the turn.
+                            if !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                                self.applePrefix = self.mergedAppleText(text)
+                                self.phraseApple = self.applePrefix
+                                self.applyPartial(self.applePrefix)
+                            }
+                            VoiceDebug.shared.log("stt apple segment closed; waiting for silence (\(self.applePrefix.prefix(40)))")
+                            self.hotSwapAppleRequest()
+                        } else {
+                            self.endPhrase(self.mergedAppleText(text))
+                            self.hotSwapAppleRequest()
+                        }
                     }
                 }
                 if let error {
@@ -183,6 +203,7 @@ final class STTService: ObservableObject {
         case .appleOnDevice, .onDeviceWhisper:
             phraseAudio.removeAll(keepingCapacity: true)
             phraseApple = ""
+            applePrefix = ""
             hotSwapAppleRequest()
         case .openAIWhisper, .azureSpeech:
             pcmAccumulator = Data()
@@ -194,7 +215,8 @@ final class STTService: ObservableObject {
     func forceFinalizeFromSilence() {
         switch settings.sttProvider {
         case .appleOnDevice:
-            let text = partialText
+            let text = phraseApple.isEmpty ? partialText : phraseApple
+            applePrefix = ""
             emitFinal(text)
             hotSwapAppleRequest()
             hasPartial = false
@@ -209,16 +231,30 @@ final class STTService: ObservableObject {
         }
     }
 
+    /// Join a live Apple segment onto any closed segments from earlier `isFinal`s.
+    private func mergedAppleText(_ segment: String) -> String {
+        let part = segment.trimmingCharacters(in: .whitespacesAndNewlines)
+        let prefix = applePrefix.trimmingCharacters(in: .whitespacesAndNewlines)
+        if prefix.isEmpty { return part }
+        if part.isEmpty { return prefix }
+        if part.hasPrefix(prefix) || Self.cleanTranscription(part).localizedCaseInsensitiveContains(Self.cleanTranscription(prefix)) {
+            return part
+        }
+        return prefix + " " + part
+    }
+
     /// A phrase ended (Apple's final result or the silence timer). With on-device Whisper, its
     /// audio is transcribed on the device; Apple's words go out if the model isn't ready,
     /// fails, or runs long.
     private func endPhrase(_ appleText: String) {
+        let joined = mergedAppleText(appleText)
+        applePrefix = ""
         guard settings.sttProvider == .onDeviceWhisper else {
-            emitFinal(appleText)
+            emitFinal(joined)
             return
         }
         let audio = phraseAudio
-        let apple = Self.cleanTranscription(appleText)
+        let apple = Self.cleanTranscription(joined)
         phraseAudio.removeAll(keepingCapacity: true)
         phraseApple = ""
         // Apple heard no words: nothing was said (keeps noise and echo away from Whisper).
@@ -390,6 +426,7 @@ final class STTService: ObservableObject {
         tearDownAppleRequest(endAudio: true)
         appleRecognizer = nil
         isRecognizing = false
+        vadOwnsUtteranceEnd = false
         if clearPartial {
             partialText = ""
             hasPartial = false
@@ -397,6 +434,7 @@ final class STTService: ObservableObject {
         pcmAccumulator = Data()
         phraseAudio.removeAll()
         phraseApple = ""
+        applePrefix = ""
     }
 
     private func whisperTranscribe(wav: Data, language: SpeechLanguage) async throws -> String {

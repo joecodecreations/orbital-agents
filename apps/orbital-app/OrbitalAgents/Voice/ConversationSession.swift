@@ -374,12 +374,14 @@ final class ConversationSession: ObservableObject {
                 OnDeviceSpeech.shared.autoInstallIfNeeded()
             }
             if settings.sttProvider.usesAppleLive {
+                // Silence detector owns end-of-turn so Apple's early isFinal cannot cut mid-sentence.
+                stt.vadOwnsUtteranceEnd = true
                 try stt.startLive(locale: settings.speechLanguage)
             }
 
-            // Mute before the engine starts when a chime is about to play, so the
-            // first buffers of that chime are not transcribed as a user turn.
-            capture.mutePCMForSTT = !oneShot
+            // Mute STT until the ready chime finishes so that tone is never a user turn.
+            // Talk (one-shot) and hands-free both wait for real mic audio before the chime.
+            capture.mutePCMForSTT = true
             capture.onPCM = { [weak self] pcm in
                 Task { @MainActor in
                     VoiceDebug.shared.pcmFromMic += 1
@@ -417,12 +419,11 @@ final class ConversationSession: ObservableObject {
                 capture.setMaintainsDuplexSession(true)
                 glasses.enableRemoteControls()
                 refreshGlassesNowPlaying()
-                // Rising chime: you can talk. The mic stays muted until it finishes.
-                armEarconMute(.micOn)
             }
-            statusText = oneShot
-                ? "Talk — pause to send"
-                : "Listening. Just talk. Tap the glasses when you're done."
+            // Not ready yet — engine start can return before the first mic buffer
+            // (Mac Catalyst / voice-processing reconfigure). Cue plays after audio flows.
+            statusText = "Getting mic ready…"
+            scheduleListeningReadyCue()
         } catch {
             lastError = error.localizedDescription
             statusText = error.localizedDescription
@@ -586,6 +587,39 @@ final class ConversationSession: ObservableObject {
         }
         pauseCues.playEarcon(cue)
         VoiceDebug.shared.log("listen cue \(cue) speaker")
+    }
+
+    /// After the mic engine is up, wait until PCM is actually flowing, then play the
+    /// rising ready chime. Skips the sound on a cancelled listen or a silent false start.
+    /// Talk button (one-shot) and hands-free share this path.
+    private func scheduleListeningReadyCue() {
+        earconToken += 1
+        let token = earconToken
+        Task { @MainActor [weak self] in
+            guard let self else { return }
+            let flowing = await self.capture.waitForFirstBuffer(timeout: 2.5)
+            guard token == self.earconToken else { return }
+            guard self.isListening, !self.isPaused else {
+                VoiceDebug.shared.log("ready cue skipped (listen ended before mic audio)")
+                return
+            }
+            guard flowing else {
+                // Engine said it started but no buffer arrived — do not cue a false ready.
+                VoiceDebug.shared.log("ready cue skipped (no mic audio)")
+                if self.isListening, !self.isPaused {
+                    self.capture.mutePCMForSTT = false
+                    self.statusText = self.oneShot
+                        ? "Talk — pause to send"
+                        : "Listening. Just talk. Tap the glasses when you're done."
+                }
+                return
+            }
+            VoiceDebug.shared.log("ready cue (mic audio live, oneShot=\(self.oneShot))")
+            self.armEarconMute(.micOn)
+            self.statusText = self.oneShot
+                ? "Talk — pause to send"
+                : "Listening. Just talk. Tap the glasses when you're done."
+        }
     }
 
     /// Mute speech-to-text for the chime, then open the mic again if you are still the one talking.

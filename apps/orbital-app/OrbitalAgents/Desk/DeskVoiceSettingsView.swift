@@ -16,7 +16,7 @@ struct DeskVoiceSettingsView: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: 16) {
                     group("Talking to the desk", symbol: "waveform") {
-                        Text("Tap the mic for one phrase; it sends when you pause. Hands-free (the waveform button) keeps the mic open: every phrase goes to the desk, replies are spoken, and finished agents are announced. With glasses, start hands-free, then lock the phone: each temple tap turns your mic off or on. A rising chime means you can talk; a low tone means your mic is off.")
+                        Text("Tap Talk for one phrase; it sends when you pause. Hands-free (the waveform on the left) keeps the mic open: every phrase goes to the desk, replies are spoken, and finished agents are announced. With glasses, start hands-free, then lock the phone: each temple tap turns your mic off or on. A rising chime plays only after the mic is actually listening — that is when you can talk. A low tone means your mic is off.")
                             .font(.footnote)
                             .foregroundStyle(OrbitalTheme.textSecondary)
                         Toggle("Speak replies to typed messages", isOn: $desk.speakRepliesOn)
@@ -28,6 +28,9 @@ struct DeskVoiceSettingsView: View {
                                 .foregroundStyle(OrbitalTheme.accent)
                         }
                         Slider(value: $desk.silenceAutoSendSeconds, in: DeskState.silenceMin ... DeskState.silenceMax, step: 0.1)
+                        Text("How long you can pause mid-thought before the desk sends. Raise this if phrases get cut off; lower it to send sooner.")
+                            .font(.caption2)
+                            .foregroundStyle(OrbitalTheme.textSecondary)
                         HStack {
                             Text("Longest phrase")
                             Slider(value: $speech.maxUtteranceSeconds, in: 15 ... 120, step: 5)

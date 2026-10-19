@@ -121,7 +121,18 @@ final class DeskState: ObservableObject {
         announceTrackerDone = UserDefaults.standard.bool(forKey: Keys.announceDone)
         // Last level seen, until the hub answers.
         trackerEvidence = TrackerEvidence(rawValue: UserDefaults.standard.string(forKey: Keys.evidence) ?? "") ?? .off
-        let silence = (UserDefaults.standard.object(forKey: Keys.silence) as? Double) ?? 1.5
+        // ~2.2 s lets a natural mid-sentence pause finish without sending a half phrase.
+        // Migrate the old factory defaults (0.9 / 1.5) that were cutting turns mid-word.
+        let storedSilence = UserDefaults.standard.object(forKey: Keys.silence) as? Double
+        let silence: Double
+        if let storedSilence, storedSilence != 0.9, storedSilence != 1.5 {
+            silence = storedSilence
+        } else {
+            silence = 2.2
+            if storedSilence != nil {
+                UserDefaults.standard.set(2.2, forKey: Keys.silence)
+            }
+        }
         silenceAutoSendSeconds = min(max(silence, Self.silenceMin), Self.silenceMax)
         speechSettings.silenceSeconds = silenceAutoSendSeconds
         speechSettings.ttsEnabled = speakRepliesOn

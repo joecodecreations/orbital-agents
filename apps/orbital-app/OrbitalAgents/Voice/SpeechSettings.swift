@@ -222,7 +222,7 @@ final class SpeechSettings: ObservableObject {
         azureTTSSpeed = Self.clamped(defaults.object(forKey: Keys.azureTTSSpeed) as? Double ?? 1.0, 0.5, 2.0)
         filterDuplicates = defaults.object(forKey: Keys.filterDuplicates) as? Bool ?? false
         minCharsToSend = defaults.object(forKey: Keys.minChars) as? Int ?? 4
-        silenceSeconds = Self.clamped(defaults.object(forKey: Keys.silenceSeconds) as? Double ?? 0.9, 0.4, 10)
+        silenceSeconds = Self.clamped(defaults.object(forKey: Keys.silenceSeconds) as? Double ?? 2.0, 0.4, 10)
         maxUtteranceSeconds = Self.clamped(defaults.object(forKey: Keys.maxUtterance) as? Double ?? 90, 10, 180)
         voiceProcessingEnabled = defaults.object(forKey: Keys.voiceProcessing) as? Bool ?? true
         speechNoiseGateEnabled = defaults.object(forKey: Keys.speechGate) as? Bool ?? true

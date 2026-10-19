@@ -3,9 +3,14 @@ import Foundation
 /// Environment-calibrated VAD + text-stability finalizer.
 ///
 /// Ends an utterance when ANY of:
-/// 1. Energy drops below adaptive silence gate for `silenceSeconds` after speech
-/// 2. STT partial text is non-empty and unchanged for `silenceSeconds`
+/// 1. Energy drops below the adaptive silence gate for `silenceSeconds` after speech,
+///    and the STT partial has stopped changing (so the last words are not cut mid-token)
+/// 2. STT partial text is non-empty and unchanged for `silenceSeconds` **while energy is quiet**
 /// 3. Continuous speech / partial exceeds `maxUtteranceSeconds`
+///
+/// Text-stable alone never ends a turn while the mic still hears speech. Apple Speech often
+/// holds the same partial for a second or more mid-sentence; treating that as end-of-turn
+/// was cutting people off mid-word ("status of tha", "people lik").
 @MainActor
 final class AdaptiveSilenceDetector: ObservableObject {
     enum Phase: String {
@@ -25,15 +30,21 @@ final class AdaptiveSilenceDetector: ObservableObject {
 
     var onUtteranceEnded: (() -> Void)?
 
-    var silenceSeconds: TimeInterval = 0.9
+    /// Pause after speech before the phrase is sent. Desk default is ~2.2 s.
+    var silenceSeconds: TimeInterval = 2.0
     var calibrateSeconds: TimeInterval = 0.55
     var minSpeechSeconds: TimeInterval = 0.2
     var maxUtteranceSeconds: TimeInterval = 90
     var speechMarginDb: Float = 8
-    var hangoverMarginDb: Float = 4
+    /// Keep "speech" a bit longer after level drops so brief mid-sentence dips do not start the timer.
+    var hangoverMarginDb: Float = 5
     var floorLearnRate: Float = 0.08
     var absoluteSpeechFloorDb: Float = -52
     var absoluteSpeechCeilDb: Float = -16
+    /// Extra wait when the partial looks mid-word or ends on a continuer ("and", "tha", …).
+    var incompleteHoldExtra: TimeInterval = 0.85
+    /// Escape hatch when the room stays loud: only then may text-stable fire while energy is high.
+    var loudStableMultiplier: Double = 3.0
 
     private var startedAt: Date?
     private var speechStartedAt: Date?
@@ -158,7 +169,7 @@ final class AdaptiveSilenceDetector: ObservableObject {
                 silenceStartedAt = now
             }
             let silentFor = now.timeIntervalSince(silenceStartedAt!)
-            silenceCountdown = max(0, silenceSeconds - silentFor)
+            silenceCountdown = max(0, holdNeeded(for: lastPartial) - silentFor)
             phase = .trailing
             evaluateFinalize(now: now, energyIsSpeech: false)
             return
@@ -175,18 +186,34 @@ final class AdaptiveSilenceDetector: ObservableObject {
     private func evaluateFinalize(now: Date, energyIsSpeech: Bool) {
         guard startedAt != nil, !calibrating else { return }
 
+        let needed = holdNeeded(for: lastPartial)
+
         if hadNonEmptyPartial, !lastPartial.isEmpty, let changed = lastPartialChangeAt {
             let stableFor = now.timeIntervalSince(changed)
-            if stableFor >= silenceSeconds {
-                silenceCountdown = 0
-                phase = .trailing
-                finalizeIfAllowed(now: now, reason: "text-stable")
-                return
-            }
-            if !energyIsSpeech || stableFor > 0.15 {
-                silenceCountdown = max(0, silenceSeconds - stableFor)
-                if phase != .speech || stableFor > 0.3 {
+            if energyIsSpeech {
+                // Mic still hears speech: do not treat a stalled STT partial as end-of-turn.
+                // Only escape if the room stays loud for a long time with no new words.
+                let loudNeeded = max(needed * loudStableMultiplier, 4.0)
+                if stableFor >= loudNeeded {
+                    silenceCountdown = 0
                     phase = .trailing
+                    finalizeIfAllowed(now: now, reason: "text-stable-loud")
+                    return
+                }
+                silenceCountdown = max(0, loudNeeded - stableFor)
+            } else {
+                let quietFor = silenceStartedAt.map { now.timeIntervalSince($0) } ?? 0
+                if stableFor >= needed, quietFor >= needed {
+                    silenceCountdown = 0
+                    phase = .trailing
+                    finalizeIfAllowed(now: now, reason: "text-stable")
+                    return
+                }
+                if quietFor > 0.15 || stableFor > 0.15 {
+                    silenceCountdown = max(0, needed - min(stableFor, max(quietFor, 0)))
+                    if phase != .speech || stableFor > 0.3 {
+                        phase = .trailing
+                    }
                 }
             }
         }
@@ -194,9 +221,18 @@ final class AdaptiveSilenceDetector: ObservableObject {
         if heardSpeech, !energyIsSpeech, let sil = silenceStartedAt {
             let silentFor = now.timeIntervalSince(sil)
             let speechLen = speechStartedAt.map { now.timeIntervalSince($0) } ?? 0
-            if speechLen >= minSpeechSeconds, silentFor >= silenceSeconds {
-                finalizeIfAllowed(now: now, reason: "energy-silence")
-                return
+            if speechLen >= minSpeechSeconds, silentFor >= needed {
+                // Give STT a beat to finish the last token after the room goes quiet.
+                let sttSettled: Bool
+                if hadNonEmptyPartial, let changed = lastPartialChangeAt {
+                    sttSettled = now.timeIntervalSince(changed) >= min(0.4, needed * 0.3)
+                } else {
+                    sttSettled = true
+                }
+                if sttSettled {
+                    finalizeIfAllowed(now: now, reason: "energy-silence")
+                    return
+                }
             }
         }
 
@@ -206,6 +242,36 @@ final class AdaptiveSilenceDetector: ObservableObject {
                 finalizeIfAllowed(now: now, reason: "max-length")
             }
         }
+    }
+
+    /// Seconds of quiet (and stable text) required before this partial may be sent.
+    func holdNeeded(for text: String) -> TimeInterval {
+        looksIncomplete(text) ? silenceSeconds + incompleteHoldExtra : silenceSeconds
+    }
+
+    /// True when the partial likely still has more speech coming (mid-word or continuer).
+    static func looksIncomplete(_ text: String) -> Bool {
+        let t = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !t.isEmpty else { return false }
+        if let last = t.last, ".!?…".contains(last) { return false }
+        let lastWord = t.split(whereSeparator: \.isWhitespace).last.map(String.init) ?? ""
+        let trail = lastWord.lowercased().trimmingCharacters(in: CharacterSet.alphanumerics.inverted)
+        guard !trail.isEmpty else { return false }
+        let continuers: Set<String> = [
+            "and", "or", "but", "so", "because", "that", "the", "a", "an", "to", "for",
+            "with", "if", "when", "while", "about", "like", "also", "then", "than",
+            "of", "in", "on", "at", "from", "into", "just", "really", "very", "my",
+            "your", "our", "its", "as", "by", "we", "i", "i'm", "it's", "there's",
+        ]
+        if continuers.contains(trail) { return true }
+        // Apple often emits a stem ("tha", "lik", "talki") while the rest of the word
+        // is still being said. Extra hold only; false positives just wait ~0.85 s more.
+        if trail.count <= 5 { return true }
+        return false
+    }
+
+    private func looksIncomplete(_ text: String) -> Bool {
+        Self.looksIncomplete(text)
     }
 
     private func recomputeGates() {
@@ -246,3 +312,29 @@ final class AdaptiveSilenceDetector: ObservableObject {
         }
     }
 }
+
+#if VAD_SELFTEST
+@main
+enum VadSelfTest {
+    static func main() {
+        var failures: [String] = []
+        func expect(_ ok: Bool, _ name: String) {
+            if !ok { failures.append(name) }
+        }
+        expect(AdaptiveSilenceDetector.looksIncomplete("tell me the status of tha"), "mid-word tha")
+        expect(AdaptiveSilenceDetector.looksIncomplete("some people lik"), "mid-word lik")
+        expect(AdaptiveSilenceDetector.looksIncomplete("before we go into talki"), "mid-word talki")
+        expect(AdaptiveSilenceDetector.looksIncomplete("check marketing and"), "continuer and")
+        expect(AdaptiveSilenceDetector.looksIncomplete("open the"), "continuer the")
+        expect(!AdaptiveSilenceDetector.looksIncomplete("Can you hear me?"), "complete question")
+        expect(!AdaptiveSilenceDetector.looksIncomplete("Open the calculator."), "complete sentence")
+        expect(!AdaptiveSilenceDetector.looksIncomplete("Hello"), "single full word")
+        if failures.isEmpty {
+            print("ok")
+        } else {
+            for f in failures { print("FAIL \(f)") }
+            exit(1)
+        }
+    }
+}
+#endif
