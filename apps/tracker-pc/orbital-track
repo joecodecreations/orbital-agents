@@ -1,0 +1,17 @@
+#!/bin/sh
+# orbital-track shim for Linux and macOS: runs orbital_track.py with the best Python available.
+# Link it onto PATH:  ln -sf "$PWD/orbital-track" ~/.local/bin/orbital-track
+SELF=$0
+while [ -L "$SELF" ]; do
+  LINK=$(readlink "$SELF")
+  case $LINK in /*) SELF=$LINK ;; *) SELF=$(dirname "$SELF")/$LINK ;; esac
+done
+DIR=$(cd "$(dirname "$SELF")" && pwd)
+for PY in "$ORBITAL_PYTHON" "$DIR/.venv/bin/python" "$DIR/../../.venv/bin/python" python3 python; do
+  [ -n "$PY" ] || continue
+  if command -v "$PY" >/dev/null 2>&1; then exec "$PY" "$DIR/orbital_track.py" "$@"; fi
+done
+echo "orbital-track: no Python 3 found (set ORBITAL_PYTHON)" >&2
+# Tracking never blocks an agent: still print an id / ok so callers carry on.
+case "$1" in start|add|sub) echo "untracked" ;; *) echo "ok" ;; esac
+exit 0

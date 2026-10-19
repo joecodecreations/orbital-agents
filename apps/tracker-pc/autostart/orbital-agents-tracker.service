@@ -1,0 +1,20 @@
+# systemd --user unit for the Agent Satellite Tracker (Linux).
+# Installed by scripts/install-linux.sh --autostart systemd (or --autostart headless).
+[Unit]
+Description=Orbital Agents - Agent Satellite Tracker
+After=graphical-session.target
+PartOf=graphical-session.target
+
+[Service]
+Type=simple
+WorkingDirectory=@DIR@
+ExecStart="@PYTHON@" "@DIR@/tracker.pyw" @ARGS@
+# The app saves items.json and exits 0 on SIGTERM.
+KillSignal=SIGTERM
+TimeoutStopSec=10
+Restart=on-failure
+RestartSec=5
+Environment=PYTHONUNBUFFERED=1
+
+[Install]
+WantedBy=@TARGET@

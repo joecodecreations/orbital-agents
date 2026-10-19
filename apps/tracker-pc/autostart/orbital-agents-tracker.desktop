@@ -1,0 +1,12 @@
+[Desktop Entry]
+Type=Application
+Name=Agent Satellite Tracker
+Comment=Orbital Agents - what AI agents are working on, on this machine
+Exec="@PYTHON@" "@DIR@/tracker.pyw"
+Path=@DIR@
+Icon=utilities-system-monitor
+Terminal=false
+X-GNOME-Autostart-enabled=true
+X-GNOME-Autostart-Delay=5
+X-KDE-autostart-after=panel
+Categories=Utility;

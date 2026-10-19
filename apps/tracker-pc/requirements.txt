@@ -1,0 +1,4 @@
+pywebview>=5.0
+pillow>=10.0
+# Optional, not pip: ffmpeg + ffprobe on PATH make contact sheets of attached videos.
+# Linux also needs a GUI backend for pywebview: GTK (python3-gi gir1.2-webkit2-4.1) or Qt (pip install "pywebview[qt]").
