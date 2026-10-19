@@ -34,3 +34,8 @@ logs/
 
 # macOS
 .DS_Store
+
+# Personal, local-only features: never committed to this public repo
+apps/orbital-app/OrbitalAgents/Private/
+apps/orbital-app/Fixtures/preview/sections/private/
+apps/desktop/orbital_desktop/ui/private_blocks.js

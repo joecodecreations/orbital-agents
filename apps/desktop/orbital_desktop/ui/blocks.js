@@ -206,15 +206,14 @@ function renderBlock(b, ctx = {}) {
       <div class="rows">${(b.items || []).slice(0, 60).map((v) => `<div class="rowline"><span class="grow ellipsis">${esc(v.title || v.id)}</span>
         ${(v.posts || []).map((p) => p.url ? `<a class="badge ${p.status === "posted" ? "ok" : ""}" href="${esc(p.url)}" target="_blank" rel="noopener">${esc(p.platform)}</a>` : `<span class="badge">${esc(p.platform)} · ${esc(p.status || "")}</span>`).join("")}</div>`).join("")}</div>
       ${(b.items || []).length > 60 ? `<div class="note">+${b.items.length - 60} more</div>` : ""}</div>`;
-    case "docket": return `<div class="blk card">${title}${(b.items || []).length ? `<div class="rows">${b.items.map((i) => `<div class="rowline ${i.open ? "click" : ""}" ${i.open ? `data-open="${esc(sectionRoute(i.open.section_id, i.open.node_id, i.open.tab_id))}"` : ""}>
-      <span class="date"><b>${esc(i.date || "")}</b><span class="faint small">${esc(i.time || "")}</span></span><span class="grow"><b>${esc(i.title)}</b><div class="faint small">${esc([i.case, i.where].filter(Boolean).join(" · "))}</div></span>
-      ${i.confirmed ? `<span class="badge ok">confirmed</span>` : `<span class="badge warn">unconfirmed</span>`}</div>`).join("")}</div>` : `<div class="note">${esc(b.empty_text || "Nothing on the docket.")}</div>`}</div>`;
     case "insight_cards": return `<div class="blk card">${title}${(b.cards || []).length ? b.cards.map((c) => `<div class="insight ${c.severity === "high" ? "bad" : c.severity === "medium" ? "warn" : ""}">
       <div class="row"><b class="grow">${esc(c.title)}</b>${c.deadline ? `<span class="badge warn">${esc(c.deadline_label || "Due")} ${esc(c.deadline)}</span>` : ""}</div>
       ${c.summary ? `<div class="small">${esc(c.summary)}</div>` : ""}<div class="faint small">${esc([c.product, c.state].filter(Boolean).join(" · "))}</div></div>`).join("") : `<div class="note">${esc(b.empty_text || "Nothing needs you.")}</div>`}</div>`;
-    case "marketing": return `<div class="blk card">${title}${b.goal ? `<div class="tiles"><div class="tile"><div class="k">${esc(b.goal.label)}</div><div class="v">${esc(b.goal.current)} <small>/ ${esc(b.goal.target)}</small></div></div></div>` : ""}
-      ${(b.scoreboard || []).map((s) => `<div class="eyebrow" style="margin-top:10px">${esc(s.brand)} · ${esc(s.local || s.at || "")}</div><div class="tiles">${(s.values || []).slice(0, 12).map((v) => `<div class="tile"><div class="k">${esc(v.label)}</div><div class="v">${esc(v.text ?? v.value)}</div></div>`).join("")}</div>`).join("")}</div>`;
-    default: return `<div class="blk card"><div class="eyebrow">${esc(b.type || "block")}</div>${title}<div class="note">This block type isn't drawn on the desktop app yet.</div></div>`;
+    default: {
+      const local = window.ORBITAL_PRIVATE_BLOCKS && window.ORBITAL_PRIVATE_BLOCKS[b.type];   // private_blocks.js, local-only
+      if (local) return local(b, ctx, title);
+      return `<div class="blk card"><div class="eyebrow">${esc(b.type || "block")}</div>${title}<div class="note">This block type isn't drawn on the desktop app yet.</div></div>`;
+    }
   }
 }
 function ledgerCard(b) {

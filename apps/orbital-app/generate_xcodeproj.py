@@ -320,6 +320,9 @@ def project(s: dict) -> str:
         "SWIFT_EMIT_LOC_STRINGS": "YES",
         "TARGETED_DEVICE_FAMILY": "1,2,6",
     }
+    if any((SOURCE / "Private").rglob("*.swift")):
+        # Local-only code in OrbitalAgents/Private (git-ignored): compiled in behind ORBITAL_PRIVATE.
+        app_common["SWIFT_ACTIVE_COMPILATION_CONDITIONS"] = ["$(inherited)", "ORBITAL_PRIVATE"]
     test_common = {
         "BUNDLE_LOADER": "$(TEST_HOST)",
         "CODE_SIGN_STYLE": "Automatic",

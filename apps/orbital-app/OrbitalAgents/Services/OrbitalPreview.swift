@@ -80,10 +80,13 @@ enum OrbitalPreview {
         return try? JSONDecoder().decode(T.self, from: data)
     }
 
+    /// `sections/*.json`, then `sections/private/*.json` (git-ignored, local-only samples).
     static func sections() -> [SectionDocument] {
         guard let folder = directory?.appendingPathComponent("sections", isDirectory: true),
-              let urls = try? FileManager.default.contentsOfDirectory(at: folder, includingPropertiesForKeys: nil)
+              var urls = try? FileManager.default.contentsOfDirectory(at: folder, includingPropertiesForKeys: nil)
         else { return [] }
+        let local = folder.appendingPathComponent("private", isDirectory: true)
+        urls += (try? FileManager.default.contentsOfDirectory(at: local, includingPropertiesForKeys: nil)) ?? []
         return urls.filter { $0.pathExtension == "json" }.sorted { $0.lastPathComponent < $1.lastPathComponent }.compactMap { url in
             guard let data = try? Data(contentsOf: url) else { return nil }
             return try? JSONDecoder().decode(SectionDocument.self, from: expand(data))

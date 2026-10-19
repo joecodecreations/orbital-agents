@@ -64,10 +64,10 @@ struct BlockView: View {
             InsightCardsBlockView(block: insights, location: location)
         case .videos(let videos):
             VideosBlockCard(block: videos, accent: accent)
-        case .docket(let docket):
-            DocketCard(block: docket, accent: accent, location: location)
-        case .marketing(let marketing):
-            MarketingDashboard(ref: MarketingRef(id: marketing.id, location: location ?? PageLocation(sectionID: "marketing", nodeID: nil, tabID: nil), block: marketing))
+        #if ORBITAL_PRIVATE
+        case .extra(let block):
+            PrivateBlockView(block: block, accent: accent, location: location)
+        #endif
         case .unsupported:
             EmptyView()
         }

@@ -102,7 +102,7 @@ The same structure as the iPhone and Mac app. The left bar has five fixed sectio
 - area chips: *Overview*, then *Site traffic*, *Social media*, *Players*, *Usage* and *Search* (from each `series` block's `kind`), *Money* (ledgers), *Videos* (videos blocks) and *Pages*.
 - an *All / iOS / Android / Roblox* filter, shown when the space's money comes from more than one platform. The platform is read off ledger titles and sources (App Store, Google Play, Robux).
 
-Sections draw their blocks: headings, text, callouts, lists, metrics, key/value, tables, charts, series, ledgers, products, to-dos, timelines, hero, images, buttons, videos, the docket, insight cards and marketing. Hub images (`/v1/media/…`) are fetched by the Python side, so the page never holds the token. `#/space/<id>/<area>/<platform>` opens a space on an area, for example `--route space/home-lab/site`.
+Sections draw their blocks: headings, text, callouts, lists, metrics, key/value, tables, charts, series, ledgers, products, to-dos, timelines, hero, images, buttons, videos and insight cards. Hub images (`/v1/media/…`) are fetched by the Python side, so the page never holds the token. `#/space/<id>/<area>/<platform>` opens a space on an area, for example `--route space/home-lab/site`.
 
 Everything updates live over the `/v1/live` websocket (machines, jobs, alerts, sections, catalog, navigation, desk) and is also refreshed every 10 s.
 

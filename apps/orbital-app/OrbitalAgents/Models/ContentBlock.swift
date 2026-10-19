@@ -25,16 +25,23 @@ enum ContentBlock: Identifiable, Equatable {
     case series(SeriesBlock)
     case insightCards(InsightCardsBlock)
     case videos(VideosBlock)
-    case docket(DocketBlock)
-    case marketing(MarketingBlock)
+    #if ORBITAL_PRIVATE
+    case extra(PrivateBlock)        // local-only block types in OrbitalAgents/Private (git-ignored)
+    #endif
     case unsupported(id: String, raw: Data)
 
     /// Every type this build draws, as the payload names it.
-    static let knownTypes: Set<String> = [
-        "heading", "paragraph", "bullets", "callout", "metrics", "key_value", "table", "timeline", "divider",
-        "chart", "image", "hero", "buttons", "progress", "status", "links", "product", "ledger", "tasks",
-        "series", "insight_cards", "videos", "docket", "marketing",
-    ]
+    static let knownTypes: Set<String> = {
+        var types: Set<String> = [
+            "heading", "paragraph", "bullets", "callout", "metrics", "key_value", "table", "timeline", "divider",
+            "chart", "image", "hero", "buttons", "progress", "status", "links", "product", "ledger", "tasks",
+            "series", "insight_cards", "videos",
+        ]
+        #if ORBITAL_PRIVATE
+        types.formUnion(PrivateBlock.types)
+        #endif
+        return types
+    }()
 
     var id: String {
         switch self {
@@ -60,8 +67,9 @@ enum ContentBlock: Identifiable, Equatable {
         case .series(let b): return b.id
         case .insightCards(let b): return b.id
         case .videos(let b): return b.id
-        case .docket(let b): return b.id
-        case .marketing(let b): return b.id
+        #if ORBITAL_PRIVATE
+        case .extra(let b): return b.id
+        #endif
         case .unsupported(let id, _): return id
         }
     }
@@ -91,8 +99,9 @@ enum ContentBlock: Identifiable, Equatable {
         case .series: return "series"
         case .insightCards: return "insight_cards"
         case .videos: return "videos"
-        case .docket: return "docket"
-        case .marketing: return "marketing"
+        #if ORBITAL_PRIVATE
+        case .extra(let b): return b.typeName
+        #endif
         case .unsupported(_, let raw):
             let object = try? JSONSerialization.jsonObject(with: raw) as? [String: Any]
             return object?["type"] as? String ?? "unknown"
@@ -130,9 +139,13 @@ extension ContentBlock: Codable {
             case "series": self = .series(try SeriesBlock(from: decoder))
             case "insight_cards": self = .insightCards(try InsightCardsBlock(from: decoder))
             case "videos": self = .videos(try VideosBlock(from: decoder))
-            case "docket": self = .docket(try DocketBlock(from: decoder))
-            case "marketing": self = .marketing(try MarketingBlock(from: decoder))
             default:
+                #if ORBITAL_PRIVATE
+                if let extra = try PrivateBlock(type: type, decoder: decoder) {
+                    self = .extra(extra)
+                    return
+                }
+                #endif
                 self = Self.preserved(container, decoder)
             }
         } catch {
@@ -171,8 +184,9 @@ extension ContentBlock: Codable {
         case .series(let b): try b.encode(to: encoder)
         case .insightCards(let b): try b.encode(to: encoder)
         case .videos(let b): try b.encode(to: encoder)
-        case .docket(let b): try b.encode(to: encoder)
-        case .marketing(let b): try b.encode(to: encoder)
+        #if ORBITAL_PRIVATE
+        case .extra(let b): try b.encode(to: encoder)
+        #endif
         case .unsupported(_, let raw):
             let obj = try JSONSerialization.jsonObject(with: raw)
             var container = encoder.singleValueContainer()
