@@ -34,7 +34,7 @@ tests/
   scheduler/    timetable math, runs, lanes, timeouts, outcome classification, the watchdog, the janitor
   feeds/        every example feed in --dry-run and against a real in-process hub
   browser/      the bridge, its auth and origin checks, nodes, the client and CLI, the extension against a fake Chrome
-  services/     the launchd plist and systemd unit specs
+  services/     the launchd plist, systemd unit and Task Scheduler task specs (fake launchctl/systemctl/schtasks)
   tracker/      the orbital-track CLI
   wizard/       the setup wizard
   live/         live checks (skipped unless ORBITAL_LIVE=1, which `orbital test --live` sets)

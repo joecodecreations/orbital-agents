@@ -6,7 +6,8 @@
     restart(cfg, ["hub"])
 
 macOS: LaunchAgents `io.orbitalagents.<name>` (launchd.py). Linux: systemd user units
-`orbital-<name>.service` (systemd.py). Which services run where: spec.py.
+`orbital-<name>.service` (systemd.py). Windows: Task Scheduler tasks `\\OrbitalAgents\\orbital-<name>`
+run at logon under a small supervisor (windows.py, winrun.py). Which services run where: spec.py.
 Every function takes `ops=Ops(dry_run=True)` to print instead of act, and `home=` / `platform=`
 so tests can point it at a temp folder.
 """
@@ -77,7 +78,10 @@ def backend(ops: Ops | None = None, platform: str | None = None, home: Path | No
     if plat == "linux":
         from orbital.services.systemd import SystemdBackend
         return SystemdBackend(ops, home=home)
-    raise RuntimeError(f"services are supported on macOS and Linux, not {plat}")
+    if plat == "windows":
+        from orbital.services.windows import WindowsBackend
+        return WindowsBackend(ops, home=home)
+    raise RuntimeError(f"services are supported on macOS, Linux and Windows, not {plat}")
 
 
 def _select(names: list[str] | None, pool: list[str]) -> list[str]:
@@ -203,6 +207,8 @@ def installed_path(platform: str | None = None, home: Path | None = None,
             if f.suffix == ".plist":
                 with f.open("rb") as fh:
                     value = (plistlib.load(fh).get("EnvironmentVariables") or {}).get("PATH")
+            elif f.suffix == ".json":          # Windows run spec
+                value = (json.loads(f.read_text(encoding="utf-8")).get("env") or {}).get("PATH")
             else:
                 m = re.search(r'^Environment="PATH=(.*)"$', f.read_text(encoding="utf-8"), re.M)
                 value = m.group(1).replace('\\"', '"').replace("\\\\", "\\") if m else None

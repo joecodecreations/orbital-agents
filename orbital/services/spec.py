@@ -1,7 +1,7 @@
 """What runs at login on this machine, and how each service is started.
 
-One ServiceSpec per service. The launchd and systemd backends turn a spec into a LaunchAgent plist
-or a systemd user unit; nothing here touches the system.
+One ServiceSpec per service. The launchd, systemd and windows backends turn a spec into a LaunchAgent
+plist, a systemd user unit or a Task Scheduler task; nothing here touches the system.
 
     hub             python -m orbital.hub                  hub role, always
     scheduler       python -m orbital.scheduler            hub role, scheduler.enabled
@@ -81,12 +81,17 @@ def platform_name(platform: str | None = None) -> str:
         return "macos"
     if p.startswith("linux"):
         return "linux"
+    if p in ("win32", "cygwin", "windows"):
+        return "windows"
     return p
 
 
-def repo_python(repo: Path = REPO_ROOT) -> str:
+def repo_python(repo: Path = REPO_ROOT, platform: str | None = None) -> str:
     """The repo's venv interpreter (not resolved: the venv symlink is what makes it the venv)."""
-    venv = repo / ".venv" / "bin" / "python"
+    if platform_name(platform) == "windows":
+        venv = repo / ".venv" / "Scripts" / "python.exe"
+    else:
+        venv = repo / ".venv" / "bin" / "python"
     if venv.exists():
         return str(venv)
     return sys.executable
@@ -136,10 +141,13 @@ def tracker_binary(home: Path | None = None) -> Path | None:
     return _bundle_binary(app)
 
 
-def service_path(home: Path | None = None, repo: Path = REPO_ROOT, extra: list[str] | None = None) -> str:
+def service_path(home: Path | None = None, repo: Path = REPO_ROOT, extra: list[str] | None = None,
+                 platform: str | None = None) -> str:
     """PATH for services. launchd starts with a bare PATH, so agent CLIs (often installed with npm,
     Homebrew or a version manager) would not resolve without this."""
     home = Path(home) if home else Path.home()
+    if platform_name(platform) == "windows":
+        return _windows_path(home, repo, extra)
     dirs: list[str] = [str(repo / ".venv" / "bin"), str(home / ".local" / "bin")]
     dirs += ["/opt/homebrew/bin", "/opt/homebrew/sbin", "/usr/local/bin"]
     for exe in (*AGENT_CLIS, "node", "npm", "npx", "bun", "tailscale", "orbital-track"):
@@ -156,6 +164,28 @@ def service_path(home: Path | None = None, repo: Path = REPO_ROOT, extra: list[s
         if d and d not in out and d not in system and Path(d).is_dir():
             out.append(d)
     return ":".join(out + system)
+
+
+def _windows_path(home: Path, repo: Path, extra: list[str] | None) -> str:
+    """Windows: a task gets the user's environment already; put the venv and agent CLIs first."""
+    appdata = Path(os.environ.get("APPDATA") or home / "AppData" / "Roaming")
+    local = Path(os.environ.get("LOCALAPPDATA") or home / "AppData" / "Local")
+    dirs: list[str] = [str(repo / ".venv" / "Scripts"), str(home / ".local" / "bin")]
+    for exe in (*AGENT_CLIS, "node", "npm", "npx", "bun", "tailscale", "orbital-track"):
+        found = shutil.which(exe)
+        if found:
+            dirs.append(str(Path(found).parent))
+    dirs += [str(appdata / "npm"), str(home / ".bun" / "bin"), str(home / ".cargo" / "bin"),
+             str(local / "Programs" / "nodejs"), str(home / ".claude" / "local"), str(home / ".deno" / "bin")]
+    dirs += list(extra or [])
+    out: list[str] = []
+    for d in dirs:
+        if d and d not in out and Path(d).is_dir():
+            out.append(d)
+    for d in os.environ.get("PATH", "").split(";" if os.name == "nt" else os.pathsep):
+        if d and d not in out:
+            out.append(d)
+    return ";".join(out)
 
 
 def health_url(cfg: Config, name: str) -> str | None:
@@ -204,8 +234,8 @@ def build_specs(cfg: Config, *, platform: str | None = None, python: str | None 
 
     The tracker is left out (with a note in `skipped`) when its app isn't installed yet.
     """
-    python = python or repo_python(repo)
-    path_value = path_value if path_value is not None else service_path(home, repo)
+    python = python or repo_python(repo, platform)
+    path_value = path_value if path_value is not None else service_path(home, repo, platform=platform)
     logs = cfg.paths.logs
     env = {
         "ORBITAL_HOME": str(cfg.paths.home),

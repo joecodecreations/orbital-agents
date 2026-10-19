@@ -211,6 +211,16 @@ Linux machines run the satellite service, the watchdog and, if you want, the bro
 - Service output goes to `~/.orbital-agents/logs/<name>.stderr.log`.
 - Jobs started there show in the hub's tracker (and the app's Tracker tab) through the hub's tracker relay, since there is no `orbital-track` on Linux; everything else (jobs, logs, `orbital agents`) works the same.
 
+## Windows satellites
+
+Windows machines run the satellite service, the watchdog and, if you want, the browser bridge, from the repo's `.venv` (`.venv\Scripts\python.exe`). There is no Swift tracker on Windows.
+
+- `orbital services install` registers one Task Scheduler task per service under the `\OrbitalAgents\` folder (`orbital-satellite`, `orbital-watchdog`, `orbital-browser-bridge`; on a hub also `orbital-hub` and `orbital-scheduler`). Each runs at logon as you, with no admin rights, no time limit and one instance. Check them with `orbital services status`, or `schtasks /Query /TN \OrbitalAgents\orbital-satellite`.
+- Each task runs `pythonw.exe -m orbital.services.winrun <run spec>`, a small supervisor, because Task Scheduler can't set environment variables or restart a program that exits. The run spec, `%LOCALAPPDATA%\OrbitalAgents\services\orbital-<name>.json`, holds the command, environment, folder and log file. The supervisor restarts the service 10 s after it exits and runs the watchdog once every interval. Stopping the task also stops the service and anything it started.
+- Service output goes to `%USERPROFILE%\.orbital-agents\logs\<name>.stderr.log`. Restart counts and the last exit code are in `run\winsvc-<name>.json`, and `orbital services status` shows them.
+- Some locked-down accounts can't register logon tasks ("Access is denied"). The service then uses a value under `HKCU\Software\Microsoft\Windows\CurrentVersion\Run` instead, which starts the same supervisor when you sign in. `orbital services start|stop` handle both kinds.
+- Tasks run only while you are signed in. For a machine that must work with nobody signed in, open Task Scheduler and set the task to *Run whether user is logged on or not*. That asks for your Windows password, so setup never does it for you.
+
 ## Troubleshooting
 
 | Symptom | Fix |

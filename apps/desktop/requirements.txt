@@ -1,0 +1,11 @@
+# Orbital Agents desktop app (Windows, Linux, macOS). Python 3.10+.
+pywebview>=5.0       # window: Edge WebView2 on Windows, GTK or Qt on Linux, WebKit on macOS
+httpx>=0.27          # hub calls
+websockets>=13       # live updates (/v1/live)
+keyring>=24          # session token in Credential Manager / Secret Service / Keychain
+
+# Linux needs one GUI backend for pywebview. Either the system GTK bindings
+#   (Debian/Ubuntu: sudo apt install python3-gi gir1.2-webkit2-4.1)
+# or Qt from pip:
+#   pip install "pywebview[qt]"
+# Without either, run with --browser.

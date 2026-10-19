@@ -2,7 +2,7 @@
 
 Orbital Agents is meant to run for months without you looking after it. Three layers keep it up and keep its folder from growing without limit:
 
-1. **The service manager** (launchd on macOS, systemd on Linux) starts every service at login and restarts it when it exits.
+1. **The service manager** (launchd on macOS, systemd on Linux, Task Scheduler plus the `winrun` supervisor on Windows) starts every service at login and restarts it when it exits.
 2. **The watchdog** checks that each service actually answers, restarts the ones that do not, and raises an alert on your phone when it does.
 3. **The janitor** (run by the watchdog) trims logs, outputs and old data.
 

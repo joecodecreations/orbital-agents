@@ -1,0 +1,12 @@
+[Desktop Entry]
+Type=Application
+Name=Orbital Agents
+GenericName=Agent machines dashboard
+Comment=Machines, health and AI agent jobs on your Orbital Agents hub
+# install_linux.sh rewrites Exec and Icon to absolute paths.
+Exec=orbital-agents-desktop %u
+Icon=orbital-agents
+Terminal=false
+Categories=Utility;Development;Network;
+MimeType=x-scheme-handler/orbital;
+StartupWMClass=Orbital Agents

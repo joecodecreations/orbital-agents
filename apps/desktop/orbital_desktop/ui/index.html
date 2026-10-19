@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Orbital Agents</title>
+<link rel="stylesheet" href="app.css">
+</head>
+<body>
+<div id="app" class="app">
+  <header class="topbar">
+    <a class="brand" href="#/home">
+      <svg class="logo" viewBox="0 0 32 32" aria-hidden="true">
+        <circle cx="16" cy="16" r="5" fill="currentColor"/>
+        <ellipse cx="16" cy="16" rx="13" ry="6" fill="none" stroke="currentColor" stroke-width="2" transform="rotate(-25 16 16)"/>
+        <circle cx="27" cy="11" r="2.2" fill="var(--accent-2)"/>
+      </svg>
+      <span id="brand-name">Orbital Agents</span>
+    </a>
+    <div class="session" id="session" hidden>
+      <span class="live" id="live" title="Live updates"><i></i><span id="live-label">Connecting</span></span>
+      <span class="hub-name" id="hub-name"></span>
+      <button class="ghost small" id="refresh" title="Refresh now">Refresh</button>
+      <button class="ghost small" id="sign-out">Sign out</button>
+    </div>
+  </header>
+  <div class="banner" id="banner" hidden></div>
+  <div class="body">
+    <aside class="sidebar" id="sidebar" hidden>
+      <nav class="fixed-nav" id="fixed-nav" aria-label="Sections"></nav>
+      <div class="tree-title" id="tree-title">Spaces</div>
+      <nav class="tree" id="tree" aria-label="Spaces and pages"></nav>
+      <div class="tree-foot"><a href="#/spaces">All spaces</a><a href="#/browse">All sections</a></div>
+    </aside>
+    <main id="view" class="view" aria-live="polite">
+      <div class="loading"><div class="spinner"></div><p>Connecting to your hub…</p></div>
+    </main>
+  </div>
+  <div class="toasts" id="toasts"></div>
+</div>
+<script src="model.js"></script>
+<script src="blocks.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
