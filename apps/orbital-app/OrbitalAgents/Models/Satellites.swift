@@ -64,6 +64,120 @@ struct SatelliteCapabilities: Codable, Equatable {
     }
 }
 
+struct SystemMetrics: Codable, Equatable {
+    var cpus: Int?
+    var load: [Double]?
+    var memory: MemoryMetrics?
+    var disks: [DiskMetrics]?
+    var uptimeSeconds: Double?
+    var time: Double?
+
+    struct MemoryMetrics: Codable, Equatable {
+        var total: Int64?
+        var used: Int64?
+        var percent: Double?
+    }
+
+    struct DiskMetrics: Codable, Equatable {
+        var mount: String?
+        var total: Int64?
+        var used: Int64?
+        var free: Int64?
+        var percent: Double?
+    }
+
+    enum CodingKeys: String, CodingKey {
+        case cpus, load, memory, disks, time
+        case uptimeSeconds = "uptime_s"
+    }
+
+    var memoryPercent: Double? { memory?.percent }
+
+    var loadAverage: Double? { load?.first }
+
+    var rootDisk: DiskMetrics? { disks?.first }
+
+    var uptimeFormatted: String? {
+        guard let s = uptimeSeconds, s > 0 else { return nil }
+        let days = Int(s) / 86400
+        let hours = (Int(s) % 86400) / 3600
+        if days > 0 { return "\(days)d \(hours)h" }
+        let mins = (Int(s) % 3600) / 60
+        return hours > 0 ? "\(hours)h \(mins)m" : "\(mins)m"
+    }
+
+    static func formatBytes(_ bytes: Int64?) -> String? {
+        guard let bytes, bytes > 0 else { return nil }
+        let gb = Double(bytes) / 1_000_000_000
+        return gb >= 10 ? String(format: "%.0f GB", gb) : String(format: "%.1f GB", gb)
+    }
+}
+
+/// The machine's Chrome bridge (`browser_status` in its heartbeat).
+struct BrowserStatus: Codable, Equatable {
+    var state: String
+    var bridgeUp: Bool?
+    var extensionConnected: Bool?
+    var extensionVersion: String?
+    var lastPollAgeSeconds: Double?
+    var bind: String?
+    var hubCanDrive: Bool?
+
+    enum CodingKeys: String, CodingKey {
+        case state, bind
+        case bridgeUp = "bridge_up"
+        case extensionConnected = "extension_connected"
+        case extensionVersion = "extension_version"
+        case lastPollAgeSeconds = "last_poll_age_s"
+        case hubCanDrive = "hub_can_drive"
+    }
+
+    var label: String {
+        switch state {
+        case "connected": return "Chrome connected"
+        case "no_extension": return "Extension not connected"
+        case "bridge_down": return "Bridge not running"
+        default: return "Browser control off"
+        }
+    }
+
+    var shortLabel: String {
+        switch state {
+        case "connected": return "Browser"
+        case "no_extension": return "No extension"
+        case "bridge_down": return "Bridge down"
+        default: return "Browser off"
+        }
+    }
+
+    var symbol: String {
+        switch state {
+        case "connected": return "globe"
+        case "no_extension": return "puzzlepiece.extension"
+        case "bridge_down": return "exclamationmark.triangle.fill"
+        default: return "globe.badge.chevron.backward"
+        }
+    }
+
+    var tint: Color {
+        switch state {
+        case "connected": return hubCanDrive == false ? OrbitalTheme.warning : OrbitalTheme.success
+        case "no_extension", "bridge_down": return OrbitalTheme.warning
+        default: return OrbitalTheme.textTertiary
+        }
+    }
+
+    var isProblem: Bool { state == "no_extension" || state == "bridge_down" }
+}
+
+/// One thing wrong with a machine, for its card and Home's "Needs you".
+struct MachineIssue: Equatable, Identifiable {
+    var id: String
+    var text: String
+    var symbol: String
+    var danger: Bool
+}
+
 struct Satellite: Codable, Equatable, Identifiable {
     var id: String
     var name: String
@@ -80,19 +194,29 @@ struct Satellite: Codable, Equatable, Identifiable {
     var capabilities: SatelliteCapabilities
     /// Jobs running there now, from its last heartbeat.
     var runningJobs: Int?
+    /// CPU, memory, disk from the satellite's last heartbeat.
+    var systemMetrics: SystemMetrics?
+    var browserStatus: BrowserStatus?
+    var reachability: String?
+    var heartbeatSeconds: Int?
 
     enum CodingKeys: String, CodingKey {
+        case browserStatus = "browser_status"
+        case reachability
+        case heartbeatSeconds = "heartbeat_seconds"
         case id, name, machine, host, ip, port, os, version, status, capabilities, online, role
         case satelliteID = "satellite_id"
         case lastSeen = "last_seen"
         case joinedAt = "joined_at"
         case isHub = "is_hub"
         case runningJobs = "running_jobs"
+        case systemMetrics = "system_metrics"
     }
 
     init(id: String, name: String, machine: String? = nil, host: String? = nil, ip: String? = nil, port: Int? = nil,
          os: String? = nil, version: String? = nil, status: String = "online", lastSeen: String? = nil, joinedAt: String? = nil,
-         isHub: Bool = false, capabilities: SatelliteCapabilities = SatelliteCapabilities(), runningJobs: Int? = nil) {
+         isHub: Bool = false, capabilities: SatelliteCapabilities = SatelliteCapabilities(), runningJobs: Int? = nil,
+         systemMetrics: SystemMetrics? = nil) {
         self.id = id
         self.name = name
         self.machine = machine
@@ -107,6 +231,7 @@ struct Satellite: Codable, Equatable, Identifiable {
         self.isHub = isHub
         self.capabilities = capabilities
         self.runningJobs = runningJobs
+        self.systemMetrics = systemMetrics
     }
 
     init(from decoder: Decoder) throws {
@@ -142,6 +267,10 @@ struct Satellite: Codable, Equatable, Identifiable {
         } else {
             runningJobs = nil
         }
+        systemMetrics = try? c.decodeIfPresent(SystemMetrics.self, forKey: .systemMetrics)
+        browserStatus = try? c.decodeIfPresent(BrowserStatus.self, forKey: .browserStatus)
+        reachability = c.lenientString(.reachability)
+        heartbeatSeconds = c.lenientInt(.heartbeatSeconds)
     }
 
     func encode(to encoder: Encoder) throws {
@@ -160,9 +289,42 @@ struct Satellite: Codable, Equatable, Identifiable {
         try c.encode(isHub, forKey: .isHub)
         try c.encode(capabilities, forKey: .capabilities)
         try c.encodeIfPresent(runningJobs, forKey: .runningJobs)
+        try c.encodeIfPresent(systemMetrics, forKey: .systemMetrics)
+        try c.encodeIfPresent(browserStatus, forKey: .browserStatus)
+        try c.encodeIfPresent(reachability, forKey: .reachability)
+        try c.encodeIfPresent(heartbeatSeconds, forKey: .heartbeatSeconds)
     }
 
     var isOnline: Bool { status == "online" }
+
+    /// "Tailscale" (the hub dials it) or "Tunnel" (it dials the hub).
+    var connectionLabel: String { reachability == "pull" ? "Tunnel (machine connects out)" : "Tailscale (hub connects in)" }
+
+    /// What needs a look, worst first. Empty = healthy.
+    func issues(now: Date = Date()) -> [MachineIssue] {
+        guard isOnline else {
+            return [MachineIssue(id: "offline", text: "Offline · last seen \(OrbitalDates.relative(lastSeen) ?? "never")", symbol: "wifi.slash", danger: true)]
+        }
+        var out: [MachineIssue] = []
+        if let seen = lastSeenDate, now.timeIntervalSince(seen) > Double(2 * (heartbeatSeconds ?? 60)) {
+            out.append(MachineIssue(id: "late", text: "Heartbeat late (\(OrbitalDates.relative(lastSeen) ?? "?"))", symbol: "waveform.path.ecg", danger: false))
+        }
+        for disk in systemMetrics?.disks ?? [] {
+            guard let pct = disk.percent, pct >= 90 else { continue }
+            let free = SystemMetrics.formatBytes(disk.free).map { ", \($0) free" } ?? ""
+            out.append(MachineIssue(id: "disk-\(disk.mount ?? "/")", text: "Disk \(disk.mount ?? "/") \(Int(pct))% full\(free)", symbol: "internaldrive", danger: pct >= 95))
+        }
+        if let mem = systemMetrics?.memoryPercent, mem >= 92 {
+            out.append(MachineIssue(id: "memory", text: "Memory \(Int(mem))% used", symbol: "memorychip", danger: false))
+        }
+        if let load = systemMetrics?.loadAverage, let cpus = systemMetrics?.cpus, load > Double(cpus) * 1.5 {
+            out.append(MachineIssue(id: "cpu", text: String(format: "CPU overloaded (load %.1f on %d cores)", load, cpus), symbol: "cpu", danger: false))
+        }
+        if capabilities.browser, let browser = browserStatus, browser.isProblem {
+            out.append(MachineIssue(id: "browser", text: browser.label, symbol: browser.symbol, danger: false))
+        }
+        return out.sorted { $0.danger && !$1.danger }
+    }
 
     /// The agents this machine can start right now.
     var availableAgents: [SatelliteAgent] { capabilities.agents.filter(\.available) }

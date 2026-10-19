@@ -7,17 +7,51 @@ import SwiftUI
 
 /// Everything one space holds: its products, its sections, its daily numbers by kind, and its money.
 struct SpaceView: View {
+    /// The space this page opened on. The switcher in the header moves to another without leaving the page.
     let spaceID: String
     @EnvironmentObject private var store: OrbitalStore
     @EnvironmentObject private var router: AppRouter
     @Environment(\.orbitalPushed) private var pushed
+    @State private var picked: String?
+    /// Kept across spaces, so switching shows the same thing for the other space.
+    @AppStorage("orbital.space.area") private var area = "overview"
+    @AppStorage("orbital.space.platform") private var platform = "all"
 
-    private var space: SpaceSummary? { store.directory.space(spaceID) }
+    private var current: String { picked ?? spaceID }
+    private var space: SpaceSummary? { store.directory.space(current) }
+    private var sectionIDs: Set<String> { Set(space?.sectionIDs ?? []) }
 
-    /// Series in this space: tagged with it, or on one of its sections.
+    /// Series in this space: tagged with it, or on one of its sections. Narrowed to the platform when one is picked.
     private var refs: [SeriesRef] {
-        let sections = Set(space?.sectionIDs ?? [])
-        return store.series.filter { $0.spaceID == spaceID || sections.contains($0.location.sectionID) }
+        let all = store.series.filter { store.directory.resolve($0.spaceID) == current || sectionIDs.contains($0.location.sectionID) }
+        guard platform != "all", platforms.count > 1 else { return all }
+        return all.filter { ref in
+            let product = Spaces.key(ref.block.product)
+            return !product.isEmpty && (productPlatforms[product]?.contains(platform) ?? false)
+        }
+    }
+
+    private var ledgers: [LedgerRef] {
+        let all = store.ledgers.filter { store.directory.resolve($0.space) == current || sectionIDs.contains($0.location.sectionID) }
+        guard platform != "all", platforms.count > 1 else { return all }
+        return all.filter { SpacePlatform.of($0) == platform }
+    }
+
+    /// Products by the platforms their money comes from (App Store → iOS, Google Play → Android, Robux → Roblox).
+    private var productPlatforms: [String: Set<String>] {
+        var out: [String: Set<String>] = [:]
+        for ledger in store.ledgers where store.directory.resolve(ledger.space) == current || sectionIDs.contains(ledger.location.sectionID) {
+            guard let platform = SpacePlatform.of(ledger) else { continue }
+            let name = ledger.title.components(separatedBy: " · ").first ?? ledger.title
+            out[Spaces.key(name), default: []].insert(platform)
+            for row in ledger.block.days.compactMap(\.product) { out[Spaces.key(row), default: []].insert(platform) }
+        }
+        return out
+    }
+
+    private var platforms: [String] {
+        let found = Set(productPlatforms.values.flatMap { $0 })
+        return SpacePlatform.order.filter { found.contains($0) }
     }
 
     private var kinds: [String] {
@@ -26,35 +60,62 @@ struct SpaceView: View {
         return seen
     }
 
-    private var hasMoney: Bool {
-        let sections = Set(space?.sectionIDs ?? [])
-        return store.ledgers.contains { Spaces.key($0.space) == spaceID || sections.contains($0.location.sectionID) }
+    /// Videos blocks on this space's pages.
+    private var videos: [(block: ContentBlock, location: PageLocation)] {
+        var out: [(ContentBlock, PageLocation)] = []
+        for id in space?.sectionIDs ?? [] {
+            guard let section = store.sectionsByID[id] else { continue }
+            for page in section.pages {
+                for block in page.blocks {
+                    if case .videos = block {
+                        out.append((block, PageLocation(sectionID: section.id, nodeID: page.node?.id, tabID: page.tabID)))
+                    }
+                }
+            }
+        }
+        return out.map { (block: $0.0, location: $0.1) }
+    }
+
+    /// The areas this space has data for, in a fixed order so switching spaces keeps them in place.
+    private var areas: [(id: String, title: String, symbol: String)] {
+        var out: [(String, String, String)] = [("overview", "Overview", "square.grid.2x2")]
+        for kind in SpaceArea.order where kinds.contains(kind) { out.append((kind, SpaceArea.title(kind), SpaceArea.symbol(kind))) }
+        for kind in kinds where !SpaceArea.order.contains(kind) { out.append((kind, StatStyle.kindLabel(kind), "chart.xyaxis.line")) }
+        if !ledgers.isEmpty || store.ledgers.contains(where: { sectionIDs.contains($0.location.sectionID) }) { out.append(("money", "Money", "dollarsign.circle")) }
+        if !videos.isEmpty { out.append(("videos", "Videos", "play.rectangle")) }
+        out.append(("pages", "Pages", "doc.on.doc"))
+        return out.map { (id: $0.0, title: $0.1, symbol: $0.2) }
     }
 
     var body: some View {
         let tint = space?.tint ?? OrbitalTheme.accent
-        let products = store.directory.products(of: spaceID)
+        let products = store.directory.products(of: current)
         ScrollView {
             LazyVStack(alignment: .leading, spacing: 16) {
                 header(tint: tint, products: products)
-                if !products.isEmpty {
-                    productStrip(products)
+                areaBar(tint: tint)
+                if platforms.count > 1 && ["overview", "money", "players", "site", "social", "usage", "search"].contains(area) {
+                    platformBar(tint: tint)
                 }
-                sectionsCard(tint: tint)
-                ForEach(kinds, id: \.self) { kind in
-                    let mine = refs.filter { $0.block.kind == kind }
-                    if mine.count == 1, let only = mine.first {
-                        SeriesCard(block: only.block, accent: tint, eyebrow: Insights.nonEmpty(only.block.product) ?? StatStyle.kindLabel(kind),
-                                   onOpen: { router.show(only.location, tab: only.location.tabID) })
-                    } else {
-                        RollupChartCard(eyebrow: StatStyle.kindLabel(kind), tint: tint, kind: kind, refs: mine,
-                                        directory: store.directory, lockedSpace: spaceID)
+                switch area {
+                case "overview":
+                    if !products.isEmpty { productStrip(products) }
+                    ForEach(kinds, id: \.self) { kind in kindCard(kind, tint: tint) }
+                    if !ledgers.isEmpty { moneyCards(tint: tint, compact: true) }
+                    reviews(products)
+                    sectionsCard(tint: tint)
+                case "money":
+                    if ledgers.isEmpty { empty("No money for \(platformName) in \(space?.name ?? "this space").") } else { moneyCards(tint: tint, compact: false) }
+                case "videos":
+                    if videos.isEmpty { empty("No videos in \(space?.name ?? "this space").") }
+                    ForEach(Array(videos.enumerated()), id: \.offset) { _, row in
+                        BlockView(block: row.block, accent: tint, location: row.location)
                     }
+                case "pages":
+                    sectionsCard(tint: tint)
+                default:
+                    if kinds.contains(area) { kindCard(area, tint: tint) } else { empty("No \(SpaceArea.title(area).lowercased()) data in \(space?.name ?? "this space")\(platform == "all" ? "" : " for \(platformName)").") }
                 }
-                if hasMoney {
-                    MoneySummaryCard(space: spaceID)
-                }
-                reviews(products)
             }
             .frame(maxWidth: OrbitalTheme.columnMax)
             .frame(maxWidth: .infinity)
@@ -67,6 +128,80 @@ struct SpaceView: View {
         .orbitalBackdrop(tint)
         .navigationTitle(space?.name ?? "Space")
         .orbitalNavigationBar(pushed: pushed)
+        .onChange(of: current) {
+            // The other space may not have this platform; keep the area, reset the platform.
+            if !platforms.contains(platform) { platform = "all" }
+        }
+    }
+
+    private var platformName: String { platform == "all" ? "all platforms" : SpacePlatform.title(platform) }
+
+    @ViewBuilder
+    private func kindCard(_ kind: String, tint: Color) -> some View {
+        let mine = refs.filter { $0.block.kind == kind }
+        if mine.count == 1, let only = mine.first {
+            SeriesCard(block: only.block, accent: tint, eyebrow: Insights.nonEmpty(only.block.product) ?? SpaceArea.title(kind),
+                       onOpen: { router.show(only.location, tab: only.location.tabID) })
+        } else if !mine.isEmpty {
+            RollupChartCard(eyebrow: SpaceArea.title(kind), tint: tint, kind: kind, refs: mine,
+                            directory: store.directory, lockedSpace: current)
+        }
+    }
+
+    @ViewBuilder
+    private func moneyCards(tint: Color, compact: Bool) -> some View {
+        if compact || platform == "all" {
+            MoneySummaryCard(space: current)
+        }
+        if !compact {
+            ForEach(ledgers) { ledger in
+                LedgerCard(block: ledger.block, accent: tint, location: ledger.location)
+            }
+        }
+    }
+
+    private func empty(_ text: String) -> some View {
+        Text(text)
+            .font(.footnote)
+            .foregroundStyle(OrbitalTheme.textTertiary)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .orbitalCard(padding: 14)
+    }
+
+    private func areaBar(tint: Color) -> some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 8) {
+                ForEach(areas, id: \.id) { item in
+                    chip(item.title, symbol: item.symbol, selected: area == item.id, tint: tint) { area = item.id }
+                }
+                if !areas.contains(where: { $0.id == area }) {
+                    chip(SpaceArea.title(area), symbol: "questionmark.circle", selected: true, tint: OrbitalTheme.textTertiary) {}
+                }
+            }
+            .padding(.vertical, 1)
+        }
+    }
+
+    private func platformBar(tint: Color) -> some View {
+        HStack(spacing: 8) {
+            chip("All", symbol: "square.stack", selected: platform == "all", tint: tint) { platform = "all" }
+            ForEach(platforms, id: \.self) { item in
+                chip(SpacePlatform.title(item), symbol: SpacePlatform.symbol(item), selected: platform == item, tint: tint) { platform = item }
+            }
+        }
+    }
+
+    private func chip(_ title: String, symbol: String, selected: Bool, tint: Color, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Label(title, systemImage: symbol)
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(selected ? OrbitalTheme.backgroundDeep : OrbitalTheme.textSecondary)
+                .padding(.horizontal, 12)
+                .frame(minHeight: 34)
+                .background(selected ? tint : Color.white.opacity(0.06), in: Capsule())
+        }
+        .buttonStyle(.plain)
+        .accessibilityAddTraits(selected ? .isSelected : [])
     }
 
     private func header(tint: Color, products: [ProductInfo]) -> some View {
@@ -76,11 +211,27 @@ struct SpaceView: View {
                 .overlay(Circle().strokeBorder(tint.opacity(0.7), lineWidth: 2))
             VStack(alignment: .leading, spacing: 3) {
                 OrbitalEyebrow(text: "Space", color: tint)
-                Text(space?.name ?? spaceID)
-                    .font(.title2.weight(.bold))
-                    .foregroundStyle(OrbitalTheme.text)
-                    .lineLimit(2)
-                    .minimumScaleFactor(0.8)
+                Menu {
+                    ForEach(store.directory.spaces) { other in
+                        Button {
+                            picked = other.id
+                        } label: {
+                            Label(other.name, systemImage: other.id == current ? "checkmark" : other.symbol)
+                        }
+                    }
+                } label: {
+                    HStack(spacing: 6) {
+                        Text(space?.name ?? current)
+                            .font(.title2.weight(.bold))
+                            .foregroundStyle(OrbitalTheme.text)
+                            .lineLimit(2)
+                            .minimumScaleFactor(0.8)
+                        Image(systemName: "chevron.up.chevron.down")
+                            .font(.caption.weight(.bold))
+                            .foregroundStyle(tint)
+                    }
+                }
+                .accessibilityLabel("Switch space, now \(space?.name ?? current)")
                 if let subtitle = space?.subtitle ?? (products.isEmpty ? nil : products.map(\.name).joined(separator: " · ")) {
                     Text(subtitle)
                         .font(.caption)
@@ -171,6 +322,69 @@ struct SpaceView: View {
                 }
                 .orbitalCard(padding: 14)
             }
+        }
+    }
+}
+
+/// The standard areas a space page offers, in the order they appear.
+enum SpaceArea {
+    static let order = ["site", "social", "players", "usage", "search"]
+
+    static func title(_ kind: String) -> String {
+        switch kind {
+        case "overview": return "Overview"
+        case "site": return "Site traffic"
+        case "social": return "Social media"
+        case "players": return "Players"
+        case "usage": return "Usage"
+        case "search": return "Search"
+        case "money": return "Money"
+        case "videos": return "Videos"
+        case "pages": return "Pages"
+        default: return StatStyle.kindLabel(kind)
+        }
+    }
+
+    static func symbol(_ kind: String) -> String {
+        switch kind {
+        case "site": return "globe"
+        case "social": return "bubble.left.and.bubble.right"
+        case "players": return "gamecontroller"
+        case "usage": return "person.2"
+        case "search": return "magnifyingglass"
+        default: return "chart.xyaxis.line"
+        }
+    }
+}
+
+/// Where money comes from, read off a ledger's title, source and rows.
+enum SpacePlatform {
+    static let order = ["ios", "android", "roblox", "web"]
+
+    static func of(_ ledger: LedgerRef) -> String? {
+        let text = [ledger.title, ledger.source, ledger.block.source ?? "", ledger.block.title ?? ""].joined(separator: " ").lowercased()
+        if text.contains("app store") || text.contains("ios") || text.contains("apple") { return "ios" }
+        if text.contains("google play") || text.contains("android") || text.contains("play store") { return "android" }
+        if text.contains("robux") || text.contains("roblox") { return "roblox" }
+        if text.contains("stripe") || text.contains("web") { return "web" }
+        return nil
+    }
+
+    static func title(_ id: String) -> String {
+        switch id {
+        case "ios": return "iOS"
+        case "android": return "Android"
+        case "roblox": return "Roblox"
+        default: return "Web"
+        }
+    }
+
+    static func symbol(_ id: String) -> String {
+        switch id {
+        case "ios": return "apple.logo"
+        case "android": return "smartphone"
+        case "roblox": return "cube.fill"
+        default: return "globe"
         }
     }
 }

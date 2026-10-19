@@ -37,6 +37,10 @@ final class OrbitalStore: ObservableObject {
     @Published private(set) var series: [SeriesRef] = []
     /// Spaces and their products, from the catalog and the blocks.
     @Published private(set) var directory = SpaceDirectory()
+    /// Sections filed under System (machine health and the like), shown there instead of as a space.
+    @Published private(set) var systemSectionIDs: [String] = []
+    /// Extra bottom-bar items and the sidebar tree, from the hub.
+    @Published var nav = NavDoc.empty
     /// One short line at the bottom of the shell ("Marked done · syncing"). Clears itself.
     @Published private(set) var toast: String?
     /// Bumped when a scheduled reminder comes due, so the badge and the inbox move it to Waiting.
@@ -189,6 +193,7 @@ final class OrbitalStore: ObservableObject {
         alerts = OrbitalPreview.alerts()
         jobs = OrbitalPreview.jobs()
         satellites = OrbitalPreview.satellites()
+        nav = OrbitalPreview.nav()
         agentJobs = AgentJobsSort.ordered(OrbitalPreview.agentJobs())
         agentsLoaded = true
         hubInfo = OrbitalPreview.hubInfo()
@@ -229,18 +234,46 @@ final class OrbitalStore: ObservableObject {
         }
         do {
             let token = try await api.login(username: name, password: password)
-            keychain.set(token)
-            isLoggedIn = true
-            signInNotice = nil
-            OrbitalImageToken.current = token
-            // On a Mac the permission prompt is a banner that can sit unanswered. The first sync does not wait on it.
-            Task { await OrbitalNotifications.requestAuthorization() }
-            await refresh()
-            if !deviceRegistered { await registerDevice() }
+            await finishSignIn(token: token)
         } catch {
             loginError = OrbitalAPIError.friendly(error)
             isLoggedIn = false
         }
+    }
+
+    /// Signs in with the one-time code of an orbital://connect link: no username or password typed.
+    func pairSignIn(hub base: URL, code: String) async {
+        isLoggingIn = true
+        loginError = nil
+        defer { isLoggingIn = false }
+        if isLoggedIn {
+            socket.disconnect()
+            keychain.clear()
+            isLoggedIn = false
+        }
+        hubURLString = base.absoluteString
+        api.baseURL = base
+        api.token = nil
+        do {
+            hubInfo = try? await api.hubInfo()
+            let answer = try await api.pair(code: code)
+            if let name = answer.username { username = name }
+            await finishSignIn(token: answer.token)
+            showToast("Signed in to \(base.host ?? "your hub")")
+        } catch {
+            loginError = "That sign-in link didn't work (\(OrbitalAPIError.friendly(error))). Run `orbital pair` on the hub for a new one."
+        }
+    }
+
+    private func finishSignIn(token: String) async {
+        keychain.set(token)
+        isLoggedIn = true
+        signInNotice = nil
+        OrbitalImageToken.current = token
+        // On a Mac the permission prompt is a banner that can sit unanswered. The first sync does not wait on it.
+        Task { await OrbitalNotifications.requestAuthorization() }
+        await refresh()
+        if !deviceRegistered { await registerDevice() }
     }
 
     func logout() {
@@ -258,10 +291,15 @@ final class OrbitalStore: ObservableObject {
         agentsLoaded = false
     }
 
-    /// `orbital://connect?hub=<url>`: fills in the hub address on the sign-in screen, or offers it in Settings.
-    func connectLink(hub raw: String) {
+    /// `orbital://connect?hub=<url>[&pair=<code>]`: with a pairing code it signs in straight away; without one it
+    /// fills in the hub address on the sign-in screen, or offers it in Settings.
+    func connectLink(hub raw: String, pair: String? = nil) {
         guard let url = Self.parse(raw) else {
             showToast("Couldn't read the hub address in that link")
+            return
+        }
+        if let code = pair, !code.isEmpty {
+            Task { await pairSignIn(hub: url, code: code) }
             return
         }
         if isLoggedIn {
@@ -350,6 +388,7 @@ final class OrbitalStore: ObservableObject {
             }
             if hubInfo == nil { hubInfo = try? await api.hubInfo(timeout: 4) }
             if !deviceRegistered { await registerDevice() }
+            await refreshNav()
             await refreshAgents()
         } catch OrbitalAPIError.unauthorized {
             // The hub forgot this session (password changed, hub reset). Ask again.
@@ -466,8 +505,39 @@ final class OrbitalStore: ObservableObject {
         if found.ledgers != ledgers { ledgers = found.ledgers }
         if found.tasks != tasks { tasks = found.tasks }
         if found.series != series { series = found.series }
-        let built = SpaceDirectory.build(catalog: catalog, declared: declaredSpaces, sections: sectionsByID, collected: found)
+        var built = SpaceDirectory.build(catalog: catalog, declared: declaredSpaces, sections: sectionsByID, collected: found)
+        let system = built.spaces.filter { SystemSpace.ids.contains($0.id) }.flatMap(\.sectionIDs)
+        built.spaces.removeAll { SystemSpace.ids.contains($0.id) }
+        if system != systemSectionIDs { systemSectionIDs = system }
         if built != directory { directory = built }
+    }
+
+    /// The sidebar when the hub sets none: each space with its sections, then sections in no space.
+    var defaultSidebar: [NavItem] {
+        let system = Set(systemSectionIDs)
+        var filed = system
+        var out: [NavItem] = directory.spaces.map { space in
+            filed.formUnion(space.sectionIDs)
+            let pages = space.sectionIDs.compactMap { id in entry(id).map { NavItem(id: id, title: $0.title, icon: $0.icon, accent: $0.accent, target: .section(id, node: nil, tab: nil)) } }
+            return NavItem(id: "space-\(space.id)", title: space.name, icon: space.symbol, target: nil, children: pages.isEmpty ? [NavItem(id: "open", title: "Open \(space.name)", target: .space(space.id))] : [NavItem(id: "overview", title: "Overview", icon: "square.grid.2x2", target: .space(space.id))] + pages)
+        }
+        let loose = sortedCatalog.filter { !filed.contains($0.id) }
+        if !loose.isEmpty {
+            out.append(NavItem(id: "sections", title: "Sections", icon: "doc.on.doc", children: loose.map {
+                NavItem(id: $0.id, title: $0.title, icon: $0.icon, accent: $0.accent, target: .section($0.id, node: nil, tab: nil))
+            }))
+        }
+        return out
+    }
+
+    /// The sidebar to draw: the hub's tree, else the default.
+    var sidebarTree: [NavItem] { nav.sidebar ?? defaultSidebar }
+
+    func refreshNav() async {
+        #if DEBUG
+        if OrbitalPreview.isActive { return }
+        #endif
+        if let doc = try? await api.nav(), doc != nav { nav = doc }
     }
 
     /// The catalog row or loaded document for a section, for titles and icons.
@@ -854,6 +924,11 @@ final class OrbitalStore: ObservableObject {
                 showToast("Couldn't save: \(message)")
             default:
                 break
+            }
+        case "nav":
+            if let raw = event["nav"] as? [String: Any] {
+                let doc = NavDoc(json: raw)
+                if doc != nav { nav = doc }
             }
         case "alerts_retracted":
             applyRetracted(event["ids"] as? [String] ?? [])

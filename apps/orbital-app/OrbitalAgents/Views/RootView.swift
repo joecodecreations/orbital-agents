@@ -37,7 +37,7 @@ struct RootView: View {
         .preferredColorScheme(.dark)
         .tint(accent)
         .onOpenURL { url in
-            router.handle(url) { hub in store.connectLink(hub: hub) }
+            router.handle(url) { hub, pair in store.connectLink(hub: hub, pair: pair) }
             if store.pendingHubURL != nil { router.openSettings() }
         }
         .onChange(of: router.navigationToken) {
@@ -54,6 +54,11 @@ struct RootView: View {
         }
         .sheet(item: $router.runDraft) { draft in
             RunAgentSheet(draft: draft)
+                .environmentObject(store)
+                .environmentObject(router)
+        }
+        .sheet(isPresented: $router.showDrawer) {
+            NavDrawer()
                 .environmentObject(store)
                 .environmentObject(router)
         }
@@ -125,8 +130,16 @@ struct RootView: View {
                         .agents: store.activeAgentJobs.count,
                         .desk: desk.tasks.values.filter(\.isActive).count,
                         .tracker: desk.trackerActive,
-                    ]
-                ) { router.select(tab: $0) }
+                    ],
+                    extra: store.nav.tabs
+                ) { tab in
+                    // A link item opens its link instead of becoming a tab.
+                    if case .custom(let id) = tab, let item = store.nav.tab(id), case .link = item.target {
+                        router.open(nav: item, key: "tab:\(id)")
+                    } else {
+                        router.select(tab: tab)
+                    }
+                }
                 .transition(.opacity)
             }
         }
@@ -150,8 +163,16 @@ struct RootView: View {
             }
             compactTab(.agents) {
                 NavigationStack(path: $router.agentsPath) {
-                    AgentsView()
+                    SystemView()
                         .navigationDestination(for: BrowseRoute.self) { RouteView(route: $0) }
+                }
+            }
+            ForEach(store.nav.tabs) { item in
+                compactTab(.custom(item.id)) {
+                    NavigationStack(path: router.customPath(item.id)) {
+                        NavTabRoot(tabID: item.id)
+                            .navigationDestination(for: BrowseRoute.self) { RouteView(route: $0) }
+                    }
                 }
             }
             compactTab(.desk) {
@@ -192,9 +213,12 @@ struct RootView: View {
 
     private var wideShell: some View {
         HStack(spacing: 0) {
-            SidebarColumn(showsSummaries: true)
-                .frame(width: 244)
-            columnRule
+            if !router.sidebarHidden {
+                SidebarColumn(showsSummaries: true)
+                    .frame(width: 244)
+                    .transition(.move(edge: .leading))
+                columnRule
+            }
             if showsNodes {
                 NodeColumn()
                     .frame(width: 240)
@@ -206,6 +230,22 @@ struct RootView: View {
                     .navigationDestination(for: BrowseRoute.self) { RouteView(route: $0) }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .overlay(alignment: .topTrailing) {
+                Button {
+                    withAnimation(.easeInOut(duration: 0.22)) { router.sidebarHidden.toggle() }
+                } label: {
+                    Image(systemName: "sidebar.left")
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundStyle(OrbitalTheme.textSecondary)
+                        .frame(width: 34, height: 34)
+                        .background(Color.white.opacity(0.06), in: Circle())
+                }
+                .buttonStyle(.plain)
+                .padding(.trailing, 14)
+                .padding(.top, 8)
+                .keyboardShortcut("s", modifiers: [.command, .control])
+                .accessibilityLabel(router.sidebarHidden ? "Show the sidebar" : "Hide the sidebar")
+            }
         }
         .environment(\.orbitalDetailBesideList, showsNodes)
         .background(OrbitalTheme.backgroundDeep.ignoresSafeArea())
@@ -234,20 +274,16 @@ struct RootView: View {
         switch router.destination {
         case .home:
             HomeView()
-        case .agents:
-            AgentsView()
+        case .agents, .manage, .settings, .automations:
+            SystemView()
         case .desk:
             DeskScreen()
         case .tracker:
             TrackerListView()
         case .alerts:
             AlertsInboxView()
-        case .manage:
-            SectionEditorView()
-        case .settings:
-            SettingsView()
-        case .automations:
-            AutomationsView()
+        case .custom(let id):
+            NavTabRoot(tabID: id)
         case .section(let id):
             if id == nil && store.selectedSectionID == nil {
                 BrowseView()

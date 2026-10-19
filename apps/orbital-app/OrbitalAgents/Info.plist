@@ -47,9 +47,23 @@
 		<true/>
 		<key>NSAllowsLocalNetworking</key>
 		<true/>
+		<key>NSExceptionDomains</key>
+		<dict>
+			<key>ts.net</key>
+			<dict>
+				<key>NSIncludesSubdomains</key>
+				<true/>
+				<key>NSExceptionAllowsInsecureHTTPLoads</key>
+				<true/>
+			</dict>
+		</dict>
 	</dict>
+	<key>NSBonjourServices</key>
+	<array>
+		<string>_orbital-hub._tcp</string>
+	</array>
 	<key>NSLocalNetworkUsageDescription</key>
-	<string>$(ORBITAL_APP_NAME) connects to your hub over Tailscale or your local network.</string>
+	<string>$(ORBITAL_APP_NAME) finds and connects to your hub over Tailscale or your local network.</string>
 	<key>NSMicrophoneUsageDescription</key>
 	<string>$(ORBITAL_APP_NAME) uses the microphone so you can talk to the desk.</string>
 	<key>NSSpeechRecognitionUsageDescription</key>

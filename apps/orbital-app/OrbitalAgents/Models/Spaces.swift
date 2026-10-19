@@ -50,6 +50,14 @@ enum Spaces {
 struct SpaceDirectory: Equatable {
     var spaces: [SpaceSummary] = []
     var products: [ProductInfo] = []
+    /// Other names (a title, an old company name) → the space id they belong to.
+    var aliases: [String: String] = [:]
+
+    /// The space id a raw name on a block belongs to.
+    func resolve(_ raw: String?) -> String {
+        let key = Spaces.key(raw ?? "")
+        return aliases[key] ?? key
+    }
 
     func space(_ id: String?) -> SpaceSummary? {
         guard let id else { return nil }
@@ -98,6 +106,8 @@ struct SpaceDirectory: Equatable {
         func note(_ raw: String) -> String? {
             let key = Spaces.key(raw)
             guard !key.isEmpty else { return nil }
+            // Another name for a declared space: never a space of its own.
+            if let target = aliases[key], drafts[target] != nil { return target }
             if drafts[key] == nil {
                 drafts[key] = Draft(id: key, name: Spaces.displayName(raw), firstSeen: seen)
                 seen += 1
@@ -120,15 +130,20 @@ struct SpaceDirectory: Equatable {
             draft.order = info.order
             draft.sectionIDs.append(contentsOf: info.sections ?? [])
             drafts[key] = draft
-            // A section may name the space by its title rather than its id.
+            // A section may name the space by its title rather than its id, or by an alias (an old company name).
             if Spaces.key(info.title) != key, drafts[Spaces.key(info.title)] == nil {
                 aliases[Spaces.key(info.title)] = key
             }
+            for alias in info.aliases ?? [] where Spaces.key(alias) != key {
+                aliases[Spaces.key(alias)] = key
+            }
         }
+        /// Sections a declared space lists stay there, whatever their own tag says.
+        let claimed = Set((declared ?? []).flatMap { $0.sections ?? [] })
 
         // 2. Sections tagged with a space, in left-bar order.
         let orderedCatalog = catalog.sorted { ($0.order, $0.title) < ($1.order, $1.title) }
-        for entry in orderedCatalog {
+        for entry in orderedCatalog where !claimed.contains(entry.id) {
             let document = sections[entry.id]
             let tag = document?.space ?? entry.space
             guard let tag, let raw = note(tag) else { continue }
@@ -237,6 +252,6 @@ struct SpaceDirectory: Equatable {
             if lhs.order != rhs.order { return lhs.order < rhs.order }
             return lhs.name.localizedCaseInsensitiveCompare(rhs.name) == .orderedAscending
         }
-        return SpaceDirectory(spaces: spaces, products: productList)
+        return SpaceDirectory(spaces: spaces, products: productList, aliases: aliases)
     }
 }

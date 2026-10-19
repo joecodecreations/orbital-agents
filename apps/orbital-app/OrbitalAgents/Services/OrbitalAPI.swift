@@ -112,6 +112,22 @@ final class OrbitalAPI {
         return token
     }
 
+    /// Extra bottom-bar items and the sidebar tree (`orbital.nav.v1`).
+    func nav() async throws -> NavDoc {
+        let data = try await send("/v1/nav")
+        return NavDoc(json: (try JSONSerialization.jsonObject(with: data) as? [String: Any]) ?? [:])
+    }
+
+    /// Signs in with a one-time code from an orbital://connect link (`orbital pair` on the hub).
+    func pair(code: String) async throws -> (token: String, username: String?) {
+        let body = try JSONSerialization.data(withJSONObject: ["code": code])
+        let data = try await send("/v1/pair", method: "POST", body: body, authed: false)
+        let obj = try JSONSerialization.jsonObject(with: data) as? [String: Any]
+        guard let token = obj?["token"] as? String, !token.isEmpty else { throw OrbitalAPIError.unauthorized }
+        self.token = token
+        return (token, obj?["username"] as? String)
+    }
+
     func logout() async {
         _ = try? await send("/v1/logout", method: "POST", body: Data("{}".utf8))
     }

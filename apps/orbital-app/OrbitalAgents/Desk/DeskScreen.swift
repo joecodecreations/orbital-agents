@@ -60,7 +60,7 @@ struct DeskScreen: View {
         HStack(alignment: .center, spacing: 10) {
             AgentMark(size: 32)
             VStack(alignment: .leading, spacing: 1) {
-                Text("Desk")
+                Text("Agent")
                     .font(.title3.weight(.bold))
                     .foregroundStyle(OrbitalTheme.text)
                 modelLine
@@ -332,7 +332,7 @@ struct DeskScreen: View {
                 .foregroundStyle(desk.liveConversationOn ? OrbitalTheme.success : OrbitalTheme.textSecondary)
                 .accessibilityLabel(desk.liveConversationOn ? "Hands-free on" : "Hands-free off")
 
-                TextField("Talk or type to the desk", text: $desk.draft, axis: .vertical)
+                TextField("Talk or type to your agent", text: $desk.draft, axis: .vertical)
                     .lineLimit(1 ... 5)
                     .font(.body)
                     .foregroundStyle(OrbitalTheme.text)

@@ -9,20 +9,27 @@ struct OrbitalTabBar: View {
     var badges: [RootTab: Int] = [:]
     /// Green counts: things in progress, like the tracker's working items.
     var activity: [RootTab: Int] = [:]
+    /// The hub's extra items, after the fixed five.
+    var extra: [NavItem] = []
     let onSelect: (RootTab) -> Void
 
     static let tabs: [(tab: RootTab, title: String, symbol: String)] = [
         (.home, "Home", "house.fill"),
-        (.agents, "Agents", "cpu"),
-        (.desk, "Desk", "sparkles"),
+        (.agents, "System", "cpu"),
+        (.desk, "Agent", "sparkles"),
         (.tracker, "Tracker", "dot.radiowaves.left.and.right"),
         (.alerts, "Alerts", "bell.fill"),
     ]
 
     var body: some View {
-        HStack(spacing: 0) {
-            ForEach(Self.tabs, id: \.tab) { item in
-                button(item.tab, title: item.title, symbol: item.symbol)
+        Group {
+            if extra.count <= 2 {
+                HStack(spacing: 0) { items(width: nil) }
+            } else {
+                // More than seven: the bar scrolls sideways, each item keeps a comfortable width.
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 0) { items(width: 68) }
+                }
             }
         }
         .padding(.horizontal, 4)
@@ -38,7 +45,17 @@ struct OrbitalTabBar: View {
         }
     }
 
-    private func button(_ tab: RootTab, title: String, symbol: String) -> some View {
+    @ViewBuilder
+    private func items(width: CGFloat?) -> some View {
+        ForEach(Self.tabs, id: \.tab) { item in
+            button(item.tab, title: item.title, symbol: item.symbol, width: width)
+        }
+        ForEach(extra) { item in
+            button(.custom(item.id), title: item.title, symbol: item.symbol, width: width, navItem: item)
+        }
+    }
+
+    private func button(_ tab: RootTab, title: String, symbol: String, width: CGFloat?, navItem: NavItem? = nil) -> some View {
         let selected = tab == selection
         let count = badges[tab] ?? 0
         let working = activity[tab] ?? 0
@@ -48,8 +65,14 @@ struct OrbitalTabBar: View {
             onSelect(tab)
         } label: {
             VStack(spacing: 3) {
-                Image(systemName: symbol)
-                    .font(.system(size: 19, weight: .semibold))
+                Group {
+                    if let item = navItem {
+                        NavIcon(item: item, size: 22)
+                    } else {
+                        Image(systemName: symbol)
+                            .font(.system(size: 19, weight: .semibold))
+                    }
+                }
                     .frame(height: 24)
                     .overlay(alignment: .topTrailing) {
                         if shown > 0 {
@@ -69,7 +92,7 @@ struct OrbitalTabBar: View {
                     .minimumScaleFactor(0.8)
             }
             .foregroundStyle(selected ? OrbitalTheme.accent : OrbitalTheme.textTertiary)
-            .frame(maxWidth: .infinity, minHeight: 44)
+            .frame(minWidth: width, maxWidth: width ?? .infinity, minHeight: 44)
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)

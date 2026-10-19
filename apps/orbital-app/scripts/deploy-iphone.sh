@@ -104,6 +104,18 @@ PY
 echo "==> install on $DEVICE_ID"
 xcrun devicectl device install app --device "$DEVICE_ID" "$APP"
 if [[ "$LAUNCH" == "1" ]]; then
-  xcrun devicectl device process launch --device "$DEVICE_ID" "$BUNDLE_ID" || true
+  # On the hub, sign the app in by itself: a one-time orbital://connect link opened as it launches.
+  ORBITAL_BIN="$(command -v orbital || true)"
+  [[ -z "$ORBITAL_BIN" && -x "$APP_DIR/../../.venv/bin/orbital" ]] && ORBITAL_BIN="$APP_DIR/../../.venv/bin/orbital"
+  PAIR_URL=""
+  if [[ -n "$ORBITAL_BIN" ]]; then
+    PAIR_URL="$("$ORBITAL_BIN" pair --link 2>/dev/null || true)"
+  fi
+  if [[ "$PAIR_URL" == orbital://* ]]; then
+    echo "==> launching and signing the app in to the hub"
+    xcrun devicectl device process launch --device "$DEVICE_ID" --terminate-existing --payload-url "$PAIR_URL" "$BUNDLE_ID" >/dev/null || true
+  else
+    xcrun devicectl device process launch --device "$DEVICE_ID" "$BUNDLE_ID" || true
+  fi
 fi
 echo "==> installed $APP_NAME ($BUNDLE_ID)"

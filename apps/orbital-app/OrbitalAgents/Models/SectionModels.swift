@@ -260,9 +260,11 @@ struct SpaceInfo: Codable, Identifiable, Equatable {
     var order: Int?
     /// Section ids in this space, when the hub lists them here instead of on each section.
     var sections: [String]?
+    /// Other names for this space (an old company name on blocks), so their data joins it.
+    var aliases: [String]?
 
     enum CodingKeys: String, CodingKey {
-        case id, title, name, subtitle, icon, accent, order, sections
+        case id, title, name, subtitle, icon, accent, order, sections, aliases
         case iconImage = "icon_image"
     }
 
@@ -292,6 +294,7 @@ struct SpaceInfo: Codable, Identifiable, Equatable {
         accent = c.lenientString(.accent)
         order = c.lenientInt(.order)
         sections = (try? c.decodeIfPresent([String].self, forKey: .sections)) ?? nil
+        aliases = (try? c.decodeIfPresent([String].self, forKey: .aliases)) ?? nil
     }
 
     func encode(to encoder: Encoder) throws {
@@ -304,6 +307,7 @@ struct SpaceInfo: Codable, Identifiable, Equatable {
         try c.encodeIfPresent(accent, forKey: .accent)
         try c.encodeIfPresent(order, forKey: .order)
         try c.encodeIfPresent(sections, forKey: .sections)
+        try c.encodeIfPresent(aliases, forKey: .aliases)
     }
 }
 

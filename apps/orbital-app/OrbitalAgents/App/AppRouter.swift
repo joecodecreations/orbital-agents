@@ -1,13 +1,30 @@
 import Foundation
 import SwiftUI
+import UIKit
 
-/// Bottom tabs on an iPhone in portrait.
-enum RootTab: Hashable, CaseIterable {
+/// Bottom tabs on an iPhone in portrait: the fixed five (Home, System, Agent, Tracker, Alerts), then the
+/// hub's extra items (`/v1/nav` tabs) by id. `.agents` is the System tab and `.desk` the Agent tab.
+enum RootTab: Hashable {
     case home
     case agents
     case desk
     case tracker
     case alerts
+    case custom(String)
+}
+
+/// The panes inside System.
+enum SystemPane: String, CaseIterable, Identifiable {
+    case satellites, automations, manage, settings
+    var id: String { rawValue }
+    var title: String {
+        switch self {
+        case .satellites: return "Satellites"
+        case .automations: return "Automations"
+        case .manage: return "Manage"
+        case .settings: return "Settings"
+        }
+    }
 }
 
 /// One push inside a tab's navigation stack on iPhone, or inside the detail column on a wide window.
@@ -18,6 +35,10 @@ enum BrowseRoute: Hashable {
     case node(String, String)
     /// A space with everything filed under it (SpaceDirectory id).
     case space(String)
+    /// A navigation group (a bucket from the hub's nav document), by key.
+    case navGroup(String)
+    /// Every space, as tiles.
+    case spaces
     /// One product: its charts, money, and pages (SpaceDirectory product id).
     case product(String)
     /// Every section the hub has.
@@ -49,6 +70,22 @@ final class AppRouter: ObservableObject {
         case automations
         case manage
         case section(String?)
+        case custom(String)
+    }
+
+    /// Which pane System shows.
+    @Published var systemPane: SystemPane = .satellites
+    /// iPhone: the sidebar drawer is up.
+    @Published var showDrawer = false
+    /// Wide windows: the left bar is hidden.
+    @Published var sidebarHidden = UserDefaults.standard.bool(forKey: "orbital.sidebar.hidden") {
+        didSet { UserDefaults.standard.set(sidebarHidden, forKey: "orbital.sidebar.hidden") }
+    }
+    /// iPhone stacks of the hub's extra tabs, by tab id.
+    @Published var customPaths: [String: [BrowseRoute]] = [:]
+
+    func customPath(_ id: String) -> Binding<[BrowseRoute]> {
+        Binding(get: { self.customPaths[id] ?? [] }, set: { self.customPaths[id] = $0 })
     }
 
     /// What the wide layout's detail column shows, and on iPhone which tab is up.
@@ -84,11 +121,12 @@ final class AppRouter: ObservableObject {
 
     var tab: RootTab {
         switch destination {
-        case .home, .settings, .automations, .manage, .section: return .home
-        case .agents: return .agents
+        case .home, .section: return .home
+        case .agents, .settings, .automations, .manage: return .agents
         case .desk: return .desk
         case .tracker: return .tracker
         case .alerts: return .alerts
+        case .custom(let id): return .custom(id)
         }
     }
 
@@ -104,6 +142,7 @@ final class AppRouter: ObservableObject {
         case .desk: destination = .desk
         case .tracker: destination = .tracker
         case .alerts: destination = .alerts
+        case .custom(let id): destination = .custom(id)
         }
     }
 
@@ -114,7 +153,62 @@ final class AppRouter: ObservableObject {
         case .desk: deskPath = path
         case .tracker: trackerPath = path
         case .alerts: alertsPath = path
+        case .custom(let id): customPaths[id] = path
         }
+    }
+
+    /// System, on one pane.
+    func openSystem(_ pane: SystemPane) {
+        systemPane = pane
+        destination = .agents
+        if isCompact { agentsPath = [] } else { widePath = [] }
+        navigationToken += 1
+    }
+
+    /// Where a navigation item (a custom tab, a sidebar row) leads. Groups push their list.
+    func open(nav item: NavItem, key: String) {
+        switch item.target {
+        case .section(let section, let node, let tab):
+            if isCompact, case .custom = self.tab {
+                pendingSectionID = section
+                pendingNodeID = node
+                pendingTabID = tab
+                pendingStack = self.tab
+                push(node.map { .node(section, $0) } ?? .section(section))
+            } else {
+                open(section: section, node: node, tab: tab)
+            }
+        case .space(let space):
+            if isCompact, case .custom = self.tab { push(.space(Spaces.key(space))) } else {
+                if isCompact { destination = .home; homePath = [] } else { destination = .home; widePath = [] }
+                push(.space(Spaces.key(space)))
+                navigationToken += 1
+            }
+        case .view(let view):
+            openView(view)
+        case .link(let raw):
+            if let url = URL(string: raw) {
+                if url.scheme == "https" { UIApplication.shared.open(url) } else { handle(url) }
+            }
+        case nil:
+            push(.navGroup(key))
+        }
+    }
+
+    func openView(_ view: String) {
+        switch view {
+        case "home": destination = .home; homePath = []
+        case "system", "satellites": openSystem(.satellites)
+        case "automations": openSystem(.automations)
+        case "manage": openSystem(.manage)
+        case "settings": openSystem(.settings)
+        case "agent": openDesk(prompt: nil)
+        case "tracker": openTracker(item: nil)
+        case "alerts": openAlerts()
+        case "spaces": push(.spaces)
+        default: openBrowse()
+        }
+        navigationToken += 1
     }
 
     func openDesk(prompt: String?, task: String? = nil) {
@@ -210,13 +304,8 @@ final class AppRouter: ObservableObject {
         switch tab {
         case .home: homePath.append(route)
         case .alerts: alertsPath.append(route)
-        case .agents:
-            switch route {
-            case .agentJob, .satellite, .trackerItem: agentsPath.append(route)
-            default:
-                homePath = [route]
-                destination = .home
-            }
+        case .agents: agentsPath.append(route)
+        case .custom(let id): customPaths[id, default: []].append(route)
         case .desk, .tracker:
             switch route {
             case .trackerItem, .agentJob:
@@ -242,23 +331,18 @@ final class AppRouter: ObservableObject {
         if isCompact { push(.browse) } else { destination = .section(nil) }
     }
 
-    func openManage() {
-        if isCompact { push(.manage) } else { destination = .manage }
-    }
+    func openManage() { openSystem(.manage) }
 
-    func openSettings() {
-        if isCompact { push(.settings) } else { destination = .settings }
-    }
+    func openSettings() { openSystem(.settings) }
 
     /// Every feed's schedule, countdown, last run, and run buttons. `job` opens that feed's detail.
     func openAutomations(job: String? = nil) {
         focusedJobID = job
-        if isCompact { push(.automations) } else { destination = .automations }
-        navigationToken += 1
+        openSystem(.automations)
     }
 
     /// Handles an orbital:// link. `onConnect` receives the hub address of an orbital://connect link.
-    func handle(_ url: URL, onConnect: ((String) -> Void)? = nil) {
+    func handle(_ url: URL, onConnect: ((String, String?) -> Void)? = nil) {
         guard url.scheme?.lowercased() == OrbitalBrand.urlScheme else { return }
         let host = (url.host ?? "").lowercased()
         let items = URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems ?? []
@@ -267,7 +351,7 @@ final class AppRouter: ObservableObject {
         }
         switch host {
         case "connect":
-            if let hub = q("hub") ?? q("url") { onConnect?(hub) }
+            if let hub = q("hub") ?? q("url") { onConnect?(hub, q("pair")) }
         case "agent", "desk":
             openDesk(prompt: q("prompt"), task: q("task"))
         case "tracker":
@@ -290,8 +374,12 @@ final class AppRouter: ObservableObject {
             if let job = q("id") { openAgents(route: .agentJob(job)) }
         case "alerts":
             openAlerts()
+        case "system", "satellites":
+            openSystem(.satellites)
+        case "spaces":
+            openView("spaces")
         case "manage", "settings", "automations", "jobs", "browse":
-            if isCompact {
+            if isCompact, host == "browse" {
                 destination = .home
                 homePath = []
             }

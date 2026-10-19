@@ -24,6 +24,7 @@ struct OrbitalMark: View {
 struct SignInView: View {
     @EnvironmentObject private var store: OrbitalStore
     @EnvironmentObject private var desk: DeskState
+    @StateObject private var discovery = HubDiscovery()
     @State private var username = ""
     @State private var password = ""
     @FocusState private var focus: Field?
@@ -55,13 +56,61 @@ struct SignInView: View {
                 }
 
                 VStack(alignment: .leading, spacing: 12) {
-                    OrbitalEyebrow(text: "Hub address")
+                    HStack {
+                        OrbitalEyebrow(text: "Hub address")
+                        Spacer(minLength: 0)
+                        if discovery.isScanning {
+                            HStack(spacing: 6) {
+                                ProgressView().controlSize(.mini)
+                                Text("Scanning…")
+                                    .font(.caption2.weight(.semibold))
+                                    .foregroundStyle(OrbitalTheme.textTertiary)
+                            }
+                        } else {
+                            Button {
+                                discovery.scan()
+                            } label: {
+                                Label("Find hub", systemImage: "antenna.radiowaves.left.and.right")
+                                    .font(.caption2.weight(.bold))
+                            }
+                        }
+                    }
+                    if !discovery.hubs.isEmpty {
+                        VStack(spacing: 6) {
+                            ForEach(discovery.hubs) { hub in
+                                Button {
+                                    store.hubURLString = hub.url
+                                    focus = .username
+                                } label: {
+                                    HStack(spacing: 10) {
+                                        Image(systemName: "server.rack")
+                                            .font(.caption.weight(.bold))
+                                            .foregroundStyle(OrbitalTheme.accent)
+                                        VStack(alignment: .leading, spacing: 2) {
+                                            Text(hub.name)
+                                                .font(.subheadline.weight(.semibold))
+                                                .foregroundStyle(OrbitalTheme.text)
+                                            Text(hub.url)
+                                                .font(.caption.monospaced())
+                                                .foregroundStyle(OrbitalTheme.textTertiary)
+                                        }
+                                        Spacer(minLength: 0)
+                                        Image(systemName: "arrow.right.circle.fill")
+                                            .foregroundStyle(OrbitalTheme.accent)
+                                    }
+                                    .padding(10)
+                                    .background(OrbitalTheme.accent.opacity(0.1), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+                                }
+                                .buttonStyle(.plain)
+                            }
+                        }
+                    }
                     OrbitalField(placeholder: OrbitalBrand.hubPlaceholder, text: $store.hubURLString, symbol: "server.rack", monospaced: true)
                         .keyboardType(.URL)
                         .focused($focus, equals: .hub)
                         .submitLabel(.next)
                         .onSubmit { focus = .username }
-                    Text("The hub's Tailscale name or 100.x address. Port 7700 is added when you leave it out. `orbital status` on the hub prints it.")
+                    Text("The hub's Tailscale name or 100.x address. Port 7700 is added when you leave it out. Tap \"Find hub\" to scan the local network, or run `orbital status` on the hub.")
                         .font(.caption)
                         .foregroundStyle(OrbitalTheme.textTertiary)
                         .fixedSize(horizontal: false, vertical: true)
@@ -119,7 +168,13 @@ struct SignInView: View {
         .foregroundStyle(OrbitalTheme.text)
         .onAppear {
             username = store.username
-            if store.hubURLString.isEmpty { focus = .hub }
+            if store.hubURLString.isEmpty {
+                focus = .hub
+                discovery.scan()
+            }
+        }
+        .onDisappear {
+            discovery.stop()
         }
     }
 

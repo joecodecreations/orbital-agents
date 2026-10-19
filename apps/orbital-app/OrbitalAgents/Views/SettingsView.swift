@@ -21,30 +21,11 @@ struct SettingsView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 18) {
                 OrbitalScreenHeader(eyebrow: "This device", title: "Settings", accent: accent)
-                profileCard
                 if let pending = store.pendingHubURL {
                     pendingHubCard(pending)
                 }
-                group("Hub", symbol: "server.rack") {
-                    OrbitalField(placeholder: OrbitalBrand.hubPlaceholder, text: $hubURL, symbol: "network", monospaced: true)
-                        .keyboardType(.URL)
-                    OrbitalActionButton(title: "Save and reconnect", symbol: "arrow.triangle.2.circlepath", kind: .secondary, accent: accent) {
-                        store.updateHubURL(hubURL)
-                    }
-                    if let error = store.editorError, !error.isEmpty {
-                        errorText(error)
-                    }
-                    if let info = store.hubInfo {
-                        VStack(alignment: .leading, spacing: 4) {
-                            row("Name", info.name ?? "—")
-                            if let machine = info.machine { row("Machine", machine) }
-                            if let version = info.version { row("Hub version", version) }
-                        }
-                    }
-                    Text("A different address signs you out, so you can sign in to that hub. The address and session stay on this device; the hub only answers over Tailscale.")
-                        .font(.footnote)
-                        .foregroundStyle(OrbitalTheme.textSecondary)
-                        .fixedSize(horizontal: false, vertical: true)
+                if let error = store.editorError, !error.isEmpty {
+                    errorText(error)
                 }
                 group("Notifications", symbol: "bell.badge.fill") {
                     ViewThatFits(in: .horizontal) {
@@ -73,16 +54,17 @@ struct SettingsView: View {
                         }
                     }
                 }
-                group("Desk and voice", symbol: "waveform") {
-                    row("Desk on the hub", desk.isUnavailable ? "Not configured" : (desk.model?.model ?? "Checking…"))
-                    row("Fish voices on the hub", desk.speechStatus.tts ? "Ready" : "Not configured")
+                group("Agent and voice", symbol: "waveform") {
+                    row("Agent model", desk.isUnavailable ? "Not set up" : (desk.model?.model ?? "Checking…"))
+                    row("Fish voices on the hub", desk.speechStatus.tts ? "Ready" : "Not set up")
                     OrbitalActionButton(title: "Voice settings", symbol: "waveform", kind: .secondary, accent: accent) {
                         showVoice = true
                     }
                 }
-                OrbitalActionButton(title: "Sign out", symbol: "rectangle.portrait.and.arrow.right", kind: .destructive) {
-                    confirmLogout = true
-                }
+                Text("The hub's address, connection and sign out are at the top of System.")
+                    .font(.footnote)
+                    .foregroundStyle(OrbitalTheme.textTertiary)
+                    .fixedSize(horizontal: false, vertical: true)
                 Text("\(OrbitalBrand.appName) \(OrbitalBrand.version)")
                     .font(.caption2)
                     .foregroundStyle(OrbitalTheme.textTertiary)

@@ -126,6 +126,12 @@ enum OrbitalPreview {
         decode(SatelliteList.self, "satellites.json")?.satellites ?? []
     }
 
+    /// A copy of `GET /v1/nav`.
+    static func nav() -> NavDoc {
+        guard let raw = data("nav.json"), let json = try? JSONSerialization.jsonObject(with: raw) as? [String: Any] else { return .empty }
+        return NavDoc(json: json)
+    }
+
     /// A copy of `GET /v1/agents/jobs`.
     static func agentJobs() -> [AgentJob] {
         decode(AgentJobList.self, "agent-jobs.json")?.jobs ?? []

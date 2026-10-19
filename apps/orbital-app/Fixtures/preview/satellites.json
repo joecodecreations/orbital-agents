@@ -24,7 +24,47 @@
       "heartbeat_seconds": 60,
       "status": "online",
       "running_jobs": 1,
-      "is_hub": true
+      "is_hub": true,
+      "system_metrics": {
+        "cpus": 16,
+        "load": [
+          3.42,
+          2.97,
+          2.6
+        ],
+        "memory": {
+          "total": 51539607552,
+          "used": 33500744908,
+          "percent": 65.0
+        },
+        "disks": [
+          {
+            "mount": "/",
+            "total": 994662584320,
+            "used": 646530679808,
+            "free": 348131904512,
+            "percent": 65.0
+          },
+          {
+            "mount": "~/.orbital-agents",
+            "total": 2000398934016,
+            "used": 1660331115233,
+            "free": 340067818783,
+            "percent": 83.0
+          }
+        ],
+        "uptime_s": 1156109
+      },
+      "browser_status": {
+        "state": "connected",
+        "bridge_up": true,
+        "extension_connected": true,
+        "extension_version": "0.1.0",
+        "last_poll_age_s": 2.4,
+        "bind": "tailscale",
+        "hub_can_drive": true
+      },
+      "reachability": "callback"
     },
     {
       "id": "sat-nas",
@@ -40,14 +80,55 @@
           "claude",
           "codex"
         ],
-        "browser": false,
-        "tracker": false
+        "browser": true,
+        "tracker": false,
+        "browser_port": 7703
       },
       "joined_at": "@now-38d",
       "last_seen": "@now-45s",
       "heartbeat_seconds": 60,
       "status": "online",
-      "running_jobs": 1
+      "running_jobs": 1,
+      "system_metrics": {
+        "cpus": 4,
+        "load": [
+          0.81,
+          0.74,
+          0.69
+        ],
+        "memory": {
+          "total": 17179869184,
+          "used": 6871947673,
+          "percent": 40.0
+        },
+        "disks": [
+          {
+            "mount": "/",
+            "total": 256060514304,
+            "used": 61454523432,
+            "free": 194605990872,
+            "percent": 24.0
+          },
+          {
+            "mount": "/mnt/tank",
+            "total": 16000900661248,
+            "used": 14720828608348,
+            "free": 1280072052900,
+            "percent": 92.0
+          }
+        ],
+        "uptime_s": 3888000
+      },
+      "browser_status": {
+        "state": "no_extension",
+        "bridge_up": true,
+        "extension_connected": false,
+        "extension_version": null,
+        "last_poll_age_s": null,
+        "bind": "tailscale",
+        "hub_can_drive": true
+      },
+      "reachability": "callback"
     },
     {
       "id": "sat-laptop",

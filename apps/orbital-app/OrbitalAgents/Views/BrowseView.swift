@@ -76,6 +76,10 @@ struct RouteView: View {
                 TrackerListView()
             case .trackerItem(let id):
                 TrackerItemView(itemID: id)
+            case .navGroup(let key):
+                NavGroupView(key: key)
+            case .spaces:
+                SpacesListView()
             }
         }
         .environment(\.orbitalPushed, true)

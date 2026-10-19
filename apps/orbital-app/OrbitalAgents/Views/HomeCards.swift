@@ -13,7 +13,25 @@ struct ShellHeaderButtons: View {
 
     var body: some View {
         if router.isCompact {
+            HStack(spacing: 0) {
+                Button { router.showDrawer = true } label: {
+                    Image(systemName: "sidebar.left")
+                        .font(.subheadline.weight(.bold))
+                        .foregroundStyle(OrbitalTheme.textSecondary)
+                        .frame(width: 38, height: 38)
+                        .background(Color.white.opacity(0.06), in: Circle())
+                        .frame(width: 44, height: 44)
+                        .contentShape(Rectangle())
+                }
+                .accessibilityLabel("Spaces and pages")
+                menu
+            }
+        }
+    }
+
+    private var menu: some View {
             Menu {
+                Button { router.openView("spaces") } label: { Label("All spaces", systemImage: "square.stack.3d.up") }
                 Button { router.openBrowse() } label: { Label("All sections", systemImage: "square.grid.2x2") }
                 Button { router.runAgent() } label: { Label("Run an agent", systemImage: "play.circle") }
                 if store.jobs != nil {
@@ -31,7 +49,6 @@ struct ShellHeaderButtons: View {
                     .contentShape(Rectangle())
             }
             .accessibilityLabel("More")
-        }
     }
 }
 
@@ -167,19 +184,35 @@ struct AttentionCard: View {
             ))
         }
 
-        // Machines that stopped answering.
-        for machine in store.satellites where !machine.isOnline {
-            out.append(Item(
-                id: "satellite-\(machine.id)",
-                symbol: "wifi.slash",
-                tone: "warning",
-                title: "\(machine.name) is offline",
-                detail: "Last seen \(OrbitalDates.relative(machine.lastSeen) ?? "a while ago"). Agents can't start there until it is back.",
-                image: nil,
-                fallback: machine.symbol,
-                accent: OrbitalTheme.textSecondary,
-                action: { router.openAgents(route: .satellite(machine.id)) }
-            ))
+        // Machines that stopped answering, are running out of disk, or whose browser control is broken.
+        for machine in store.satellites {
+            if !machine.isOnline {
+                out.append(Item(
+                    id: "satellite-\(machine.id)",
+                    symbol: "wifi.slash",
+                    tone: "warning",
+                    title: "\(machine.name) is offline",
+                    detail: "Last seen \(OrbitalDates.relative(machine.lastSeen) ?? "a while ago"). Agents can't start there until it is back.",
+                    image: nil,
+                    fallback: machine.symbol,
+                    accent: OrbitalTheme.textSecondary,
+                    action: { router.openAgents(route: .satellite(machine.id)) }
+                ))
+                continue
+            }
+            for issue in machine.issues(now: now) where issue.id.hasPrefix("disk") || issue.id == "browser" {
+                out.append(Item(
+                    id: "satellite-\(machine.id)-\(issue.id)",
+                    symbol: issue.symbol,
+                    tone: issue.danger ? "danger" : "warning",
+                    title: "\(machine.name): \(issue.text)",
+                    detail: issue.id == "browser" ? "Agents can't drive Chrome there until it is fixed." : "Free space before agents and builds start failing.",
+                    image: nil,
+                    fallback: machine.symbol,
+                    accent: OrbitalTheme.textSecondary,
+                    action: { router.openAgents(route: .satellite(machine.id)) }
+                ))
+            }
         }
 
         // Agent jobs that failed in the last day.
@@ -343,18 +376,18 @@ struct AgentActivityCard: View {
                     .foregroundStyle(OrbitalTheme.textTertiary)
                     .fixedSize(horizontal: false, vertical: true)
             } else {
-                ScrollView(.horizontal, showsIndicators: false) {
-                    HStack(spacing: 8) {
-                        ForEach(store.satellites) { machine in
-                            Button {
-                                router.openAgents(route: .satellite(machine.id))
-                            } label: {
-                                SatelliteChip(machine: machine, running: running.filter { store.satellite(for: $0)?.id == machine.id }.count)
-                            }
-                            .buttonStyle(OrbitalPressStyle())
+                VStack(spacing: 0) {
+                    ForEach(Array(store.satellites.enumerated()), id: \.element.id) { index, machine in
+                        if index > 0 {
+                            Rectangle().fill(OrbitalTheme.hairline.opacity(0.6)).frame(height: 1)
                         }
+                        Button {
+                            router.openAgents(route: .satellite(machine.id))
+                        } label: {
+                            MachineHealthRow(machine: machine, running: running.filter { store.satellite(for: $0)?.id == machine.id })
+                        }
+                        .buttonStyle(OrbitalPressStyle())
                     }
-                    .padding(.vertical, 1)
                 }
             }
 
@@ -719,7 +752,7 @@ struct MoneySummaryCard: View {
     private var ledgers: [LedgerRef] {
         guard let space else { return store.ledgers }
         let sections = Set(store.directory.space(space)?.sectionIDs ?? [])
-        return store.ledgers.filter { Spaces.key($0.space) == space || sections.contains($0.location.sectionID) }
+        return store.ledgers.filter { store.directory.resolve($0.space) == space || sections.contains($0.location.sectionID) }
     }
 
     private var currency: String { Insights.primaryCurrency(ledgers) }

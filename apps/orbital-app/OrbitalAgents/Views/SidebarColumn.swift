@@ -16,10 +16,10 @@ struct SidebarColumn: View {
                     pinned("Home", system: "house.fill", selected: router.destination == .home && router.widePath.isEmpty) {
                         openPinned(.home)
                     }
-                    pinned("Agents", system: "cpu", selected: router.destination == .agents, count: store.activeAgentJobs.count, countTint: OrbitalTheme.success) {
-                        openPinned(.agents)
+                    pinned("System", system: "cpu", selected: router.tab == .agents, count: store.activeAgentJobs.count, countTint: OrbitalTheme.success) {
+                        router.openSystem(.satellites)
                     }
-                    pinned("Desk", system: "sparkles", selected: router.destination == .desk) {
+                    pinned("Agent", system: "sparkles", selected: router.destination == .desk) {
                         openPinned(.desk)
                     }
                     pinned("Tracker", system: "dot.radiowaves.left.and.right", selected: router.destination == .tracker, count: desk.trackerActive, countTint: OrbitalTheme.success) {
@@ -28,28 +28,19 @@ struct SidebarColumn: View {
                     pinned("Alerts", system: "bell.fill", selected: router.destination == .alerts, count: store.unackedCount) {
                         openPinned(.alerts)
                     }
-                    if !store.directory.spaces.isEmpty {
-                        OrbitalEyebrow(text: "Spaces")
-                            .padding(.horizontal, 10)
-                            .padding(.top, 10)
-                            .padding(.bottom, 4)
-                        ForEach(store.directory.spaces) { space in
-                            spaceRow(space)
+                    ForEach(store.nav.tabs) { item in
+                        pinned(item.title, system: item.symbol, selected: router.destination == .custom(item.id)) {
+                            if case .link = item.target { router.open(nav: item, key: "tab:\(item.id)") } else { openPinned(.custom(item.id)) }
                         }
                     }
-                    OrbitalEyebrow(text: "Sections")
-                        .padding(.horizontal, 10)
+                    if let tree = store.nav.sidebar {
+                        NavTreeList(items: tree, keyPrefix: "side:") { item, key in
+                            router.open(nav: item, key: key)
+                        }
+                        .padding(.horizontal, 4)
                         .padding(.top, 10)
-                        .padding(.bottom, 4)
-                    ForEach(store.sortedCatalog) { entry in
-                        sectionRow(entry)
-                    }
-                    if store.sortedCatalog.isEmpty {
-                        Text("No sections yet. Feeds push them with `orbital push`.")
-                            .font(.caption)
-                            .foregroundStyle(OrbitalTheme.textTertiary)
-                            .padding(.horizontal, 10)
-                            .padding(.top, 4)
+                    } else {
+                        defaultTree
                     }
                 }
                 .padding(.horizontal, 6)
@@ -60,15 +51,15 @@ struct SidebarColumn: View {
             OrbitalRule()
             VStack(spacing: 2) {
                 if store.jobs != nil {
-                    pinned("Automations", system: "clock.arrow.2.circlepath", selected: router.destination == .automations, count: (store.jobs?.failing.count ?? 0) + (store.jobs?.warning.count ?? 0)) {
-                        openPinned(.automations)
+                    pinned("Automations", system: "clock.arrow.2.circlepath", selected: router.tab == .agents && router.systemPane == .automations, count: (store.jobs?.failing.count ?? 0) + (store.jobs?.warning.count ?? 0)) {
+                        router.openSystem(.automations)
                     }
                 }
-                pinned("Manage", system: "slider.horizontal.3", selected: router.destination == .manage) {
-                    openPinned(.manage)
+                pinned("Manage", system: "slider.horizontal.3", selected: router.tab == .agents && router.systemPane == .manage) {
+                    router.openSystem(.manage)
                 }
-                pinned("Settings", system: "gearshape.fill", selected: router.destination == .settings) {
-                    openPinned(.settings)
+                pinned("Settings", system: "gearshape.fill", selected: router.tab == .agents && router.systemPane == .settings) {
+                    router.openSystem(.settings)
                 }
             }
             .padding(.horizontal, 6)
@@ -82,6 +73,36 @@ struct SidebarColumn: View {
             )
             .ignoresSafeArea()
         )
+    }
+
+    /// No sidebar set on the hub: spaces, then sections (minus those filed under System).
+    @ViewBuilder
+    private var defaultTree: some View {
+        let system = Set(store.systemSectionIDs)
+        let sections = store.sortedCatalog.filter { !system.contains($0.id) }
+                    if !store.directory.spaces.isEmpty {
+                        OrbitalEyebrow(text: "Spaces")
+                            .padding(.horizontal, 10)
+                            .padding(.top, 10)
+                            .padding(.bottom, 4)
+                        ForEach(store.directory.spaces) { space in
+                            spaceRow(space)
+                        }
+                    }
+                    OrbitalEyebrow(text: "Sections")
+                        .padding(.horizontal, 10)
+                        .padding(.top, 10)
+                        .padding(.bottom, 4)
+                    ForEach(sections) { entry in
+                        sectionRow(entry)
+                    }
+                    if sections.isEmpty {
+                        Text("No sections yet. Feeds push them with `orbital push`.")
+                            .font(.caption)
+                            .foregroundStyle(OrbitalTheme.textTertiary)
+                            .padding(.horizontal, 10)
+                            .padding(.top, 4)
+                    }
     }
 
     private var brand: some View {

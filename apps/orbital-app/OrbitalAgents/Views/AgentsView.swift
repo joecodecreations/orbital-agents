@@ -38,7 +38,7 @@ struct AgentsView: View {
     var body: some View {
         ScrollView {
             LazyVStack(alignment: .leading, spacing: 16) {
-                OrbitalScreenHeader(eyebrow: store.systemName, title: "Agents", subtitle: subtitle) {
+                OrbitalScreenHeader(eyebrow: "System", title: "Satellites", subtitle: subtitle) {
                     ShellHeaderButtons()
                 }
                 OrbitalActionButton(title: "Run an agent", symbol: "play.fill", kind: .primary) {
@@ -54,6 +54,7 @@ struct AgentsView: View {
                         .orbitalCard(padding: 12, tint: OrbitalTheme.warning)
                 }
                 machines
+                systemPages
                 jobsSection
             }
             .frame(maxWidth: OrbitalTheme.columnMax)
@@ -66,7 +67,7 @@ struct AgentsView: View {
         .orbitalScrollFade()
         .refreshable { await store.refreshAgents() }
         .orbitalBackdrop(OrbitalTheme.accent)
-        .navigationTitle("Agents")
+        .navigationTitle("Satellites")
         .orbitalNavigationBar(pushed: pushed)
         .task {
             // The live socket pushes changes; this keeps the screen right if the socket is down.
@@ -112,6 +113,29 @@ struct AgentsView: View {
                         .buttonStyle(OrbitalPressStyle())
                     }
                 }
+            }
+        }
+    }
+
+    /// Pages feeds file under System (machine health history and the like).
+    @ViewBuilder
+    private var systemPages: some View {
+        let entries = store.systemSectionIDs.compactMap { store.entry($0) }
+        if !entries.isEmpty {
+            VStack(alignment: .leading, spacing: 10) {
+                OrbitalEyebrow(text: "System pages")
+                VStack(spacing: 0) {
+                    ForEach(Array(entries.enumerated()), id: \.element.id) { index, entry in
+                        if index > 0 { Rectangle().fill(OrbitalTheme.hairline.opacity(0.6)).frame(height: 1) }
+                        Button {
+                            router.push(.section(entry.id))
+                        } label: {
+                            NavRow(item: NavItem(id: entry.id, title: entry.title, icon: entry.icon, accent: entry.accent, target: .section(entry.id, node: nil, tab: nil)))
+                        }
+                        .buttonStyle(OrbitalPressStyle())
+                    }
+                }
+                .orbitalCard(padding: 12)
             }
         }
     }
@@ -236,13 +260,33 @@ struct SatelliteCard: View {
                     }
                 }
             }
+            if machine.isOnline, let m = machine.systemMetrics {
+                HStack(spacing: 14) {
+                    if let load = m.loadAverage, let cpus = m.cpus {
+                        MetricPill(label: "CPU", value: String(format: "%.1f/%d", load, cpus), symbol: "cpu")
+                    }
+                    if let mem = m.memoryPercent {
+                        MetricPill(label: "Mem", value: String(format: "%.0f%%", mem), symbol: "memorychip")
+                    }
+                    if let disk = m.disks?.max(by: { ($0.percent ?? 0) < ($1.percent ?? 0) }), let pct = disk.percent {
+                        MetricPill(label: "Disk", value: String(format: "%.0f%%", pct), symbol: "internaldrive")
+                    }
+                    if let up = m.uptimeFormatted {
+                        MetricPill(label: "Up", value: up, symbol: "clock")
+                    }
+                }
+            }
             FlowLayout(spacing: 6, lineSpacing: 6) {
                 ForEach(machine.capabilities.agents) { agent in
                     OrbitalChip(text: agent.title, symbol: AgentStyle.symbol(agent.name), tint: agent.available ? AgentStyle.color(agent.name) : OrbitalTheme.textTertiary)
                         .opacity(agent.available ? 1 : 0.6)
                 }
                 if machine.capabilities.browser {
-                    OrbitalChip(text: "Browser", symbol: "globe", tint: OrbitalTheme.textSecondary)
+                    if machine.isOnline, let browser = machine.browserStatus {
+                        OrbitalChip(text: browser.shortLabel, symbol: browser.symbol, tint: browser.tint)
+                    } else {
+                        OrbitalChip(text: "Browser", symbol: "globe", tint: OrbitalTheme.textSecondary)
+                    }
                 }
                 if machine.capabilities.tracker {
                     OrbitalChip(text: "Tracker", symbol: "dot.radiowaves.left.and.right", tint: OrbitalTheme.textSecondary)
@@ -250,6 +294,12 @@ struct SatelliteCard: View {
                 if machine.capabilities.agents.isEmpty {
                     OrbitalChip(text: "No agents found", symbol: "exclamationmark.circle", tint: OrbitalTheme.warning)
                 }
+            }
+            if machine.isOnline, let issue = machine.issues().first {
+                Label(issue.text, systemImage: issue.symbol)
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(issue.danger ? OrbitalTheme.danger : OrbitalTheme.warning)
+                    .lineLimit(1)
             }
         }
         .orbitalCard(padding: 14, tint: machine.isOnline ? nil : OrbitalTheme.textTertiary)
@@ -265,6 +315,119 @@ struct SatelliteCard: View {
             parts.append("last seen \(OrbitalDates.relative(machine.lastSeen) ?? "never")")
         }
         return parts.joined(separator: " · ")
+    }
+}
+
+/// Home's per-machine line: health, CPU/memory/disk bars, browser, what's running.
+struct MachineHealthRow: View {
+    let machine: Satellite
+    var running: [AgentJob] = []
+
+    var body: some View {
+        let issues = machine.issues()
+        VStack(alignment: .leading, spacing: 7) {
+            HStack(spacing: 8) {
+                Circle()
+                    .fill(machine.isOnline ? (issues.contains(where: \.danger) ? OrbitalTheme.danger : issues.isEmpty ? OrbitalTheme.success : OrbitalTheme.warning) : OrbitalTheme.textTertiary)
+                    .frame(width: 8, height: 8)
+                Image(systemName: machine.symbol)
+                    .font(.caption.weight(.bold))
+                    .foregroundStyle(OrbitalTheme.textSecondary)
+                Text(machine.name)
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(machine.isOnline ? OrbitalTheme.text : OrbitalTheme.textTertiary)
+                    .lineLimit(1)
+                if machine.isHub { OrbitalChip(text: "Hub", tint: OrbitalTheme.violet) }
+                Spacer(minLength: 4)
+                if !running.isEmpty {
+                    Text("\(running.count) running")
+                        .font(.caption2.weight(.bold))
+                        .foregroundStyle(OrbitalTheme.accent)
+                }
+                if machine.capabilities.browser, let browser = machine.browserStatus, machine.isOnline {
+                    Image(systemName: browser.symbol)
+                        .font(.caption2.weight(.bold))
+                        .foregroundStyle(browser.tint)
+                        .accessibilityLabel(browser.label)
+                }
+            }
+            if machine.isOnline, let m = machine.systemMetrics {
+                HStack(spacing: 10) {
+                    if let load = m.loadAverage, let cpus = m.cpus {
+                        MiniBar(label: "CPU", value: min(load / Double(max(cpus, 1)), 1), text: String(format: "%.0f%%", min(load / Double(max(cpus, 1)), 1) * 100))
+                    }
+                    if let mem = m.memoryPercent {
+                        MiniBar(label: "Mem", value: mem / 100, text: String(format: "%.0f%%", mem))
+                    }
+                    if let disk = m.disks?.max(by: { ($0.percent ?? 0) < ($1.percent ?? 0) }), let pct = disk.percent {
+                        MiniBar(label: "Disk", value: pct / 100, text: SystemMetrics.formatBytes(disk.free).map { "\($0) free" } ?? String(format: "%.0f%%", pct))
+                    }
+                }
+            }
+            if let first = issues.first {
+                Label(issues.count > 1 ? "\(first.text) · +\(issues.count - 1) more" : first.text, systemImage: first.symbol)
+                    .font(.caption2.weight(.semibold))
+                    .foregroundStyle(first.danger ? OrbitalTheme.danger : OrbitalTheme.warning)
+                    .lineLimit(1)
+            } else if let job = running.first {
+                Label("\(AgentStyle.displayName(job.agent)): \(job.shownTitle)", systemImage: AgentStyle.symbol(job.agent))
+                    .font(.caption2.weight(.semibold))
+                    .foregroundStyle(OrbitalTheme.textSecondary)
+                    .lineLimit(1)
+            }
+        }
+        .padding(.vertical, 8)
+        .contentShape(Rectangle())
+        .accessibilityElement(children: .combine)
+    }
+}
+
+struct MiniBar: View {
+    let label: String
+    let value: Double
+    let text: String
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 3) {
+            HStack(spacing: 4) {
+                Text(label.uppercased())
+                    .font(.system(size: 9, weight: .bold))
+                    .foregroundStyle(OrbitalTheme.textTertiary)
+                Text(text)
+                    .font(.system(size: 10, weight: .bold).monospacedDigit())
+                    .foregroundStyle(OrbitalTheme.textSecondary)
+                    .lineLimit(1)
+            }
+            GeometryReader { geo in
+                ZStack(alignment: .leading) {
+                    Capsule().fill(Color.white.opacity(0.08))
+                    Capsule().fill(tint).frame(width: max(3, geo.size.width * min(max(value, 0), 1)))
+                }
+            }
+            .frame(height: 4)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    private var tint: Color { value >= 0.9 ? OrbitalTheme.danger : value >= 0.75 ? OrbitalTheme.warning : OrbitalTheme.accent }
+}
+
+struct MetricPill: View {
+    let label: String
+    let value: String
+    var symbol: String = "gauge"
+
+    var body: some View {
+        HStack(spacing: 4) {
+            Image(systemName: symbol)
+                .font(.system(size: 9, weight: .bold))
+                .foregroundStyle(OrbitalTheme.textTertiary)
+            Text(value)
+                .font(.caption2.weight(.bold).monospacedDigit())
+                .foregroundStyle(OrbitalTheme.textSecondary)
+        }
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("\(label) \(value)")
     }
 }
 
@@ -347,7 +510,85 @@ struct SatelliteView: View {
 
     private var jobs: [AgentJob] {
         guard let machine else { return [] }
-        return store.agentJobs.filter { store.satellite(for: $0)?.id == machine.id }
+        return AgentJobsSort.ordered(store.agentJobs.filter { store.satellite(for: $0)?.id == machine.id })
+    }
+
+    private func healthCard(_ machine: Satellite) -> some View {
+        let issues = machine.issues()
+        return VStack(alignment: .leading, spacing: 8) {
+            OrbitalEyebrow(text: "Health")
+            if issues.isEmpty {
+                Label("Healthy · heartbeat \(OrbitalDates.relative(machine.lastSeen) ?? "now")", systemImage: "checkmark.seal.fill")
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(OrbitalTheme.success)
+            } else {
+                ForEach(issues) { issue in
+                    Label(issue.text, systemImage: issue.symbol)
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundStyle(issue.danger ? OrbitalTheme.danger : OrbitalTheme.warning)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+            }
+            Text(machine.connectionLabel + (machine.heartbeatSeconds.map { " · beats every \($0) s" } ?? ""))
+                .font(.caption)
+                .foregroundStyle(OrbitalTheme.textTertiary)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .orbitalCard(padding: 14, tint: issues.contains(where: \.danger) ? OrbitalTheme.danger : nil)
+    }
+
+    private func browserCard(_ machine: Satellite) -> some View {
+        VStack(alignment: .leading, spacing: 10) {
+            OrbitalEyebrow(text: "Browser controller")
+            if let browser = machine.browserStatus, machine.isOnline {
+                HStack(spacing: 10) {
+                    Image(systemName: browser.symbol)
+                        .font(.title3.weight(.semibold))
+                        .foregroundStyle(browser.tint)
+                        .frame(width: 32)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(browser.label)
+                            .font(.subheadline.weight(.semibold))
+                            .foregroundStyle(OrbitalTheme.text)
+                        Text(browserDetail(browser))
+                            .font(.caption)
+                            .foregroundStyle(OrbitalTheme.textTertiary)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                    Spacer(minLength: 0)
+                }
+                if browser.state == "connected", browser.hubCanDrive == false {
+                    Text("The bridge only listens on this machine (browser.bind = \"loopback\"), so the hub can't drive it. Set browser.bind = \"tailscale\" there.")
+                        .font(.caption)
+                        .foregroundStyle(OrbitalTheme.warning)
+                        .fixedSize(horizontal: false, vertical: true)
+                } else if browser.state == "no_extension" {
+                    Text("Open Chrome on that machine and check the Orbital Agents extension is installed and on.")
+                        .font(.caption)
+                        .foregroundStyle(OrbitalTheme.warning)
+                        .fixedSize(horizontal: false, vertical: true)
+                } else if browser.state == "bridge_down" {
+                    Text("Start it there with `orbital services start browser-bridge`.")
+                        .font(.caption)
+                        .foregroundStyle(OrbitalTheme.warning)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+            } else {
+                Text(machine.isOnline ? "Waiting for this machine's next heartbeat (needs the updated satellite)." : "Unknown while the machine is offline.")
+                    .font(.footnote)
+                    .foregroundStyle(OrbitalTheme.textTertiary)
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .orbitalCard(padding: 14)
+    }
+
+    private func browserDetail(_ browser: BrowserStatus) -> String {
+        var parts: [String] = []
+        if let version = browser.extensionVersion { parts.append("extension \(version)") }
+        if let age = browser.lastPollAgeSeconds, browser.extensionConnected == true { parts.append("last check-in \(Int(age)) s ago") }
+        parts.append(browser.hubCanDrive == true ? "hub can drive it" : "hub can't reach it")
+        return parts.joined(separator: " · ")
     }
 
     var body: some View {
@@ -360,9 +601,16 @@ struct SatelliteView: View {
                     }
                     .disabled(!machine.isOnline || machine.availableAgents.isEmpty)
                     .opacity(!machine.isOnline || machine.availableAgents.isEmpty ? 0.55 : 1)
-                    facts(machine)
-                    agents(machine)
+                    healthCard(machine)
+                    if machine.isOnline, let metrics = machine.systemMetrics {
+                        systemMetricsCard(metrics, cpuCount: metrics.cpus)
+                    }
                     jobsCard
+                    if machine.capabilities.browser {
+                        browserCard(machine)
+                    }
+                    agents(machine)
+                    facts(machine)
                     OrbitalActionButton(title: "Remove from the hub", symbol: "trash", kind: .destructive) {
                         confirmRemove = true
                     }
@@ -450,9 +698,82 @@ struct SatelliteView: View {
         if let version = machine.version { out.append(("Version", version)) }
         if let joined = OrbitalDates.shortDateTime(machine.joinedAt) { out.append(("Joined", joined)) }
         if let seen = OrbitalDates.relative(machine.lastSeen) { out.append(("Last heartbeat", seen)) }
-        out.append(("Browser control", machine.capabilities.browser ? "Yes" : "No"))
+        out.append(("Connection", machine.connectionLabel))
+        out.append(("Browser control", machine.capabilities.browser ? (machine.browserStatus?.label ?? "Yes") : "No"))
         out.append(("Tracker", machine.capabilities.tracker ? "Yes" : "No"))
         return out
+    }
+
+    private func systemMetricsCard(_ m: SystemMetrics, cpuCount: Int?) -> some View {
+        VStack(alignment: .leading, spacing: 12) {
+            OrbitalEyebrow(text: "System")
+            HStack(spacing: 0) {
+                if let load = m.load, !load.isEmpty, let cpus = cpuCount {
+                    metricTile("CPU Load", String(format: "%.2f / %.2f / %.2f", load[0], load.count > 1 ? load[1] : 0, load.count > 2 ? load[2] : 0),
+                               caption: "\(cpus) cores", symbol: "cpu")
+                    Spacer(minLength: 0)
+                }
+                if let mem = m.memory {
+                    metricTile("Memory", String(format: "%.0f%%", mem.percent ?? 0),
+                               caption: [SystemMetrics.formatBytes(mem.used), SystemMetrics.formatBytes(mem.total)].compactMap { $0 }.joined(separator: " / "),
+                               symbol: "memorychip")
+                    Spacer(minLength: 0)
+                }
+                if let up = m.uptimeFormatted {
+                    metricTile("Uptime", up, symbol: "clock")
+                }
+            }
+            if let disks = m.disks, !disks.isEmpty {
+                VStack(spacing: 0) {
+                    ForEach(Array(disks.enumerated()), id: \.offset) { index, disk in
+                        if index > 0 {
+                            Rectangle().fill(OrbitalTheme.hairline.opacity(0.6)).frame(height: 1)
+                        }
+                        HStack {
+                            Image(systemName: "internaldrive")
+                                .font(.caption2.weight(.bold))
+                                .foregroundStyle(OrbitalTheme.textTertiary)
+                            Text(disk.mount ?? "/")
+                                .font(.caption.weight(.semibold))
+                                .foregroundStyle(OrbitalTheme.text)
+                            Spacer(minLength: 8)
+                            if let pct = disk.percent {
+                                ProgressView(value: min(pct, 100) / 100)
+                                    .frame(width: 60)
+                                    .tint(pct > 90 ? OrbitalTheme.danger : pct > 75 ? OrbitalTheme.warning : OrbitalTheme.accent)
+                            }
+                            Text([String(format: "%.0f%%", disk.percent ?? 0), SystemMetrics.formatBytes(disk.free).map { "\($0) free" }].compactMap { $0 }.joined(separator: " · "))
+                                .font(.caption2.weight(.semibold).monospacedDigit())
+                                .foregroundStyle(OrbitalTheme.textSecondary)
+                        }
+                        .padding(.vertical, 8)
+                    }
+                }
+            }
+        }
+        .orbitalCard(padding: 14)
+    }
+
+    private func metricTile(_ label: String, _ value: String, caption: String? = nil, symbol: String) -> some View {
+        VStack(alignment: .leading, spacing: 2) {
+            HStack(spacing: 4) {
+                Image(systemName: symbol)
+                    .font(.system(size: 10, weight: .bold))
+                    .foregroundStyle(OrbitalTheme.textTertiary)
+                Text(label.uppercased())
+                    .font(.system(size: 9.5, weight: .bold))
+                    .tracking(0.4)
+                    .foregroundStyle(OrbitalTheme.textTertiary)
+            }
+            Text(value)
+                .font(.subheadline.weight(.bold).monospacedDigit())
+                .foregroundStyle(OrbitalTheme.text)
+            if let caption, !caption.isEmpty {
+                Text(caption)
+                    .font(.caption2)
+                    .foregroundStyle(OrbitalTheme.textTertiary)
+            }
+        }
     }
 
     private func agents(_ machine: Satellite) -> some View {
