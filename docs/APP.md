@@ -128,7 +128,7 @@ The **…** menu has Run an agent, Voice settings, Refresh, and Clear context (s
 - the microphone and speaker route
 - smart glasses and the car
 
-When the hub has no desk model yet, the Desk shows a card with the fix instead of the thread. Add `XAI_API_KEY` to `~/.orbital-agents/secrets.env` on the hub; it is picked up without a restart. The model is set under `[desk]` in `config.toml`, and after changing that you run `orbital services restart hub`. The card's **Check again** button retries. Agents still run from the Agents tab meanwhile.
+The Agent tab answers with the subscriptions already signed in on the hub: the Grok CLI (a warm `grok agent stdio` session, about 2 s to the first words), then the Claude CLI, then the Mac's built-in Apple model, so it works with no API key. An engine that is out of credits or signed out is skipped until it answers again, and the reason shows in the app. `XAI_API_KEY` in `~/.orbital-agents/secrets.env` puts xAI's paid API first. `desk.provider = "off"` in `config.toml` turns the Agent off.
 
 ## Tracker
 

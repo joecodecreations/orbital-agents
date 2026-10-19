@@ -212,16 +212,21 @@ class Desk:
 
     @property
     def provider(self) -> Any:
-        """The fast model, or None when the desk is not configured. Follows secrets.env changes."""
+        """The Agent tab's model: the Grok subscription (then Claude's, then the Mac's own model), the
+        xAI API first only when XAI_API_KEY is set. None when desk.provider = "off". Follows secrets.env."""
         if self._fixed_provider is not None:
             return self._fixed_provider
-        if str(self.hub.cfg.get("desk.provider") or "xai").lower() != "xai":
+        if str(self.hub.cfg.get("desk.provider") or "auto").lower() in ("off", "none"):
             return None
-        key = self.hub.auth.get("XAI_API_KEY")
-        if not key:
-            return None
+        key = self.hub.auth.get("XAI_API_KEY") or ""
         if key != self._provider_key or self._provider is None:
-            self._provider = XAIProvider(key, str(self.hub.cfg.get("desk.model") or ""))
+            from orbital.hub.desk_engines import build_fallback
+            self._provider = build_fallback(
+                key, self.hub.paths.hub_data,
+                cli_model=str(self.hub.cfg.get("desk.cli_model") or ""),
+                claude_model=str(self.hub.cfg.get("desk.claude_model") or "") or None,
+                work_note=lambda: "Agents you start run on the satellites as usual.",
+            )
             self._provider_key = key
         return self._provider
 
@@ -231,6 +236,7 @@ class Desk:
             return {"configured": False, "provider": None, "model": None, "note": NOT_CONFIGURED,
                     "worker_agent": self.hub.cfg.get("desk.worker_agent")}
         return {"configured": True, "provider": current.name, "model": current.label, "note": None,
+                "engines": current.public() if hasattr(current, "public") else [],
                 "worker_agent": self.hub.cfg.get("desk.worker_agent")}
 
     def projects(self) -> Projects:

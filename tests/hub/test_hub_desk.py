@@ -44,24 +44,34 @@ def test_splitter_streams_the_reply_and_holds_back_actions():
     assert actions == [{"type": "task", "title": "X"}]
 
 
-def test_without_a_key_the_desk_says_it_is_not_configured(ports):
+def test_without_a_key_the_desk_uses_the_subscription_engines(ports):
     client, hub = make_client()
     snap = client.get("/v1/desk", headers=AUTH).json()
-    assert snap["model"]["configured"] is False
-    assert "XAI_API_KEY" in snap["model"]["note"]
-    res = client.post("/v1/desk/say", headers=AUTH, json={"text": "What's running?"})
-    kinds = [row["type"] for row in lines(res)]
-    assert kinds == ["user", "event", "done"]
-    assert lines(res)[1]["message"]["kind"] == "not_configured"
+    assert snap["model"]["configured"] is True and snap["model"]["provider"] == "subscription"
+    from orbital.hub.desk_engines import GrokSessionProvider
+    assert isinstance(hub.desk.provider.primary, GrokSessionProvider), "the Grok subscription answers first"
     assert client.post("/v1/desk/say", headers=AUTH, json={"text": ""}).status_code == 400
     assert client.get("/v1/desk").status_code == 401
 
 
-def test_key_in_the_environment_turns_it_on(ports, monkeypatch):
+def test_turned_off_the_desk_says_so(ports, monkeypatch):
+    client, hub = make_client()
+    real = hub.cfg.get
+    monkeypatch.setattr(hub.cfg, "get", lambda key, default=None: "off" if key == "desk.provider" else real(key, default))
+    snap = client.get("/v1/desk", headers=AUTH).json()
+    assert snap["model"]["configured"] is False
+    res = client.post("/v1/desk/say", headers=AUTH, json={"text": "What's running?"})
+    assert [row["type"] for row in lines(res)] == ["user", "event", "done"]
+    assert lines(res)[1]["message"]["kind"] == "not_configured"
+
+
+def test_a_key_puts_the_xai_api_first(ports, monkeypatch):
     client, hub = make_client()
     monkeypatch.setenv("XAI_API_KEY", "test-key-not-real")
     model = client.get("/v1/desk", headers=AUTH).json()["model"]
-    assert model["configured"] is True and model["provider"] == "xai"
+    assert model["configured"] is True
+    from orbital.hub.desk_engines import XAIProvider
+    assert isinstance(hub.desk.provider.primary, XAIProvider)
 
 
 def test_a_turn_starts_a_worker_on_the_local_satellite_and_reports_back(home):
