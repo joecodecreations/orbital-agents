@@ -466,7 +466,7 @@ class Desk:
             out = [a for a in agents if self._engine_out(a)]
             names = ", ".join(f"{a} (out right now)" if a in out else a for a in agents) or "no agents"
             here = " (this hub)" if row["id"] == local else ""
-            lines.append(f"- {row.get('name') or row['id']}{here} [{row.get('status')}]: {names}")
+            lines.append(f"- {row.get('name') or row['id']}{here} [{row.get('status')}]: {names}{self._health_of(row)}")
         return "\n".join(lines)
 
     def system_lines(self) -> list[str]:
@@ -517,6 +517,32 @@ class Desk:
                 summary = page.get("summary") or page.get("subtitle") or ""
                 out.append(f"- {page.get('title')}: {summary} (updated {_ago(page.get('updated_at'))})")
         return out
+
+    @staticmethod
+    def _health_of(row: dict) -> str:
+        """CPU, memory, every disk and the browser bridge from the machine's last heartbeat."""
+        if row.get("status") != "online":
+            return f" (last seen {_ago(row.get('last_seen'))})"
+        metrics = row.get("system_metrics") or {}
+        parts = []
+        load, cpus = (metrics.get("load") or [None])[0], metrics.get("cpus")
+        if load is not None and cpus:
+            parts.append(f"CPU load {load} on {cpus} cores")
+        elif metrics.get("cpu_percent") is not None:
+            parts.append(f"CPU {metrics['cpu_percent']}%")
+        mem = metrics.get("memory") or {}
+        if mem.get("percent") is not None:
+            parts.append(f"memory {mem['percent']:.0f}% used")
+        for disk in metrics.get("disks") or []:
+            free = disk.get("free")
+            free_text = f", {free / 1e9:.0f} GB free" if isinstance(free, (int, float)) else ""
+            parts.append(f"disk {disk.get('mount')} {disk.get('percent', 0):.0f}% full{free_text}")
+        if metrics.get("uptime_s"):
+            parts.append(f"up {metrics['uptime_s'] / 86400:.0f} days")
+        browser = row.get("browser_status") or {}
+        if browser.get("state") and browser["state"] != "disabled":
+            parts.append(f"browser {browser['state'].replace('_', ' ')}")
+        return f" — {', '.join(parts)}" if parts else ""
 
     def choose_worker(self, task: dict) -> dict:
         """{"agent", "satellite"} for a task, or {"wait": why} when nothing can take it now."""
