@@ -2,16 +2,19 @@
   "tts": true,
   "provider_tts": "fish",
   "default_voice": "voice-en-1",
+  "defaults": {"en": "voice-en-1", "pt": "voice-pt-1"},
   "voices": [
     {
       "reference_id": "voice-en-1",
       "name": "Narrator",
-      "language": "en"
+      "language": "en",
+      "default": true
     },
     {
       "reference_id": "voice-pt-1",
       "name": "Locutora",
-      "language": "pt"
+      "language": "pt",
+      "default": true
     }
   ]
 }

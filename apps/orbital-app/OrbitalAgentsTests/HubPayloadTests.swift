@@ -214,6 +214,11 @@ final class HubPayloadTests: XCTestCase {
         XCTAssertEqual(speech.providerTTS, "fish")
         XCTAssertEqual(speech.voices.map(\.id), ["voice-en-1", "voice-pt-1"])
         XCTAssertEqual(speech.defaultVoice, "voice-en-1")
+        XCTAssertEqual(speech.defaultVoice(for: .english), "voice-en-1")
+        XCTAssertEqual(speech.defaultVoice(for: .portuguese), "voice-pt-1")
+        let bare = try Fixtures.json(SpeechStatus.self, #"{"tts": true, "default_voice": "v1"}"#)
+        XCTAssertEqual(bare.defaultVoice(for: .english), "v1")
+        XCTAssertNil(bare.defaultVoice(for: .portuguese))
     }
 
     // MARK: Hub
