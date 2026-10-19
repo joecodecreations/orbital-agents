@@ -19,18 +19,32 @@ from typing import Any
 
 from orbital.core.paths import Paths
 
+# Who may connect by default. Tunnel mode uses loopback only (Cloudflare connector → 127.0.0.1).
+LOOPBACK_NETWORKS = ["127.0.0.0/8", "::1/128"]
+TAILSCALE_NETWORKS = ["100.64.0.0/10", "fd7a:115c:a1e0::/48"]
+DEFAULT_ALLOW_NETWORKS = [*LOOPBACK_NETWORKS, *TAILSCALE_NETWORKS]
+
 DEFAULTS: dict[str, Any] = {
     "system": {
         "name": "Orbital Agents",       # shown in the apps
         "role": "hub",                  # hub | satellite
         "machine_name": "",             # empty = this computer's short hostname
     },
+    # How machines reach each other. Tailscale = private mesh (default). Tunnel = hub via
+    # Cloudflare (or similar) + satellite pull channel; see docs/designs/2026-dual-network-modes.md.
+    "network": {
+        "mode": "tailscale",            # tailscale | tunnel
+        "public_url": "",               # tunnel: https://orbital.example.com (no trailing slash, no :7700)
+        "tunnel_provider": "cloudflare",  # v1: only cloudflare
+        "tunnel_id": "",                # named tunnel id (informational)
+        "cloudflared_config": "",       # path to cloudflared config.yml if non-default
+    },
     "hub": {
         "host": "0.0.0.0",
         "port": 7700,
         "url": "",                      # satellites: the hub's address, e.g. http://my-mac.tailnet.ts.net:7700
         # Who may connect: loopback + Tailscale. Add your LAN (e.g. "192.168.1.0/24") only if you need it.
-        "allow_networks": ["127.0.0.0/8", "::1/128", "100.64.0.0/10", "fd7a:115c:a1e0::/48"],
+        "allow_networks": list(DEFAULT_ALLOW_NETWORKS),
         "data_retention_days": 90,
         "max_media_mb": 8,
     },
@@ -63,7 +77,7 @@ DEFAULTS: dict[str, Any] = {
         "max_output_bytes": 2_000_000,  # per agent job; the tail is kept
         "job_retention_days": 14,       # finished job records and output
         # Who may call this machine's satellite service (loopback + Tailscale).
-        "allow_networks": ["127.0.0.0/8", "::1/128", "100.64.0.0/10", "fd7a:115c:a1e0::/48"],
+        "allow_networks": list(DEFAULT_ALLOW_NETWORKS),
     },
     # How to start each agent CLI. {prompt} and {cwd} are filled in; no shell is involved.
     "agents": {
@@ -155,10 +169,41 @@ class Config:
             return f"http://127.0.0.1:{self.get('hub.port')}"
         return self.get("hub.url", "").rstrip("/")
 
+    @property
+    def network_mode(self) -> str:
+        mode = (self.get("network.mode") or "tailscale").strip().lower()
+        return mode if mode in ("tailscale", "tunnel") else "tailscale"
+
+    def external_hub_url(self) -> str:
+        """URL other machines and the phone should use to reach the hub.
+
+        Never returns loopback. Invite, wizard end screens, and agent prompts must use this
+        (not hub_url(), which stays loopback on the hub for local feeds).
+        """
+        if self.role == "satellite":
+            return (self.get("hub.url") or "").rstrip("/")
+
+        if self.network_mode == "tunnel":
+            return (self.get("network.public_url") or "").rstrip("/")
+
+        port = int(self.get("hub.port", 7700))
+        try:
+            from orbital.core.net import tailscale_self
+            me = tailscale_self()
+        except Exception:
+            me = None
+        if me and me.dns:
+            return f"http://{me.dns}:{port}"
+        if me and me.ip:
+            return f"http://{me.ip}:{port}"
+        return f"http://{self.machine_name}:{port}"
+
     def resolved(self) -> dict[str, Any]:
         out = copy.deepcopy(self.data)
         out["machine_name"] = self.machine_name
         out["hub_url"] = self.hub_url()
+        out["external_hub_url"] = self.external_hub_url()
+        out["network_mode"] = self.network_mode
         out["paths"] = {
             "home": str(self.paths.home),
             "data": str(self.paths.data),

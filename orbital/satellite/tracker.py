@@ -40,6 +40,7 @@ from typing import Callable
 import httpx
 
 from orbital.satellite.agents import child_env, resolve_executable
+from orbital.satellite.util import NO_CONSOLE
 
 ID_RE = re.compile(r"^[A-Za-z0-9_-]{2,64}$")
 ID_ALPHABET = "abcdefghjkmnpqrstuvwxyz23456789"   # the tracker's own IDGen alphabet
@@ -213,7 +214,7 @@ class TrackerReporter:
             return None
         try:
             proc = subprocess.run([exe, *args], capture_output=True, text=True, timeout=self.timeout,
-                                  stdin=subprocess.DEVNULL, env=child_env())
+                                  stdin=subprocess.DEVNULL, env=child_env(), creationflags=NO_CONSOLE)
         except (OSError, subprocess.TimeoutExpired):
             return None
         if proc.returncode != 0:

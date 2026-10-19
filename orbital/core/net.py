@@ -4,8 +4,10 @@ from __future__ import annotations
 
 import ipaddress
 import json
+import os
 import shutil
 import subprocess
+import sys
 from dataclasses import dataclass
 from typing import Iterable
 
@@ -33,12 +35,16 @@ def allowed(client_ip: str | None, networks: Iterable[str]) -> bool:
 
 
 def tailscale_bin() -> str | None:
-    for cand in ("tailscale", "/opt/homebrew/bin/tailscale", "/usr/local/bin/tailscale",
-                 "/Applications/Tailscale.app/Contents/MacOS/Tailscale"):
-        found = shutil.which(cand) if "/" not in cand else (cand if shutil.which(cand) else None)
-        if found:
-            return found
-    return None
+    found = shutil.which("tailscale")
+    if found:
+        return found
+    if sys.platform == "win32":
+        program_files = os.environ.get("ProgramFiles") or "C:\\Program Files"
+        candidates = [os.path.join(program_files, "Tailscale", "tailscale.exe")]
+    else:
+        candidates = ["/opt/homebrew/bin/tailscale", "/usr/local/bin/tailscale",
+                      "/Applications/Tailscale.app/Contents/MacOS/Tailscale"]
+    return next((cand for cand in candidates if shutil.which(cand)), None)
 
 
 @dataclass
@@ -56,7 +62,8 @@ def tailscale_status(timeout: float = 5.0) -> dict | None:
     if not exe:
         return None
     try:
-        out = subprocess.run([exe, "status", "--json"], capture_output=True, text=True, timeout=timeout)
+        out = subprocess.run([exe, "status", "--json"], capture_output=True, encoding="utf-8", errors="replace",
+                             timeout=timeout, creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0))
     except (OSError, subprocess.TimeoutExpired):
         return None
     if out.returncode != 0:
@@ -99,3 +106,37 @@ def tailscale_self() -> Peer | None:
 def tailscale_ip() -> str | None:
     me = tailscale_self()
     return me.ip if me and me.ip else None
+
+
+def discover_hubs(port: int = 7700, timeout: float = 2.0) -> list[dict]:
+    """Probe Tailscale peers for an Orbital hub on `port`. Returns [{name, dns, ip, url, hub_id}]."""
+    import concurrent.futures
+    import urllib.request
+
+    peers = tailscale_peers(include_self=True)
+    if not peers:
+        return []
+
+    def probe(peer: Peer) -> dict | None:
+        for addr in (peer.dns, peer.ip):
+            if not addr:
+                continue
+            url = f"http://{addr}:{port}"
+            try:
+                req = urllib.request.Request(f"{url}/v1/health", method="GET")
+                with urllib.request.urlopen(req, timeout=timeout) as resp:
+                    data = json.loads(resp.read())
+                    if isinstance(data, dict) and data.get("service") in ("orbital-hub", "orbital-agents"):
+                        return {"name": peer.name, "dns": peer.dns, "ip": peer.ip,
+                                "url": url, "hub_id": data.get("hub_id", ""), "is_self": peer.is_self}
+            except Exception:
+                continue
+        return None
+
+    found: list[dict] = []
+    with concurrent.futures.ThreadPoolExecutor(max_workers=min(len(peers), 10)) as pool:
+        for result in pool.map(probe, peers):
+            if result:
+                found.append(result)
+    found.sort(key=lambda h: (not h.get("is_self", False), h["name"].lower()))
+    return found

@@ -56,14 +56,75 @@ def catalog_entry(doc: dict) -> dict:
     }
 
 
-def spaces_of(docs: list[dict], entries: list[dict]) -> list[dict]:
-    """The app's home tiles: sections grouped by `space`, titled by the first section that names it."""
+DECLARED_KEYS = ("id", "title", "subtitle", "icon", "accent", "order", "sections", "aliases")
+
+
+def validate_spaces(raw: object) -> list[dict]:
+    """The hub's own spaces (spaces.json): [{id, title, subtitle?, icon?, accent?, order?, sections: [...], aliases: [...]}].
+
+    A section listed here is filed in that space whatever its own `space` says, so feeds that rewrite their
+    sections can't undo it. `aliases` are other names for the space (an old company name on blocks)."""
+    if isinstance(raw, dict):
+        raw = raw.get("spaces")
+    if not isinstance(raw, list) or len(raw) > 100:
+        raise OpsError("spaces must be a list (at most 100)")
+    out: list[dict] = []
+    seen_ids: set[str] = set()
+    claimed: dict[str, str] = {}
+    for i, row in enumerate(raw):
+        if not isinstance(row, dict):
+            raise OpsError(f"spaces[{i}] must be an object")
+        ident = row.get("id")
+        if not isinstance(ident, str) or not SLUG.match(ident) or ident in seen_ids:
+            raise OpsError(f"spaces[{i}].id must be a unique slug")
+        seen_ids.add(ident)
+        title = row.get("title")
+        if not isinstance(title, str) or not title.strip() or len(title) > 60:
+            raise OpsError(f"spaces[{i}].title is required (at most 60 characters)")
+        space: dict = {"id": ident, "title": title.strip()}
+        for key in ("subtitle", "icon", "accent"):
+            if row.get(key) is not None:
+                if not isinstance(row[key], str) or len(row[key]) > 120:
+                    raise OpsError(f"spaces[{i}].{key} must be a short string")
+                space[key] = row[key]
+        if row.get("order") is not None:
+            if isinstance(row["order"], bool) or not isinstance(row["order"], int):
+                raise OpsError(f"spaces[{i}].order must be a number")
+            space["order"] = row["order"]
+        for key in ("sections", "aliases"):
+            values = row.get(key) or []
+            if not isinstance(values, list) or len(values) > 200 or any(not isinstance(v, str) or not v or len(v) > 80 for v in values):
+                raise OpsError(f"spaces[{i}].{key} must be a list of names")
+            space[key] = list(dict.fromkeys(values))
+        for section in space["sections"]:
+            if section in claimed:
+                raise OpsError(f"section {section} is in both {claimed[section]} and {ident}")
+            claimed[section] = ident
+        out.append(space)
+    return out
+
+
+def spaces_of(docs: list[dict], entries: list[dict], declared: list[dict] | None = None) -> list[dict]:
+    """The app's home tiles: the hub's declared spaces first (they claim their sections), then sections
+    grouped by their own `space`, titled by the first section that names it."""
     by_id = {doc["id"]: doc for doc in docs}
     spaces: dict[str, dict] = {}
+    claimed: set[str] = set()
+    for row in declared or []:
+        space = {"id": row["id"], "title": row["title"], "icon": row.get("icon") or "square.grid.2x2",
+                 "sections": [s for s in row.get("sections") or [] if s in by_id], "declared": True}
+        for key in ("subtitle", "accent", "order", "aliases"):
+            if row.get(key) is not None:
+                space[key] = row[key]
+        claimed.update(space["sections"])
+        spaces[row["id"]] = space
     for row in entries:
         doc = by_id.get(row["id"]) or {}
         ident = doc.get("space")
-        if not ident:
+        if not ident or row["id"] in claimed:
+            continue
+        if ident in spaces and spaces[ident].get("declared"):
+            spaces[ident]["sections"].append(row["id"])
             continue
         space = spaces.setdefault(ident, {"id": ident, "title": None, "icon": None, "sections": []})
         space["title"] = space["title"] or doc.get("space_title")
@@ -72,7 +133,8 @@ def spaces_of(docs: list[dict], entries: list[dict]) -> list[dict]:
     for space in spaces.values():
         space["title"] = space["title"] or space["id"].replace("-", " ").title()
         space["icon"] = space["icon"] or "square.grid.2x2"
-    return sorted(spaces.values(), key=lambda s: s["title"].lower())
+        space.pop("declared", None)
+    return sorted(spaces.values(), key=lambda s: (s.get("order", 10_000), s["title"].lower()))
 
 
 class Store:
@@ -85,7 +147,28 @@ class Store:
         self.alerts_path = root / "alerts.json"
         self.devices_path = root / "devices.json"
         self.prefs_path = root / "prefs.json"
+        self.spaces_path = root / "spaces.json"
         self._lock = threading.RLock()
+
+    # The hub's own spaces
+
+    def declared_spaces(self) -> list[dict]:
+        try:
+            return validate_spaces(json.loads(self.spaces_path.read_text(encoding="utf-8")))
+        except (OSError, json.JSONDecodeError, OpsError):
+            return []
+
+    def save_spaces(self, raw: object) -> list[dict]:
+        clean = validate_spaces(raw)
+        with self._lock:
+            if clean:
+                self._write_json(self.spaces_path, {"spaces": clean})
+            else:
+                try:
+                    self.spaces_path.unlink()
+                except FileNotFoundError:
+                    pass
+        return clean
 
     def _write_json(self, path: Path, obj: object, *, limit: int | None = None) -> None:
         path.parent.mkdir(parents=True, exist_ok=True)
@@ -111,7 +194,7 @@ class Store:
         docs = self.list_docs()
         entries = [catalog_entry(doc) for doc in docs]
         entries.sort(key=lambda row: (row["order"], row["title"].lower()))
-        return {"sections": entries, "spaces": spaces_of(docs, entries)}
+        return {"sections": entries, "spaces": spaces_of(docs, entries, self.declared_spaces())}
 
     def get(self, section_id: str) -> dict | None:
         if not SLUG.match(section_id):

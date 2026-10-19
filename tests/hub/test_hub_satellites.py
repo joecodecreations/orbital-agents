@@ -109,6 +109,63 @@ def test_heartbeat_keeps_it_online_and_three_missed_beats_mark_it_offline(ports)
         "the automation token is not a satellite"
 
 
+def test_heartbeat_carries_system_metrics_to_the_listing(ports):
+    client, hub = make_client()
+    token = client.post("/v1/satellites/join", headers={"X-Orbital-Join-Token": JOIN}, json=join_body()).json()["hub_token"]
+    beat = {"Authorization": f"Bearer {token}"}
+    metrics = {
+        "cpus": 8,
+        "load": [1.5, 1.2, 0.9],
+        "memory": {"total": 16_000_000_000, "used": 10_000_000_000, "percent": 62.5},
+        "disks": [{"mount": "/", "total": 500_000_000_000, "used": 250_000_000_000, "free": 250_000_000_000, "percent": 50.0}],
+        "uptime_s": 86400.0,
+        "time": 1_000_000.0,
+    }
+    res = client.post("/v1/satellites/heartbeat", headers=beat, json={"satellite_id": "laptop", "system_metrics": metrics})
+    assert res.status_code == 200, res.text
+    row = client.get("/v1/satellites/laptop", headers=AUTH).json()
+    sm = row["system_metrics"]
+    assert sm["cpus"] == 8
+    assert sm["load"] == [1.5, 1.2, 0.9]
+    assert sm["memory"]["percent"] == 62.5
+    assert sm["disks"][0]["mount"] == "/"
+    assert sm["uptime_s"] == 86400.0
+    listing = client.get("/v1/satellites", headers=AUTH).json()["satellites"]
+    assert listing[0]["system_metrics"]["cpus"] == 8
+    browser = {"state": "connected", "bridge_up": True, "extension_connected": True, "extension_version": "0.1.0",
+               "last_poll_age_s": 1.2, "bind": "tailscale", "hub_can_drive": True, "checked_at": 1_000_000.0}
+    client.post("/v1/satellites/heartbeat", headers=beat, json={"satellite_id": "laptop", "browser_status": browser})
+    assert client.get("/v1/satellites/laptop", headers=AUTH).json()["browser_status"] == browser
+    client.post("/v1/satellites/heartbeat", headers=beat, json={"satellite_id": "laptop", "browser_status": {"state": "weird", "bind": "x"}})
+    odd = client.get("/v1/satellites/laptop", headers=AUTH).json()["browser_status"]
+    assert odd["state"] == "bridge_down" and odd["bind"] == "loopback"
+
+
+def test_a_pairing_code_signs_the_app_in_once(ports):
+    client, hub = make_client()
+    assert client.post("/v1/pair/new", json={}).status_code == 401, "only the app or the CLI may make a code"
+    made = client.post("/v1/pair/new", headers=AUTH, json={})
+    assert made.status_code == 200, made.text
+    code = made.json()["code"]
+    paired = client.post("/v1/pair", json={"code": code})
+    assert paired.status_code == 200, paired.text
+    token = paired.json()["token"]
+    assert client.get("/v1/catalog", headers={"Authorization": f"Bearer {token}"}).status_code == 200
+    assert client.post("/v1/pair", json={"code": code}).status_code == 401, "a code works once"
+    assert client.post("/v1/pair", json={"code": "made-up"}).status_code == 401
+    assert client.post("/v1/pair", json={}).status_code == 401
+
+
+def test_a_pairing_code_expires():
+    from orbital.hub.auth import PairCodes
+
+    clock = Clock()
+    codes = PairCodes(ttl=600, clock=clock)
+    code, _ = codes.new("owner")
+    clock.now += 601
+    assert codes.redeem(code) is None
+
+
 def test_remove_by_id_or_machine_name(ports):
     client, hub = make_client()
     client.post("/v1/satellites/join", headers={"X-Orbital-Join-Token": JOIN}, json=join_body())
@@ -304,3 +361,43 @@ def test_a_prompt_at_the_shared_limit_goes_through(ports):
     with Server(app) as sat, joined_satellite(client, sat.port):
         res = client.post("/v1/satellites/build-box/agents/run", headers=AUTH, json={"prompt": "x" * MAX_PROMPT_CHARS})
         assert res.status_code == 200 and len(state["runs"][0]["prompt"]) == MAX_PROMPT_CHARS
+
+
+def test_pull_join_nulls_callback_ip_and_two_pull_sats_share_no_url(ports):
+    """Tunnel remotes must not all register as 127.0.0.1 with a dialable base_url."""
+    from orbital.hub.satellites import Registry
+
+    client, hub = make_client()
+    headers = {"X-Orbital-Join-Token": JOIN}
+    a = client.post("/v1/satellites/join", headers=headers,
+                    json=join_body(machine="mini", name="Mini", ip="127.0.0.1", reachability="pull")).json()
+    b = client.post("/v1/satellites/join", headers=headers,
+                    json=join_body(machine="laptop", name="Laptop", ip="127.0.0.1", reachability="pull",
+                                   satellite_token=SATELLITE + "-b")).json()
+    assert a["reachability"] == "pull" and b["reachability"] == "pull"
+    assert "control" in a and a["control"]["websocket"] == "/v1/satellites/control"
+    listing = client.get("/v1/satellites", headers=AUTH).json()["satellites"]
+    by_id = {row["id"]: row for row in listing}
+    assert by_id["mini"]["ip"] == "" and by_id["laptop"]["ip"] == ""
+    assert by_id["mini"]["reachability"] == "pull"
+    row_a = hub.satellites.get("mini")
+    row_b = hub.satellites.get("laptop")
+    assert row_a["ip"] == "" and row_b["ip"] == ""
+    try:
+        Registry.base_url(row_a)
+        assert False, "pull satellites must not expose a callback URL"
+    except ValueError as exc:
+        assert "pull" in str(exc)
+    assert Registry.browser_url(row_a) is None
+    # Relays refuse clearly until the control channel exists.
+    res = client.post("/v1/satellites/mini/agents/run", headers=AUTH, json={"prompt": "hi"})
+    assert res.status_code == 503
+    assert "pull" in res.json()["error"]
+
+
+def test_callback_join_still_rejects_public_ips(ports):
+    client, hub = make_client()
+    headers = {"X-Orbital-Join-Token": JOIN}
+    outside = client.post("/v1/satellites/join", headers=headers, json=join_body(ip="203.0.113.9", reachability="callback"))
+    assert outside.status_code == 400
+    assert "allow_networks" in outside.json()["error"]

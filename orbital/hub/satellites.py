@@ -51,7 +51,11 @@ MISSED_BEATS = 3
 JOB_ID = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$")
 COMMAND = re.compile(r"^[a-z][a-z0-9_.-]{0,40}$")
 MAX_JOBS_CACHED = 50
-PUBLIC_KEYS = ("id", "name", "machine", "host", "ip", "port", "os", "version", "capabilities", "joined_at", "last_seen", "heartbeat_seconds")
+PUBLIC_KEYS = (
+    "id", "name", "machine", "host", "ip", "port", "os", "version", "capabilities",
+    "joined_at", "last_seen", "heartbeat_seconds", "reachability", "system_metrics", "browser_status",
+)
+BROWSER_STATES = ("connected", "no_extension", "bridge_down", "disabled")
 
 
 def _iso(epoch: float | None) -> str | None:
@@ -91,6 +95,55 @@ def _capabilities(raw: object) -> dict:
         "browser": bool(caps.get("browser")),
         "browser_port": port,
         "tracker": bool(caps.get("tracker")),
+    }
+
+
+def _sanitize_metrics(raw: dict) -> dict:
+    """Keep only known numeric/list fields from a satellite's system_metrics payload."""
+    out: dict = {}
+    cpus = raw.get("cpus")
+    if isinstance(cpus, int) and not isinstance(cpus, bool) and 0 < cpus < 10_000:
+        out["cpus"] = cpus
+    load = raw.get("load")
+    if isinstance(load, list) and len(load) == 3 and all(isinstance(v, (int, float)) for v in load):
+        out["load"] = [round(float(v), 2) for v in load]
+    cpu = raw.get("cpu_percent")       # Windows sends this instead of load
+    if isinstance(cpu, (int, float)) and not isinstance(cpu, bool) and 0 <= cpu <= 100:
+        out["cpu_percent"] = round(float(cpu), 1)
+    mem = raw.get("memory")
+    if isinstance(mem, dict):
+        out["memory"] = {k: mem[k] for k in ("total", "used", "percent") if isinstance(mem.get(k), (int, float))}
+    disks = raw.get("disks")
+    if isinstance(disks, list):
+        clean = []
+        for d in disks[:20]:
+            if not isinstance(d, dict):
+                continue
+            clean.append({k: d[k] for k in ("mount", "total", "used", "free", "percent") if k in d})
+        out["disks"] = clean
+    uptime = raw.get("uptime_s")
+    if isinstance(uptime, (int, float)) and not isinstance(uptime, bool):
+        out["uptime_s"] = round(float(uptime), 0)
+    t = raw.get("time")
+    if isinstance(t, (int, float)) and not isinstance(t, bool):
+        out["time"] = round(float(t), 1)
+    return out
+
+
+def _sanitize_browser(raw: dict) -> dict:
+    state = raw.get("state")
+    age = raw.get("last_poll_age_s")
+    checked = raw.get("checked_at")
+    version = raw.get("extension_version")
+    return {
+        "state": state if state in BROWSER_STATES else "bridge_down",
+        "bridge_up": bool(raw.get("bridge_up")),
+        "extension_connected": bool(raw.get("extension_connected")),
+        "extension_version": str(version)[:40] if version else None,
+        "last_poll_age_s": float(age) if isinstance(age, (int, float)) and not isinstance(age, bool) else None,
+        "bind": "tailscale" if raw.get("bind") == "tailscale" else "loopback",
+        "hub_can_drive": bool(raw.get("hub_can_drive")),
+        "checked_at": float(checked) if isinstance(checked, (int, float)) and not isinstance(checked, bool) else None,
     }
 
 
@@ -137,11 +190,19 @@ class Registry:
         port = body.get("port")
         if isinstance(port, bool) or not isinstance(port, int) or not 0 < port < 65536:
             raise JoinError("port must be the satellite service's port number")
-        # Where the hub calls back: the address it reported, else the one this request came from.
-        # Either way it has to be inside the allow list, so a join can't point the relay elsewhere.
-        ip = str(body.get("ip") or client_ip or "").strip()
-        if not allowed(ip, networks):
-            raise JoinError(f"ip {ip or '(none)'} is not inside hub.allow_networks")
+        reachability = str(body.get("reachability") or "callback").strip().lower()
+        if reachability not in ("callback", "pull"):
+            raise JoinError("reachability must be callback or pull")
+        # callback: hub dials the satellite (Tailscale / loopback). pull: satellite opens a
+        # control channel; no callback IP (tunnel mode remotes must not all look like 127.0.0.1).
+        if reachability == "pull":
+            ip = ""
+        else:
+            # Where the hub calls back: the address it reported, else the one this request came from.
+            # Either way it has to be inside the allow list, so a join can't point the relay elsewhere.
+            ip = str(body.get("ip") or client_ip or "").strip()
+            if not allowed(ip, networks):
+                raise JoinError(f"ip {ip or '(none)'} is not inside hub.allow_networks")
         record_in = {
             "name": name,
             "machine": machine,
@@ -152,6 +213,7 @@ class Registry:
             "version": str(body.get("version") or "")[:40],
             "capabilities": _capabilities(body.get("capabilities")),
             "heartbeat_seconds": _beat(body.get("heartbeat_seconds"), self.heartbeat_seconds),
+            "reachability": reachability,
         }
         hub_token = secrets.token_urlsafe(32)
         now = self.clock()
@@ -209,6 +271,12 @@ class Registry:
                 row["version"] = str(body["version"])[:40]
             if body.get("heartbeat_seconds") is not None:
                 row["heartbeat_seconds"] = _beat(body.get("heartbeat_seconds"), row.get("heartbeat_seconds") or self.heartbeat_seconds)
+            metrics = body.get("system_metrics")
+            if isinstance(metrics, dict):
+                row["system_metrics"] = _sanitize_metrics(metrics)
+            browser = body.get("browser_status")
+            if isinstance(browser, dict):
+                row["browser_status"] = _sanitize_browser(browser)
             self._save(rows)
             return dict(row)
 
@@ -252,6 +320,10 @@ class Registry:
         out["last_seen"] = _iso(row.get("last_seen"))
         out["status"] = self.status(row)
         out["running_jobs"] = len([j for j in row.get("running_jobs") or [] if j.get("status") in ("queued", "running")])
+        out["reachability"] = row.get("reachability") or "callback"
+        if out["reachability"] == "pull":
+            # No usable callback address; do not show a fake 127.0.0.1 in the app.
+            out["ip"] = ""
         return out
 
     def listing(self) -> list[dict]:
@@ -260,11 +332,22 @@ class Registry:
         return rows
 
     @staticmethod
+    def is_callback(row: dict) -> bool:
+        return (row.get("reachability") or "callback") == "callback"
+
+    @staticmethod
     def base_url(row: dict) -> str:
+        if not Registry.is_callback(row):
+            raise ValueError(
+                f"satellite {row.get('id') or row.get('machine')} uses pull reachability; "
+                "there is no callback URL (use the control channel)"
+            )
         return f"http://{_url_host(row.get('ip') or row.get('host') or '127.0.0.1')}:{int(row['port'])}"
 
     @staticmethod
     def browser_url(row: dict) -> str | None:
+        if not Registry.is_callback(row):
+            return None
         port = (row.get("capabilities") or {}).get("browser_port")
         if not port:
             return None
@@ -337,6 +420,17 @@ def add_routes(app, hub) -> None:
             return fail(f"no satellite {ident}; GET /v1/satellites lists them", 404)
         return row
 
+    def need_callback(row: dict) -> JSONResponse | None:
+        """Until the pull control channel ships, callback-only relays refuse pull satellites clearly."""
+        if registry.is_callback(row):
+            return None
+        return fail(
+            f"{row.get('name') or row.get('id')} joins in pull mode (tunnel); "
+            "the hub control channel is not connected yet — upgrade both sides or use Tailscale mode",
+            503,
+            code="not_configured",
+        )
+
     @app.post("/v1/satellites/join")
     async def satellites_join(request: Request) -> JSONResponse:
         if not hub.auth.join_token_ok(request.headers.get("x-orbital-join-token")):
@@ -347,13 +441,31 @@ def add_routes(app, hub) -> None:
             row, hub_token = registry.join(body, hub.client_ip(request), hub.networks)
         except JoinError as exc:
             return fail(str(exc), 400)
-        log().info("satellite joined", extra={"fields": {"satellite": row["id"], "machine": row["machine"], "ip": row["ip"]}})
+        log().info("satellite joined", extra={"fields": {
+            "satellite": row["id"], "machine": row["machine"], "ip": row.get("ip") or "",
+            "reachability": row.get("reachability") or "callback",
+        }})
         await hub.live.broadcast({"type": "satellites", "satellites": registry.listing()})
         # One browser token for the whole fleet: the satellite's bridge takes the hub's, so the
         # browser relay (which calls every bridge with the hub's token) works after a normal setup.
         browser_token = hub.auth.get("ORBITAL_BROWSER_TOKEN") or Secrets(hub.paths).ensure_token("ORBITAL_BROWSER_TOKEN")
-        return JSONResponse({"ok": True, "satellite_id": row["id"], "hub_token": hub_token, "hub_id": hub.hub_id,
-                             "heartbeat_seconds": row["heartbeat_seconds"], "browser_token": browser_token})
+        answer = {
+            "ok": True,
+            "satellite_id": row["id"],
+            "hub_token": hub_token,
+            "hub_id": hub.hub_id,
+            "heartbeat_seconds": row["heartbeat_seconds"],
+            "browser_token": browser_token,
+            "reachability": row.get("reachability") or "callback",
+        }
+        if (row.get("reachability") or "callback") == "pull":
+            # Paths for the control channel (PR 4); satellites may ignore until then.
+            answer["control"] = {
+                "websocket": "/v1/satellites/control",
+                "long_poll": "/v1/satellites/control/poll",
+                "results": "/v1/satellites/control/results",
+            }
+        return JSONResponse(answer)
 
     @app.post("/v1/satellites/heartbeat")
     async def satellites_heartbeat(request: Request) -> JSONResponse:
@@ -365,7 +477,8 @@ def add_routes(app, hub) -> None:
             return fail("unknown satellite: join again", 401, code="unauthorized")
         if was != "online":
             log().info("satellite online", extra={"fields": {"satellite": row["id"]}})
-            await hub.live.broadcast({"type": "satellites", "satellites": registry.listing()})
+        # Every beat carries fresh metrics and browser state for the dashboards.
+        await hub.live.broadcast({"type": "satellites", "satellites": registry.listing()})
         return JSONResponse({"ok": True, "satellite_id": row["id"], "hub_id": hub.hub_id})
 
     @app.get("/v1/satellites")
@@ -405,6 +518,8 @@ def add_routes(app, hub) -> None:
         row = find(ident)
         if isinstance(row, JSONResponse):
             return row
+        if blocked := need_callback(row):
+            return blocked
         started = time.monotonic()
         try:
             answer = await call(registry.base_url(row), "GET", "/v1/health", None, timeout=4)
@@ -420,6 +535,8 @@ def add_routes(app, hub) -> None:
         row = find(ident)
         if isinstance(row, JSONResponse):
             return row
+        if blocked := need_callback(row):
+            return blocked
         body = await body_of(request)
         prompt = body.get("prompt")
         if not isinstance(prompt, str) or not prompt.strip():
@@ -459,6 +576,8 @@ def add_routes(app, hub) -> None:
         row = find(ident)
         if isinstance(row, JSONResponse):
             return row
+        if blocked := need_callback(row):
+            return blocked
         try:
             answer = await call(registry.base_url(row), "GET", "/v1/agents/jobs", row.get("satellite_token"), timeout=6)
         except RelayError as exc:
@@ -476,6 +595,8 @@ def add_routes(app, hub) -> None:
         row = find(ident)
         if isinstance(row, JSONResponse):
             return row
+        if blocked := need_callback(row):
+            return blocked
         try:
             answer = await call(registry.base_url(row), method, f"/v1/agents/jobs/{job_id}{suffix}", row.get("satellite_token"), timeout=8)
         except RelayError as exc:
@@ -508,7 +629,7 @@ def add_routes(app, hub) -> None:
         rows = registry.all()
 
         async def one(row: dict) -> tuple[dict, list[dict], str]:
-            if registry.status(row) == "online":
+            if registry.status(row) == "online" and registry.is_callback(row):
                 try:
                     answer = await call(registry.base_url(row), "GET", "/v1/agents/jobs", row.get("satellite_token"), timeout=3)
                     jobs = _jobs_of(answer)
@@ -539,6 +660,13 @@ def add_routes(app, hub) -> None:
         row = find(ident)
         if isinstance(row, JSONResponse):
             return row
+        if not registry.is_callback(row):
+            return fail(
+                f"{row['name']} joins in pull mode (tunnel); browser relay needs the control channel "
+                "(or Tailscale with browser.bind = \"tailscale\")",
+                503,
+                code="not_configured",
+            )
         url = registry.browser_url(row)
         if not (row.get("capabilities") or {}).get("browser") or url is None:
             return fail(f"{row['name']} has no browser bridge open to the hub (browser.bind = \"tailscale\" on that machine)", 400)

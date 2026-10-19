@@ -183,7 +183,7 @@ def gather(cfg, exec_fn=default_exec, tailscale_self=None, ports: bool = True,
     return env
 
 
-def report(ui, env: Environment) -> list[str]:
+def report(ui, env: Environment, network_mode: str = "tailscale") -> list[str]:
     """Print the preflight results. Returns blocking problems (empty = fine to continue)."""
     blocking: list[str] = []
     ui.ok(f"{'macOS' if env.os == 'macos' else env.os.capitalize()} {env.os_version}")
@@ -192,19 +192,23 @@ def report(ui, env: Environment) -> list[str]:
     else:
         ui.fail(f"Python {env.python}: 3.11 or newer is needed")
         blocking.append("python")
-    if env.tailscale_running:
+    tunnel_mode = (network_mode or "tailscale").strip().lower() == "tunnel"
+    if tunnel_mode:
+        ui.ok("Network mode: tunnel (Tailscale not required)")
+        ui.hint("Hub publishes via Cloudflare Tunnel to 127.0.0.1:7700; satellites join over HTTPS.")
+    elif env.tailscale_running:
         ui.ok(f"Tailscale: {env.tailscale_dns or env.tailscale_name} ({env.tailscale_ip})")
     elif env.tailscale_installed:
         ui.warn("Tailscale is installed but not logged in / not running")
         ui.hint("Open Tailscale and log in (or run `tailscale up`). Without it, this machine works on its own,")
-        ui.hint("but satellites and the iPhone app can't reach it.")
+        ui.hint("but satellites and the iPhone app can't reach it (or choose network.mode = tunnel).")
     else:
         ui.warn("Tailscale is not installed")
         if env.os == "macos":
             ui.hint("Install it from https://tailscale.com/download/mac (or `brew install --cask tailscale`),")
         else:
             ui.hint("Install it: curl -fsSL https://tailscale.com/install.sh | sh && sudo tailscale up")
-        ui.hint("then log in. Machines and the iPhone app find each other over your tailnet.")
+        ui.hint("then log in. Or set network.mode = tunnel in answers.toml for hub-relay without Tailscale.")
     if env.os == "macos":
         if env.xcode:
             ui.ok(env.xcode)

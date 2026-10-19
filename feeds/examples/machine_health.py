@@ -2,7 +2,7 @@
 
 Shows: metrics tiles, intraday line/area charts kept across runs, a disk table, key/value facts, a
 daily `series` (kind health) for the app's dashboard charts, a callout and an alert when a disk is
-almost full. Lives in the "Home Lab" space. No API keys; macOS and Linux.
+almost full. Filed under System (space "system"), where the apps show it next to the machines. No API keys; macOS and Linux.
 
     python feeds/examples/machine_health.py [--dry-run] [--section-id machine-health] [--disk-alert-pct 10]
 """
@@ -213,7 +213,7 @@ def build(sample: dict, state: dict, *, section_id: str = FEED, disk_alert_pct: 
               (f" · {_gb(disks_now[0]['free'])} free" if disks_now else "")
     section = b.section(section_id, f"{machine} health", page, icon="desktopcomputer", order=10,
                         subtitle="CPU, memory, disks and uptime", summary=summary[:80],
-                        space="home-lab", space_title="Home Lab", space_icon="server.rack")
+                        space="system", space_title="System", space_icon="cpu")
     return section, alerts
 
 

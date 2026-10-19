@@ -6,7 +6,8 @@ Agents come from `[agents.<name>]` in config.toml: `command = ["claude", "-p", "
 
 An agent is "available" only when its executable resolves. Services started by launchd or systemd
 get a short PATH, so besides PATH we also look in the usual install folders (Homebrew, /usr/local,
-~/.local/bin, ~/.npm-global/bin, nvm's node folders, bun, cargo).
+~/.local/bin, ~/.npm-global/bin, nvm's node folders, bun, cargo; on Windows %APPDATA%\\npm, Node.js,
+scoop and WinGet links).
 """
 
 from __future__ import annotations
@@ -15,6 +16,7 @@ import glob
 import os
 import re
 import shutil
+import sys
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -34,12 +36,23 @@ COMMON_BIN_DIRS = (
     "/sbin",
 )
 
+WINDOWS_BIN_DIRS = (
+    "%APPDATA%\\npm",
+    "%ProgramFiles%\\nodejs",
+    "%LOCALAPPDATA%\\Microsoft\\WinGet\\Links",
+    "%LOCALAPPDATA%\\Microsoft\\WindowsApps",
+    "~\\.local\\bin",
+    "~\\scoop\\shims",
+    "~\\.bun\\bin",
+    "~\\.cargo\\bin",
+)
+
 NAME_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.-]{0,63}$")
 
 
 def _version_key(path: str) -> tuple:
     # ~/.nvm/versions/node/v20.11.1/bin → (20, 11, 1)
-    match = re.search(r"/v(\d+)\.(\d+)\.(\d+)/", path)
+    match = re.search(r"[\\/]v(\d+)\.(\d+)\.(\d+)[\\/]", path)
     return tuple(int(x) for x in match.groups()) if match else (0, 0, 0)
 
 
@@ -48,11 +61,18 @@ def nvm_bin_dirs() -> list[str]:
     return sorted(glob.glob(pattern), key=_version_key, reverse=True)
 
 
+def common_bin_dirs() -> list[str]:
+    if sys.platform == "win32":
+        dirs = [re.sub(r"%(\w+)%", lambda m: os.environ.get(m.group(1), m.group(0)), d) for d in WINDOWS_BIN_DIRS]
+        return [os.path.expanduser(d) for d in dirs if "%" not in d]     # skip unset variables
+    return [os.path.expanduser(d) for d in COMMON_BIN_DIRS]
+
+
 def search_dirs(env_path: str | None = None) -> list[str]:
     """PATH first, then the common install folders, without duplicates."""
     raw = env_path if env_path is not None else os.environ.get("PATH", "")
     out: list[str] = []
-    for part in [p for p in raw.split(os.pathsep) if p] + [os.path.expanduser(d) for d in COMMON_BIN_DIRS] + nvm_bin_dirs():
+    for part in [p for p in raw.split(os.pathsep) if p] + common_bin_dirs() + nvm_bin_dirs():
         if part not in out:
             out.append(part)
     return out
@@ -68,7 +88,7 @@ def resolve_executable(name: str, env_path: str | None = None) -> str | None:
         return None
     if name.startswith("~"):
         name = os.path.expanduser(name)
-    if os.sep in name:
+    if os.sep in name or (os.altsep and os.altsep in name):
         return name if os.path.isfile(name) and os.access(name, os.X_OK) else None
     return shutil.which(name, path=search_path(env_path))
 

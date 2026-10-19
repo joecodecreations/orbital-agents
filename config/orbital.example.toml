@@ -8,11 +8,18 @@ name = "Orbital Agents"          # shown in the apps
 role = "hub"                     # hub = the primary machine; satellite = every other machine
 machine_name = ""                # empty = this computer's short hostname
 
+[network]                        # how machines reach each other (see docs/designs/2026-dual-network-modes.md)
+mode = "tailscale"               # tailscale (default mesh) | tunnel (hub via Cloudflare + satellite pull)
+public_url = ""                  # tunnel only: https://orbital.example.com (no trailing slash, no :7700)
+tunnel_provider = "cloudflare"   # v1: only cloudflare
+tunnel_id = ""                   # named tunnel id (informational)
+cloudflared_config = ""          # path to cloudflared config.yml if non-default
+
 [hub]
 host = "0.0.0.0"
 port = 7700
-url = ""                         # satellites only: e.g. "http://my-mac.tailnet-name.ts.net:7700"
-# Only these networks may connect (loopback + Tailscale). Add a LAN range only if you really need it.
+url = ""                         # satellites only: e.g. "http://my-mac.tailnet-name.ts.net:7700" or https://orbital.example.com
+# Only these networks may connect (loopback + Tailscale). Tunnel mode should be loopback only.
 allow_networks = ["127.0.0.0/8", "::1/128", "100.64.0.0/10", "fd7a:115c:a1e0::/48"]
 data_retention_days = 90         # alerts, action results and old media are trimmed after this
 max_media_mb = 8
@@ -77,9 +84,12 @@ max_bytes = 5000000              # roll a log file at this size
 backups = 3                      # rolled files kept per component
 retention_days = 14              # delete rolled files older than this
 
-[desk]                           # the app's Desk (talk to an agent by voice or text)
-provider = "xai"                 # needs XAI_API_KEY in secrets.env (optional)
-model = "grok-4-fast-non-reasoning"
+[desk]                           # the app's Agent tab (talk to an agent by voice or text)
+provider = "auto"                # auto: your Grok subscription (grok CLI), then Claude's (claude CLI), then the
+                                 # Mac's built-in model; XAI_API_KEY in secrets.env puts the paid xAI API first. "off" disables it
+model = "grok-4-fast-non-reasoning"   # the xAI API model, when a key is set
+cli_model = ""                   # the grok CLI model ("" = its default)
+claude_model = ""                # the claude CLI model ("" = picks Haiku/Sonnet/Opus per turn)
 worker_agent = "claude"          # agent started for real work
 reminders_list = ""              # macOS Reminders list for "remind me…" (empty = default list)
 # Folders the desk may start work in (optional, repeat the block for more):

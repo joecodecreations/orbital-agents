@@ -334,20 +334,37 @@ class Wizard:
                 data.setdefault(section, {})[name] = int(given)
         cfg.data = data
         self.env = self.deps["gather"](cfg)
-        blocking = preflight.report(self.ui, self.env)
+        # Apply answers network.mode before preflight messaging / Tailscale prompts.
+        mode_answer = self.a.get("network.mode")
+        if mode_answer in ("tailscale", "tunnel"):
+            self.put("network.mode", mode_answer)
+        if mode_answer == "tunnel" and self.a.get("network.public_url"):
+            self.put("network.public_url", str(self.a.get("network.public_url")).rstrip("/"))
+        blocking = preflight.report(self.ui, self.env, network_mode=self._network_mode())
         if blocking:
             raise Abort()
-        if not self.env.tailscale_running and self.ui.interactive:
+        if not self.env.tailscale_running and self.ui.interactive and self._network_mode() != "tunnel":
             if not self.ui.ask_bool("Continue without Tailscale for now?", True):
                 raise Abort()
+
+    def _network_mode(self) -> str:
+        mode = self.a.get("network.mode") or self.cur("network.mode") or "tailscale"
+        return str(mode).strip().lower() if str(mode).strip().lower() in ("tailscale", "tunnel") else "tailscale"
 
     # ------------------------------------------------------------------ 2. role
     def step_role(self) -> None:
         self.step("Role")
         forced = self.opts.role or (self.a.get("role") if self.a.get("role") in ("hub", "satellite") else None)
+        # answers role=auto + tunnel: hub unless satellite.hub_url is set (never Tailscale discovery).
+        if not forced and self.a.get("role") == "auto" and self._network_mode() == "tunnel":
+            forced = "satellite" if self.a.get("satellite.hub_url") or self.cur("hub.url") else "hub"
+            self.ui._chosen("This machine is", forced, "auto + tunnel")
         port = int(self.a.get("ports.hub") or self.cur("hub.port") or 7700)
         if not forced and not (self.keep and self.cur("system.role")):
-            if self.env and self.env.tailscale_running:
+            if self._network_mode() == "tunnel":
+                self.ui.info("tunnel mode: skipping Tailscale hub search (set satellite.hub_url to join)")
+                self.hubs = []
+            elif self.env and self.env.tailscale_running:
                 self.ui.info(f"looking for hubs on your tailnet (port {port})…")
                 try:
                     self.hubs = [h for h in self.deps["find_hubs"](port) if not h.get("is_self")]

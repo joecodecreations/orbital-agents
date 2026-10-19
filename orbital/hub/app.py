@@ -182,6 +182,12 @@ def create_app(cfg: Config | None = None, *, background: bool = True, clock=time
     @asynccontextmanager
     async def lifespan(app: FastAPI):
         hub.apns.status()  # one INFO line when push is wanted but something is missing
+        from orbital.hub.bonjour import BonjourAdvertiser, tailscale_url
+        port = int(cfg.get("hub.port", 7700) or 7700)
+        url = await asyncio.to_thread(tailscale_url, port) if hub.background else ""
+        bonjour = BonjourAdvertiser(port=port, hub_id=hub.hub_id, url=url)
+        if hub.background:
+            bonjour.start()
         tasks = [asyncio.create_task(live.ping_forever()), asyncio.create_task(satellites_module.watch(hub))]
         if hub.background:
             tasks += [
@@ -202,6 +208,7 @@ def create_app(cfg: Config | None = None, *, background: bool = True, clock=time
                     await task
             await hub.desk.close()
             await hub.voices.close()
+            bonjour.stop()
             hub.log.info("hub stopped")
 
     app = FastAPI(title="Orbital hub", version=__version__, docs_url=None, redoc_url=None, openapi_url=None, lifespan=lifespan)
@@ -246,7 +253,7 @@ def create_app(cfg: Config | None = None, *, background: bool = True, clock=time
 
     @app.get("/v1/health")
     async def health() -> dict:
-        return {"ok": True, "service": "orbital-hub", "version": __version__, "contract": "/v1/contract", "apns": hub.push_status()}
+        return {"ok": True, "service": "orbital-hub", "version": __version__, "hub_id": hub.hub_id, "contract": "/v1/contract", "apns": hub.push_status()}
 
     @app.get("/v1/hub/info")
     async def hub_info() -> dict:
@@ -263,6 +270,33 @@ def create_app(cfg: Config | None = None, *, background: bool = True, clock=time
         token = hub.auth.sessions.issue(username)
         hub.log.info("signed in", extra={"fields": {"ip": hub.client_ip(request), "device": device_of(request)}})
         return JSONResponse({"ok": True, "token": token, "username": username, "hub_id": hub.hub_id})
+
+    @app.post("/v1/pair")
+    async def pair(request: Request) -> JSONResponse:
+        """Sign an app in with a one-time code from `orbital pair` (the orbital://connect link carries it)."""
+        body = await body_of(request)
+        username = hub.auth.pair_codes.redeem(str(body.get("code") or ""))
+        if not username:
+            hub.log.info("pairing refused", extra={"fields": {"ip": hub.client_ip(request)}})
+            return fail("that pairing code is unknown, used or expired; run `orbital pair` again", 401, code="bad_login")
+        token = hub.auth.sessions.issue(username)
+        hub.log.info("paired", extra={"fields": {"ip": hub.client_ip(request), "device": device_of(request)}})
+        return JSONResponse({"ok": True, "token": token, "username": username, "hub_id": hub.hub_id})
+
+    @app.post("/v1/pair/new")
+    async def pair_new(request: Request) -> JSONResponse:
+        denied = require(request)
+        if denied:
+            return denied
+        username = hub.auth.get("ORBITAL_HUB_USERNAME")
+        if not username:
+            return fail("ORBITAL_HUB_USERNAME is not set in secrets.env", 503, code="not_configured")
+        code, expires = hub.auth.pair_codes.new(username)
+        url = await asyncio.to_thread(cfg.external_hub_url)
+        from urllib.parse import urlencode
+        link = "orbital://connect?" + urlencode({"hub": url, "pair": code}) if url else ""
+        return JSONResponse({"ok": True, "code": code, "hub": url, "link": link,
+                             "expires_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime(expires))})
 
     # Signed-in routes
 
@@ -516,6 +550,27 @@ def create_app(cfg: Config | None = None, *, background: bool = True, clock=time
         await live.broadcast({"type": "prefs", "prefs": prefs})
         return JSONResponse({"ok": True, "prefs": prefs})
 
+    @app.get("/v1/spaces")
+    async def get_spaces(request: Request) -> JSONResponse:
+        """The hub's own spaces (spaces.json) and the merged list the apps draw."""
+        denied = require(request)
+        if denied:
+            return denied
+        return JSONResponse({"declared": store.declared_spaces(), "spaces": store.catalog()["spaces"]})
+
+    @app.put("/v1/spaces")
+    async def put_spaces(request: Request) -> JSONResponse:
+        """{"spaces": [{id, title, icon?, accent?, order?, sections: [...], aliases: [...]}]}; [] removes them."""
+        denied = require(request)
+        if denied:
+            return denied
+        try:
+            declared = store.save_spaces(await body_of(request))
+        except OpsError as exc:
+            return fail_ops(exc)
+        await live.broadcast({"type": "catalog"})
+        return JSONResponse({"ok": True, "declared": declared, "spaces": store.catalog()["spaces"]})
+
     @app.post("/v1/sections/{section_id}/actions")
     async def post_action(section_id: str, request: Request) -> JSONResponse:
         denied = require(request)
@@ -749,6 +804,8 @@ def create_app(cfg: Config | None = None, *, background: bool = True, clock=time
     satellites_module.add_routes(app, hub)
     desk_module.add_routes(app, hub)
     speech_module.add_routes(app, hub)
+    from orbital.hub import nav as nav_module
+    nav_module.add_routes(app, hub)
     return app
 
 

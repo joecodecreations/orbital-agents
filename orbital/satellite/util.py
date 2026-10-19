@@ -1,13 +1,17 @@
-"""Small helpers shared by the satellite modules: timestamps and atomic JSON files."""
+"""Small helpers shared by the satellite modules: timestamps, atomic JSON files, process flags."""
 
 from __future__ import annotations
 
 import json
 import os
+import subprocess
 import time
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
+
+# Windows: children of a background satellite must not open a console window (0 elsewhere).
+NO_CONSOLE = getattr(subprocess, "CREATE_NO_WINDOW", 0)
 
 
 def now() -> float:

@@ -127,6 +127,11 @@ class Doctor:
         problems = []
         if cfg.role not in ("hub", "satellite"):
             problems.append(f"system.role is {cfg.role!r} (hub or satellite)")
+        mode = cfg.network_mode
+        if mode not in ("tailscale", "tunnel"):
+            problems.append(f"network.mode is {cfg.get('network.mode')!r} (tailscale or tunnel)")
+        if mode == "tunnel" and cfg.role == "hub" and not (cfg.get("network.public_url") or "").strip():
+            problems.append("tunnel hub without network.public_url (HTTPS URL for phones and satellites)")
         unknown = [k for k in raw if k not in DEFAULTS]
         ports = {}
         for key in ("hub.port", "tracker.port", "tracker.stt_port", "browser.bridge_port", "satellite.port"):
@@ -196,6 +201,33 @@ class Doctor:
 
     def check_tailscale(self, cfg: Config) -> None:
         from orbital.core import net
+        mode = cfg.network_mode
+        if mode == "tunnel":
+            public = (cfg.get("network.public_url") or "").rstrip("/")
+            if cfg.role == "hub":
+                if not public:
+                    self.add("network", "fail", "tunnel mode: network.public_url is empty",
+                             "set network.public_url to your Cloudflare HTTPS hostname, then orbital config --apply")
+                elif not public.startswith("https://"):
+                    self.add("network", "warn", f"tunnel public_url should be https://… (got {public})",
+                             "use an HTTPS Cloudflare Tunnel hostname")
+                else:
+                    self.add("network", "ok", f"tunnel mode · {public}")
+                    self._probe_tunnel_url(public)
+            else:
+                hub = (cfg.get("hub.url") or "").rstrip("/")
+                self.add("network", "ok" if hub else "fail",
+                         f"tunnel mode · hub {hub or '(missing hub.url)'}",
+                         None if hub else "set hub.url to the hub's HTTPS URL and rejoin")
+                if hub:
+                    self._probe_tunnel_url(hub)
+            # Tailscale is optional in tunnel mode.
+            me = net.tailscale_self() if net.tailscale_bin() else None
+            if me:
+                self.add("tailscale", "ok", f"optional here · {me.dns or me.name} ({me.ip})")
+            else:
+                self.add("tailscale", "ok", "not required (network.mode = tunnel)")
+            return
         if not net.tailscale_bin():
             level = "fail" if cfg.role == "satellite" else "warn"
             self.add("tailscale", level, "Tailscale isn't installed", "install it from https://tailscale.com/download and log in")
@@ -208,6 +240,21 @@ class Doctor:
                      f"Tailscale is not connected (state {state or 'unknown'})", "open Tailscale and log in (`tailscale up`)")
             return
         self.add("tailscale", "ok", f"{me.dns or me.name} ({me.ip})")
+        self.add("network", "ok", "tailscale mode")
+
+    def _probe_tunnel_url(self, url: str) -> None:
+        """Best-effort HTTPS health check for tunnel mode (does not fail the whole doctor on network blips)."""
+        try:
+            import httpx
+            r = httpx.get(f"{url.rstrip('/')}/v1/health", timeout=5.0, follow_redirects=True)
+            if r.status_code == 200:
+                self.add("network", "ok", f"hub health OK at {url}")
+            else:
+                self.add("network", "warn", f"hub at {url} answered HTTP {r.status_code}",
+                         "check cloudflared is running and ingress points at 127.0.0.1:7700")
+        except Exception as exc:  # noqa: BLE001
+            self.add("network", "warn", f"could not reach {url}: {exc.__class__.__name__}",
+                     "start cloudflared toward 127.0.0.1:7700; orbital network tunnel check (when available)")
 
     def check_services(self, cfg: Config):
         from orbital import services

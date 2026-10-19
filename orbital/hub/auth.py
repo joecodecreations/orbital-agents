@@ -138,10 +138,43 @@ class Sessions:
             return len(data) - len(kept)
 
 
+PAIR_TTL_SECONDS = 600
+
+
+class PairCodes:
+    """One-time codes that sign an app in without typing the password. In memory only, stored hashed."""
+
+    def __init__(self, ttl: float = PAIR_TTL_SECONDS, clock=time.time) -> None:
+        self.ttl = ttl
+        self.clock = clock
+        self._codes: dict[str, tuple[str, float]] = {}
+        self._lock = threading.Lock()
+
+    def new(self, username: str) -> tuple[str, float]:
+        code = secrets.token_urlsafe(24)
+        expires = self.clock() + self.ttl
+        with self._lock:
+            now = self.clock()
+            self._codes = {k: v for k, v in self._codes.items() if v[1] > now}
+            self._codes[digest(code)] = (username, expires)
+        return code, expires
+
+    def redeem(self, code: str | None) -> str | None:
+        """The username the code was made for, once; None when unknown, used or expired."""
+        if not code:
+            return None
+        with self._lock:
+            row = self._codes.pop(digest(code), None)
+        if row is None or row[1] < self.clock():
+            return None
+        return row[0]
+
+
 class HubAuth:
     def __init__(self, secrets_store: Secrets, sessions: Sessions) -> None:
         self.secrets = SecretCache(secrets_store)
         self.sessions = sessions
+        self.pair_codes = PairCodes()
 
     @property
     def automation_token(self) -> str:

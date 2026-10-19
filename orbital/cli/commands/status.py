@@ -73,12 +73,14 @@ def gather() -> dict:
     cfg = load_config()
     secrets = Secrets(cfg.paths)
     hub_url = cfg.hub_url()
+    external = cfg.external_hub_url()
     picture: dict = {
         "version": __version__,
         "machine": cfg.machine_name,
         "role": cfg.role,
+        "network_mode": cfg.network_mode,
         "home": str(cfg.paths.home),
-        "hub": {"url": hub_url or None, "reachable": False},
+        "hub": {"url": hub_url or None, "external_url": external or None, "reachable": False},
         "services": [],
         "satellites": None,
         "watchdog": None,
@@ -132,14 +134,18 @@ def run(args) -> int:
         return 0
     tty = sys.stdout.isatty()
     green, red, dim, reset = ("\033[32m", "\033[31m", "\033[2m", "\033[0m") if tty else ("", "", "", "")
-    print(f"Orbital Agents {picture['version']} · {picture['machine']} · role {picture['role']}")
+    print(f"Orbital Agents {picture['version']} · {picture['machine']} · role {picture['role']} · {picture.get('network_mode', 'tailscale')}")
     print(f"{dim}home {picture['home']}{reset}")
     hub = picture["hub"]
     if hub["url"]:
         state = f"{green}reachable{reset}" if hub["reachable"] else f"{red}unreachable{reset} ({hub.get('detail')})"
         print(f"Hub        {hub['url']}  {state}")
+        if hub.get("external_url") and hub["external_url"] != hub["url"]:
+            print(f"External   {hub['external_url']}")
     else:
         print(f"Hub        {red}not configured{reset} (hub.url is empty; run `orbital satellite join`)")
+        if hub.get("external_url"):
+            print(f"External   {hub['external_url']}")
     if hub.get("last_heartbeat"):
         beat = hub["last_heartbeat"]
         ok = f"{green}ok{reset}" if beat.get("ok") else f"{red}{beat.get('detail') or 'failed'}{reset}"

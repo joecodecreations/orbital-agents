@@ -9,11 +9,15 @@
 #   ORBITAL_HUB_PASSWORD, ORBITAL_JOIN_TOKEN, XAI_API_KEY, FISH_API_KEY
 # `orbital setup --dry-run --answers answers.toml --yes` prints every action without doing it.
 
-role = "auto"                    # auto | hub | satellite. auto: satellite when a hub answers on the tailnet, else hub
+role = "auto"                    # auto | hub | satellite. auto + tailscale: satellite when a hub answers on the tailnet, else hub. auto + tunnel: hub unless satellite.hub_url is set
 
 [system]
 name = "Orbital Agents"          # hub: the name shown in the apps
 machine_name = ""                # this machine's name; empty = its short hostname
+
+[network]                        # how machines reach each other
+mode = "tailscale"               # tailscale (default) | tunnel (hub via Cloudflare; no Tailscale required)
+# public_url = "https://orbital.example.com"   # tunnel hub only: the HTTPS URL phones and satellites use
 
 [ports]                          # defaults shown; only change them if something else uses them
 hub = 7700
@@ -57,7 +61,7 @@ build_iphone_app = "auto"        # hub: auto = when an iPhone is connected | tru
 open_extensions_page = true      # open chrome://extensions and the extension folder (loading it is one click you do)
 
 [satellite]                      # satellite only
-hub_url = ""                     # e.g. "http://my-mac.your-tailnet.ts.net:7700"; empty = find the hub on the tailnet
+hub_url = ""                     # Tailscale: empty = find the hub on the tailnet. Tunnel: required, e.g. "https://orbital.example.com"
 join_token = ""                  # the hub printed it (`orbital satellites invite` shows it again); or set ORBITAL_JOIN_TOKEN
 
 [skills]

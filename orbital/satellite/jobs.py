@@ -21,6 +21,7 @@ import re
 import secrets
 import signal
 import subprocess
+import sys
 import threading
 import time
 from dataclasses import dataclass, field
@@ -32,7 +33,7 @@ from orbital.core.config import Config
 from orbital.core.limits import MAX_PROMPT_CHARS
 from orbital.satellite.agents import build_argv, child_env, configured_agents
 from orbital.satellite.tracker import TrackerReporter
-from orbital.satellite.util import atomic_write_json, iso, now, parse_iso, read_json
+from orbital.satellite.util import NO_CONSOLE, atomic_write_json, iso, now, parse_iso, read_json
 
 ACTIVE = ("queued", "running")
 FINISHED = ("done", "failed", "cancelled")
@@ -161,7 +162,23 @@ class _Active:
     extra: dict[str, Any] = field(default_factory=dict)
 
 
+SIGKILL = getattr(signal, "SIGKILL", signal.SIGTERM)     # Windows has no SIGKILL
+
+
 def _kill_group(pid: int, sig: int) -> None:
+    """Signal the job's process group; on Windows end its whole process tree (taskkill /T /F)."""
+    if sys.platform == "win32":
+        try:
+            done = subprocess.run(["taskkill", "/PID", str(pid), "/T", "/F"], capture_output=True,
+                                  timeout=15, creationflags=NO_CONSOLE).returncode == 0
+        except (OSError, subprocess.TimeoutExpired):
+            done = False
+        if not done:
+            try:
+                os.kill(pid, signal.SIGTERM)       # TerminateProcess on the agent itself
+            except OSError:
+                pass
+        return
     try:
         os.killpg(pid, sig)
     except (ProcessLookupError, PermissionError, OSError):
@@ -536,6 +553,7 @@ class JobManager:
                     argv, cwd=record["cwd"], env=env,
                     stdin=subprocess.PIPE if prompt_on_stdin else subprocess.DEVNULL,
                     stdout=subprocess.PIPE, stderr=subprocess.STDOUT, start_new_session=True,
+                    creationflags=NO_CONSOLE,
                 )
             except OSError as exc:
                 error = f"could not start {argv[0]}: {exc}"
@@ -567,11 +585,11 @@ class JobManager:
                         active.killed_at = t
                         _kill_group(proc.pid, signal.SIGTERM)
                     elif active.killed_at is not None and t - active.killed_at > self.kill_grace:
-                        _kill_group(proc.pid, signal.SIGKILL)
+                        _kill_group(proc.pid, SIGKILL)
             reader.join(timeout=2)
             if reader.is_alive():
                 # The agent exited but something it started still holds the output open.
-                _kill_group(proc.pid, signal.SIGKILL)
+                _kill_group(proc.pid, SIGKILL)
                 reader.join(timeout=2)
             if active.stop_reason == "timeout":
                 status = "failed"
@@ -622,6 +640,8 @@ def _feed_stdin(proc: subprocess.Popen, prompt: str) -> None:
 
 def _pid_runs(pid: int, executable: str) -> bool:
     """True when `pid` is alive and still runs `executable` (a reused pid is left alone)."""
+    if sys.platform == "win32":
+        return _pid_runs_windows(pid, executable)
     try:
         os.kill(pid, 0)
     except (ProcessLookupError, PermissionError, OSError):
@@ -631,6 +651,19 @@ def _pid_runs(pid: int, executable: str) -> bool:
     except (OSError, subprocess.TimeoutExpired):
         return False
     return bool(out) and bool(executable) and os.path.basename(out) == os.path.basename(executable)
+
+
+def _pid_runs_windows(pid: int, executable: str) -> bool:
+    # os.kill(pid, 0) would send CTRL_C_EVENT on Windows; ask tasklist for the image name instead.
+    try:
+        out = subprocess.run(["tasklist", "/FI", f"PID eq {pid}", "/FO", "CSV", "/NH"], capture_output=True,
+                             text=True, timeout=10, creationflags=NO_CONSOLE).stdout.strip()
+    except (OSError, subprocess.TimeoutExpired):
+        return False
+    found = re.match(r'^"([^"]+)","(\d+)"', out)
+    if not found or int(found.group(2)) != pid or not executable:
+        return False
+    return found.group(1).lower() == re.split(r"[\\/]", executable)[-1].lower()
 
 
 # --------------------------------------------------------------------------- trimming (watchdog)

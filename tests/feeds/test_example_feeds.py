@@ -30,7 +30,7 @@ def test_machine_health_pushes_a_valid_section(home, capsys):
     assert hub.sections and hub.sections[0]["id"] == "machine-health"
     section = hub.sections[0]
     validate(section)
-    assert section["space"] == "home-lab" and section["space_title"] == "Home Lab"
+    assert section["space"] == "system" and section["space_title"] == "System"
     types = {blk["type"] for blk in section["blocks"]}
     assert {"metrics", "chart", "key_value", "series"} <= types
     line = last_line(capsys)

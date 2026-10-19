@@ -20,7 +20,7 @@ from orbital import __version__
 from orbital.core.config import Config, load_config
 from orbital.core.secrets import Secrets
 from orbital.satellite.join import (HUB_TOKEN_KEY, JOIN_TOKEN_KEY, JoinError, capabilities, clear_identity,
-                                    join_hub, read_identity)
+                                    browser_status, join_hub, read_identity, system_disk, system_metrics)
 from orbital.satellite.util import atomic_write_json, iso, now
 
 COMPLAIN_EVERY = 3600.0
@@ -45,12 +45,15 @@ def beat_once(cfg: Config, manager=None, timeout: float = 10.0) -> dict:
     if not token or not satellite_id:
         result["detail"] = "not joined to a hub yet"
         return result
+    disk_paths = [system_disk(), str(cfg.paths.home)]
     body = {
         "satellite_id": satellite_id,
         "capabilities": capabilities(cfg),
         "running_jobs": manager.running_summary() if manager is not None else [],
         "version": __version__,
         "heartbeat_seconds": max(1, int(float(cfg.get("satellite.heartbeat_seconds", 60) or 60))),
+        "system_metrics": system_metrics(disk_paths),
+        "browser_status": browser_status(cfg, local=bool(identity.get("local"))),
     }
     try:
         response = httpx.post(f"{hub}/v1/satellites/heartbeat", json=body,

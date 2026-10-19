@@ -40,7 +40,8 @@ cp config/answers.example.toml answers.toml        # edit only what you need
 | `apple.team_id`, `apple.bundle_prefix`, `apple.ios_device` | app signing; empty team id = detect it |
 | `apple.build_tracker`, `apple.build_mac_app`, `apple.build_iphone_app` | `true` / `false`; iPhone also `auto` |
 | `browser.open_extensions_page` | open `chrome://extensions` for the user (loading the extension is a manual click) |
-| `satellite.hub_url`, `satellite.join_token` | satellite: the hub URL (empty = discover); token (prefer `ORBITAL_JOIN_TOKEN`) |
+| `network.mode`, `network.public_url` | `tailscale` (default) or `tunnel`; tunnel hub HTTPS URL for phones/satellites |
+| `satellite.hub_url`, `satellite.join_token` | satellite: the hub URL (empty = Tailscale discover; required in tunnel mode); token (prefer `ORBITAL_JOIN_TOKEN`) |
 | `skills.install`, `skills.agents`, `skills.rules` | install skills; `"all"` or a list; `auto`, `yes`, `no` |
 | `verify.live_test`, `verify.wait_seconds` | run `orbital test --live` at the end; seconds to wait for services |
 

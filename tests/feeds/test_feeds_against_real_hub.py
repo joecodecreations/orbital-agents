@@ -88,8 +88,9 @@ def test_every_example_feed_lands_in_the_hub(home, monkeypatch):
         catalog = hub.get("/v1/catalog").json()
         spaces = {s["id"]: s for s in catalog.get("spaces") or []}
         if spaces:  # the catalog groups sections into spaces (the app's home tiles)
-            assert {"machine-health", "website-uptime"} <= set(spaces["home-lab"]["sections"])
+            assert "website-uptime" in spaces["home-lab"]["sections"]
             assert spaces["home-lab"]["title"] == "Home Lab"
+            assert "machine-health" in spaces["system"]["sections"], "machine health is filed under System"
         # A tap on the Ping button reaches the feed on its next run and is answered.
         tap = httpx.post(f"{hub.url}/v1/sections/hello/actions", headers={"Authorization": f"Bearer {AUTOMATION}"},
                          json={"schema": "orbital.action.v1", "type": "hello.ping", "item_id": "ping",

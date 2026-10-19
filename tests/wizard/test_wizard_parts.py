@@ -242,6 +242,39 @@ def test_doctor_reports_missing_tokens(doctor_home):
     assert doc.findings[0].level == "fail" and "ORBITAL_JOIN_TOKEN" in doc.findings[0].message
 
 
+def test_doctor_tunnel_mode_does_not_require_tailscale(doctor_home, monkeypatch):
+    from orbital.cli.commands.doctor import Doctor
+    from orbital.core import net
+    doctor_home.mkdir(parents=True)
+    (doctor_home / "config.toml").write_text(
+        '[system]\nrole = "hub"\n'
+        '[network]\nmode = "tunnel"\npublic_url = "https://orbital.example.com"\n'
+        '[hub]\nport = 17790\n'
+    )
+    monkeypatch.setattr(net, "tailscale_bin", lambda: None)
+    monkeypatch.setattr(net, "tailscale_self", lambda: None)
+    doc = Doctor()
+    cfg = load_config()
+    doc.cfg = cfg
+    assert doc.check_config()
+    assert all(f.level == "ok" for f in doc.findings if f.area == "config"), doc.findings
+    doc.findings = []
+    doc.check_tailscale(cfg)
+    by_area = {f.area: f for f in doc.findings}
+    assert by_area["tailscale"].level == "ok"
+    assert "not required" in by_area["tailscale"].message
+    assert by_area["network"].level in ("ok", "warn")  # warn if HTTPS probe fails offline
+
+
+def test_doctor_tunnel_hub_without_public_url_fails_config(doctor_home):
+    from orbital.cli.commands.doctor import Doctor
+    doctor_home.mkdir(parents=True)
+    (doctor_home / "config.toml").write_text('[system]\nrole = "hub"\n[network]\nmode = "tunnel"\n')
+    doc = Doctor()
+    doc.check_config()
+    assert any("public_url" in f.message for f in doc.findings if f.level == "fail")
+
+
 # ---------------------------------------------------------------- orbital test
 
 

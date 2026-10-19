@@ -37,6 +37,8 @@ The Swift apps (the tracker and the app's build tooling) do not read TOML. They 
 
 - `machine_name`: the resolved machine name (the short host name when `system.machine_name` is empty)
 - `hub_url`: where this machine reaches the hub (`http://127.0.0.1:<hub.port>` on the hub, `hub.url` on a satellite)
+- `external_hub_url`: URL other machines and the phone should use (never loopback); tunnel mode uses `network.public_url`
+- `network_mode`: `tailscale` or `tunnel`
 - `paths`: `home`, `data`, `hub_data`, `tracker_data`, `scheduler_data`, `satellite_data`, `browser_data`, `feeds_data`, `logs`, `run`, `secrets`, `jobs`
 
 It never contains a secret value, only the path to `secrets.env`. Do not edit it by hand; it is overwritten.
@@ -51,14 +53,28 @@ It never contains a secret value, only the path to `secrets.env`. Do not edit it
 | `role` | `"hub"` | `hub` (the primary machine) or `satellite` (every other machine) | the wizard and `orbital satellite join` set it; change it by hand only if you move the hub |
 | `machine_name` | `""` | this machine's name in the tracker, satellites list and alerts; empty means the short host name | the host name is unclear (`Mac`, `localhost`) or two machines share one |
 
+### `[network]`
+
+How machines reach each other. Full design: [designs/2026-dual-network-modes.md](designs/2026-dual-network-modes.md).
+
+| Key | Default | Meaning | Change it when |
+|---|---|---|---|
+| `mode` | `"tailscale"` | `tailscale` (private mesh) or `tunnel` (hub via Cloudflare Tunnel; satellites outbound-only) | you want a fleet without Tailscale |
+| `public_url` | `""` | tunnel hub: HTTPS URL for phones and satellites, e.g. `https://orbital.example.com` (no trailing slash, no `:7700`) | after you create the named tunnel |
+| `tunnel_provider` | `"cloudflare"` | v1 only supports Cloudflare | reserved for later providers |
+| `tunnel_id` | `""` | named tunnel id (informational) | optional bookkeeping |
+| `cloudflared_config` | `""` | path to a non-default `cloudflared` config file | you keep the config outside the usual place |
+
+In tunnel mode the wizard forces `hub.allow_networks` to loopback only and `satellite.bind` / `browser.bind` to `loopback`. Use `cfg.external_hub_url()` (and `orbital satellites invite`) for join/phone URLs — never advertise `http://127.0.0.1:7700`.
+
 ### `[hub]`
 
 | Key | Default | Meaning | Change it when |
 |---|---|---|---|
 | `host` | `"0.0.0.0"` | address the hub listens on | rarely; the allow list below already limits who is answered |
 | `port` | `7700` | hub port | another program uses 7700 (change it on every machine's `hub.url` too) |
-| `url` | `""` | satellites only: the hub's address, for example `http://my-mac.your-tailnet.ts.net:7700` | the hub moved; the wizard and `orbital satellite join` write it |
-| `allow_networks` | loopback + Tailscale (`127.0.0.0/8`, `::1/128`, `100.64.0.0/10`, `fd7a:115c:a1e0::/48`) | client addresses the hub answers; everything else gets 403 | you really need a LAN range (for example `"192.168.1.0/24"`). Prefer Tailscale |
+| `url` | `""` | satellites only: the hub's address (`http://…ts.net:7700` or `https://orbital.example.com`) | the hub moved; the wizard and `orbital satellite join` write it |
+| `allow_networks` | loopback + Tailscale (`127.0.0.0/8`, `::1/128`, `100.64.0.0/10`, `fd7a:115c:a1e0::/48`) | client addresses the hub answers; everything else gets 403 | tunnel mode → loopback only; or a LAN range if you really need it |
 | `data_retention_days` | `90` | alerts, answered actions, unused media and idle app sessions older than this are deleted | you want a longer or shorter history |
 | `max_media_mb` | `8` | largest image `POST /v1/media` accepts | you upload larger screenshots |
 

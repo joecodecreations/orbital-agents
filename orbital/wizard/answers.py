@@ -15,9 +15,11 @@ from typing import Any
 
 # dotted key → what it answers. Unknown keys in a file are reported (typos would otherwise be silent).
 KEYS: dict[str, str] = {
-    "role": "auto | hub | satellite (auto: satellite when a hub is found on the tailnet, else hub)",
+    "role": "auto | hub | satellite (auto+tailscale: satellite when a hub is found on the tailnet, else hub; auto+tunnel: hub unless satellite.hub_url is set)",
     "system.name": "name shown in the apps (hub)",
     "system.machine_name": "this machine's name; empty = short hostname",
+    "network.mode": "tailscale (default mesh) | tunnel (hub via Cloudflare + satellite pull; no Tailscale)",
+    "network.public_url": "tunnel hub: https URL phones and satellites use (no trailing slash, no :7700)",
     "ports.hub": "hub port (default 7700)",
     "ports.tracker": "tracker app API port, loopback (7701)",
     "ports.stt": "tracker speech sidecar port, loopback (7702)",
@@ -45,7 +47,7 @@ KEYS: dict[str, str] = {
     "apple.build_mac_app": "build + install the Orbital Agents Mac app: true | false",
     "apple.build_iphone_app": "build + install the iPhone app: auto (when a device is connected) | true | false",
     "browser.open_extensions_page": "open chrome://extensions and the extension folder so you can load it",
-    "satellite.hub_url": "satellite: the hub's URL; empty = find it on the tailnet",
+    "satellite.hub_url": "satellite: the hub's URL; empty = find on the tailnet (tailscale mode) or required https URL (tunnel mode)",
     "satellite.join_token": "satellite: join token the hub printed (env ORBITAL_JOIN_TOKEN)",
     "skills.install": "install the agent skills into ~/.claude, ~/.codex, ~/.grok, ~/.gemini (where they exist)",
     "skills.agents": "which agent homes: list, or \"all\"",

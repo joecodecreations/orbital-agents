@@ -52,12 +52,15 @@ Python running the scheduler, `{orbital_home}` ORBITAL_HOME.
 from __future__ import annotations
 
 import collections
-import fcntl
 import json
 import os
 import re
 import secrets
 import shutil
+try:
+    import fcntl
+except ImportError:          # Windows: the single-instance lock uses msvcrt instead
+    fcntl = None
 import signal
 import socket
 import subprocess
@@ -1019,6 +1022,22 @@ def scheduler_alive(cfg: Config, stale_after: float = 90.0) -> bool:
     return True
 
 
+def _lock_exclusive(handle) -> bool:
+    """Take a non-blocking exclusive lock on an open file; False when another process holds it."""
+    if fcntl is None:
+        import msvcrt
+        try:
+            msvcrt.locking(handle.fileno(), msvcrt.LK_NBLCK, 1)
+        except OSError:
+            return False
+        return True
+    try:
+        fcntl.flock(handle, fcntl.LOCK_EX | fcntl.LOCK_NB)
+    except BlockingIOError:
+        return False
+    return True
+
+
 def main(cfg: Config | None = None) -> int:
     cfg = cfg or load_config()
     cfg.paths.ensure()
@@ -1027,9 +1046,7 @@ def main(cfg: Config | None = None) -> int:
         return 0
     lock_path = cfg.paths.run / "scheduler.lock"
     lock = lock_path.open("w")
-    try:
-        fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
-    except BlockingIOError:
+    if not _lock_exclusive(lock):
         print("scheduler already running", file=sys.stderr)
         return 0
     scheduler = Scheduler(cfg)
