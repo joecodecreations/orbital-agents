@@ -7,40 +7,142 @@
 [![CI](https://github.com/joecodecreations/orbital-agents/actions/workflows/ci.yml/badge.svg)](https://github.com/joecodecreations/orbital-agents/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
-Run, watch and steer AI agents (Claude, Codex, Grok, Gemini, or your own command-line tools) across all your machines. A floating tracker on your Mac shows what every agent is working on right now. An iPhone and Mac app shows your dashboards, alerts, machines and agent jobs, and starts new work on any machine. Agents can drive a real Chrome browser, here or on another machine. Everything runs on your own computers and talks over your private Tailscale network; there is no cloud service in the middle.
+Run, watch and steer AI agents (Claude, Codex, Grok, Gemini, or your own command-line tools) across all your machines, Mac, Windows and Linux. Talk to one fast Agent from your phone and it hands the real work to parallel agents on whichever machine fits. A floating tracker on your Mac, mirrored on your iPhone, shows what every agent is doing, how far along it is and how much of your subscription it is using. The same app shows your dashboards, money, alerts and the health of every machine. Agents can drive a real Chrome browser, here or on another machine. Everything runs on your own computers and talks over your private Tailscale network; there is no cloud service in the middle and no paid API: agents run on the subscriptions you already have.
 
 <p align="center">
   <img src="docs/assets/capabilities.png" alt="Four capabilities: AI agents on every machine, real browser automation, feeds dashboards and alerts, and visibility into every stream of work" width="900">
+</p>
+
+## What you can do with it
+
+- **Say it, and it gets done somewhere.** "Why is DNS slow? Run it on the NAS." The Agent answers in about a second, starts an agent on the NAS, keeps talking to you while it works, and tells you what it found. Bigger asks are split into parallel jobs across machines.
+- **See every agent at once.** Claude in a terminal, Codex on the build box, Grok on a laptop: each one is a bubble with its notes, progress %, screenshots, subagents and token use, on your Mac and in your pocket.
+- **Know what your subscriptions are spending.** Every tracked task and every automation shows the tokens and the share of your plan it used, per run, on average and in total, so a runaway job stands out the same day.
+- **Watch every machine.** CPU load, memory, every disk, uptime, heartbeat, which agent CLIs are installed and whether the browser extension is connected, for the hub and each satellite.
+- **Turn anything into a dashboard.** A few lines of Python make a page with figures, charts, tables, to-do lists and buttons that call back into your script. Group pages into spaces (a product, a server fleet, a household) and add your own tabs to the bottom bar, with no app update.
+- **Get told only when it matters.** Feeds raise alerts and insight cards ("Refunds doubled this week" with one-tap fixes). Failing automations show up on Home with a retry button.
+- **Add a machine in one step.** Open joining for 15 minutes and every machine on your Tailscale account that runs setup connects by itself. No token to copy.
+- **Let agents use a real browser.** Open pages, click, type, read, upload and take screenshots in your own signed-in Chrome, on this machine or another one.
+
+## See it
+
+The Orbital Agents app on iPhone (sample data; the same screens sit side by side on iPad and Mac):
+
+| Home | Pinned pages | A feed's page | Agent | Tracker |
+|:---:|:---:|:---:|:---:|:---:|
+| <img src="docs/assets/screenshots/app-home.webp" alt="Home: two insights to act on with one-tap fixes, a failing feed with a retry button, and what needs a look" width="160"> | <img src="docs/assets/screenshots/app-home-pinned.webp" alt="Pinned pages on Home: a home server's CPU, memory, disk and services, website uptime with a visitors chart, and store sales" width="160"> | <img src="docs/assets/screenshots/app-feed-page.webp" alt="A store sales page: today's sales, orders, average order, refunds and a 30-day payouts chart" width="160"> | <img src="docs/assets/screenshots/app-agent.webp" alt="The Agent: a spoken question, a fast answer, and a DNS investigation started on another machine" width="160"> | <img src="docs/assets/screenshots/app-tracker.webp" alt="Tracker: two agents working on different machines, with subagents and screenshots" width="160"> |
+| **Satellites** | **A machine** | **Automations** | **Agent settings** | **Alerts** |
+| <img src="docs/assets/screenshots/app-satellites.webp" alt="System, Satellites: three machines with CPU load, memory, disk, uptime, installed agents, browser status and heartbeat" width="160"> | <img src="docs/assets/screenshots/app-machine.webp" alt="One machine: health, CPU load, memory, uptime, each disk's free space, and the agent jobs running there" width="160"> | <img src="docs/assets/screenshots/app-automations.webp" alt="System, Automations: working, failing and updating feeds, a refresh button, and subscription usage" width="160"> | <img src="docs/assets/screenshots/app-agent-settings.webp" alt="System, Settings: which subscription the Agent talks with, how it hands out work, and plain-words routing rules" width="160"> | <img src="docs/assets/screenshots/app-alerts.webp" alt="Alerts inbox: a new order, a slow website and a finished agent job, each with Open and Done" width="160"> |
+
+The bottom bar always has **Home, System, Agent, Tracker and Alerts**. Anything after them (here **Money** and **Home Lab**) comes from the hub with `orbital nav`, and so does the sidebar on iPad and Mac. More about the app: [docs/APP.md](docs/APP.md).
+
+<p align="center">
+  <img src="apps/tracker/docs/screenshot.png" alt="The Agent Satellite Tracker: bubbles for four pieces of work from different agents, one opened to show its task list, progress, a screenshot and two subagents" width="420">
 </p>
 
 ## What you get
 
 | Piece | What it does |
 |---|---|
-| **Hub** | A small server on your main machine. It stores the pages your scripts push, raises alerts, keeps the list of machines, and relays agent runs and browser commands to them. |
-| **Satellites** | Every machine (the hub too) runs a satellite service that starts agent CLIs when asked, so "run Claude on the build box" works from anywhere. |
-| **Agent Satellite Tracker** | A floating, see-through panel on your Mac: one bubble per piece of work, with the agent's icon, progress notes, screenshots, subagents and the machine it runs on. Agents report to it with `orbital-track`. |
-| **Orbital Agents app** | iPhone, iPad and Mac. Home shows what needs you; pages show your data; Agents lists every machine and its jobs; Desk lets you talk to an agent; Alerts is the inbox. |
+| **Hub** | A small server on your main machine. It stores the pages your scripts push, raises alerts, keeps the list of machines and their health, and relays agent runs and browser commands to them. |
+| **Satellites** | Every machine (the hub too) runs a satellite service on macOS, Windows or Linux. It starts agent CLIs when asked, reports CPU, memory, disks and its browser extension every minute, and joins the hub by itself. |
+| **The Agent** | A fast talker on your phone and Mac, by text or voice. It runs on the Grok or Claude subscription already signed in on the hub (Apple's on-device model as a last resort), answers in seconds and hands real work to agents on your machines, in parallel. |
+| **Agent Satellite Tracker** | A floating, see-through panel on your Mac: one bubble per piece of work, with the agent's icon, progress %, notes, screenshots, subagents, token use and the machine it runs on. Agents report to it with `orbital-track`. Windows and Linux have their own tracker. |
+| **Orbital Agents app** | iPhone, iPad and Mac. Home shows what needs you; spaces and pages show your data; System holds machines, automations, sections and settings; Agent is the talker; Tracker and Alerts mirror the Mac. |
 | **Browser Controller** | A Chrome extension and a local bridge, so agents can open pages, click, type, read, upload and take screenshots in your real browser, on this machine or another one over Tailscale. |
-| **Feeds and scheduler** | Small scripts that read anything (a server, a website, an API) and push it to the app as pages, charts, tables, to-do lists and buttons. The scheduler runs them on a timetable. |
+| **Feeds and scheduler** | Small scripts that read anything (a server, a website, an API) and push it to the app as pages, charts, tables, money ledgers, to-do lists and buttons. The scheduler runs them on a timetable, marks each one as a plain script or an agent run, and measures the subscription use of agent runs. |
 | **Self-healing** | Login services that restart on crash, a watchdog that restarts what stops answering and tells your phone, and a janitor that keeps logs and data from growing without limit. |
 | **Agent skills** | Instructions installed into Claude Code, Codex, Grok and Gemini, so your agents know how to report work, push data, use other machines and drive the browser. |
+
+## How the pieces talk
+
+```mermaid
+flowchart TB
+    subgraph you["You, anywhere"]
+        phone["iPhone / iPad<br/>Orbital Agents app"]
+        mac["Mac app +<br/>floating tracker"]
+    end
+
+    subgraph hubbox["Main machine: the hub"]
+        direction LR
+        hub["Hub API<br/>pages · alerts · machines<br/>Agent · usage · nav"]
+        sched["Scheduler<br/>feeds and automations"]
+        hubsat["Satellite<br/>claude · codex · grok · gemini"]
+        bridge["Browser bridge<br/>+ Chrome extension"]
+        sched --> hub
+        hub <--> hubsat
+        hub <--> bridge
+    end
+
+    subgraph fleet["Your other machines"]
+        s1["Mac satellite"]
+        s2["Windows satellite"]
+        s3["Linux satellite"]
+    end
+
+    you <-->|"Tailscale"| hubbox
+    hubbox <-->|"run agents · drive Chrome<br/>heartbeat: CPU, memory, disks, jobs"| fleet
+```
+
+## One ask, many agents
+
+The Agent stays free to talk. Anything that takes real work goes to agents on your machines, and you hear back when they finish.
+
+```mermaid
+sequenceDiagram
+    actor You
+    participant Agent as Agent (fast talker,<br/>your subscription)
+    participant Hub
+    participant A as Satellite: NAS
+    participant B as Satellite: build box
+    participant T as Tracker
+
+    You->>Agent: "Why is DNS slow? And add dark mode to the status page."
+    Agent-->>You: "On it: two jobs." (about a second)
+    Agent->>Hub: dispatch 2 jobs in parallel
+    Hub->>A: codex: investigate DNS
+    Hub->>B: claude: dark mode
+    A-->>T: progress 40%, "reading the query log"
+    B-->>T: progress 70%, screenshots, tokens used
+    T-->>You: live bubbles on Mac and iPhone
+    A->>Hub: done: "primary upstream slow since 13:05"
+    Hub->>Agent: result
+    Agent-->>You: spoken summary + alert
+```
+
+## Your data in, decisions out
+
+```mermaid
+flowchart LR
+    src["Anything a script can read<br/>servers · sites · stores · APIs"] --> feed["Feed script<br/>(Python, JSON or HTTP)"]
+    feed -->|"orbital push / SDK"| hub["Hub"]
+    hub --> pages["Pages and spaces<br/>figures · charts · tables · money"]
+    hub --> alerts["Alerts and insight cards<br/>push to your phone"]
+    pages --> app["App: Home, spaces,<br/>custom tabs"]
+    alerts --> app
+    app -->|"button tap"| action["Action back to your feed<br/>or an agent run"]
+    action --> feed
+```
+
+## Adding a machine
+
+```mermaid
+sequenceDiagram
+    actor You
+    participant Hub
+    participant New as New machine
+    You->>Hub: orbital satellites invite (or Add machines in the app)
+    Note over Hub: joining open for 15 min,<br/>your own Tailscale account only
+    New->>New: ./setup (Windows: setup.cmd), pick satellite
+    New->>Hub: finds the hub on Tailscale and asks to join
+    Hub-->>New: its own tokens, both directions
+    New-->>Hub: heartbeat every minute
+    Note over Hub: window closes: no more joins<br/>without the join token
+```
 
 <p align="center">
   <img src="docs/assets/visibility-flow.png" alt="Work visibility flow: many agents report with orbital-track, the floating tracker shows bubbles with notes and screenshots, and the same view mirrors on your phone" width="900">
 </p>
-
-<p align="center">
-  <img src="apps/tracker/docs/screenshot.png" alt="The Agent Satellite Tracker: bubbles for four pieces of work from different agents, one opened to show its task list, progress, a screenshot and two subagents" width="420">
-</p>
-
-The Orbital Agents app on iPhone (sample data; the same screens sit side by side on iPad and Mac):
-
-| Home | A feed's page | Agents | Tracker | Alerts |
-|:---:|:---:|:---:|:---:|:---:|
-| <img src="docs/assets/screenshots/app-home.png" alt="Home: insights to act on, what needs a look, failing feeds" width="160"> | <img src="docs/assets/screenshots/app-section-charts.png" alt="A website uptime page with figures and a 30-day visitors chart" width="160"> | <img src="docs/assets/screenshots/app-agents.png" alt="Agents: three machines with their agent CLIs, and running jobs" width="160"> | <img src="docs/assets/screenshots/app-tracker.png" alt="Tracker: two agents working, with notes and screenshots" width="160"> | <img src="docs/assets/screenshots/app-alerts.png" alt="Alerts inbox grouped by page" width="160"> |
-
-More about the app: [docs/APP.md](docs/APP.md).
 
 ## Requirements
 

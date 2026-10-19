@@ -2,29 +2,33 @@
 
 One SwiftUI app, built for iPhone and iPad and, from the same target, for the Mac (Mac Catalyst). It shows what the hub knows: your feeds' pages, alerts, every machine and its agent jobs, the tracker, and the Agent desk. It talks only to your hub, over Tailscale. The source and its build notes are in [`apps/orbital-app/`](../apps/orbital-app/README.md).
 
-| Home | A feed's page | Agents | Tracker | Alerts |
+| Home | Pinned pages | A feed's page | Agent | Tracker |
 |:---:|:---:|:---:|:---:|:---:|
-| <img src="assets/screenshots/app-home.png" alt="Home" width="160"> | <img src="assets/screenshots/app-section-charts.png" alt="A website uptime page" width="160"> | <img src="assets/screenshots/app-agents.png" alt="Agents" width="160"> | <img src="assets/screenshots/app-tracker.png" alt="Tracker" width="160"> | <img src="assets/screenshots/app-alerts.png" alt="Alerts" width="160"> |
+| <img src="assets/screenshots/app-home.webp" alt="Home" width="160"> | <img src="assets/screenshots/app-home-pinned.webp" alt="Pinned pages" width="160"> | <img src="assets/screenshots/app-feed-page.webp" alt="A store sales page" width="160"> | <img src="assets/screenshots/app-agent.webp" alt="Agent" width="160"> | <img src="assets/screenshots/app-tracker.webp" alt="Tracker" width="160"> |
+| **Satellites** | **A machine** | **Automations** | **Agent settings** | **Alerts** |
+| <img src="assets/screenshots/app-satellites.webp" alt="System, Satellites" width="160"> | <img src="assets/screenshots/app-machine.webp" alt="One machine's health and jobs" width="160"> | <img src="assets/screenshots/app-automations.webp" alt="System, Automations" width="160"> | <img src="assets/screenshots/app-agent-settings.webp" alt="System, Settings for the Agent" width="160"> | <img src="assets/screenshots/app-alerts.webp" alt="Alerts" width="160"> |
 
-The screenshots use the sample data in `apps/orbital-app/Fixtures/preview` (preview mode, no hub; `apps/orbital-app/scripts/screenshots.sh` takes them).
+The screenshots use the sample data in `apps/orbital-app/Fixtures/preview` (preview mode, no hub; `apps/orbital-app/scripts/screenshots.sh` takes the basic set).
 
 ## iPhone, iPad and Mac
 
-On **iPhone** the app has five tabs along the bottom:
+On **iPhone** the bottom bar always has these five tabs:
 
 | Tab | Shows |
 |---|---|
 | **Home** | what needs you, what the agents are doing, pinned pages, one tile per space, live values |
-| **Agents** | every machine joined to the hub and every agent job, and **Run an agent** |
-| **Desk** | the Agent desk: talk or type, a fast model answers and starts agents for real work |
-| **Tracker** | the Agent Satellite Tracker's items, live and history |
+| **System** | the hub at the top, then **Satellites** (every machine with its CPU, memory, disks, uptime, agents, browser and jobs, and **Run an agent**), **Automations** (every feed, plain script or agent run, with subscription usage), **Manage** (sections) and **Settings** |
+| **Agent** | talk or type; a fast model on your subscription answers and hands real work to agents on your machines |
+| **Tracker** | the Agent Satellite Tracker's items, live and history, with progress and token use |
 | **Alerts** | the alerts inbox |
 
-The Alerts tab carries a red badge with the number of alerts waiting. Agents, Desk and Tracker show a green count of the work running there. Pages open on the current tab's stack. Tapping the current tab again goes back to its top. The **…** button on Home holds All sections, Run an agent, Automations, Manage sections and Settings.
+Extra tabs after these (a Money view, a space, a page, a group of pages) come from the hub's navigation document, set with `orbital nav set <file>`; `orbital nav example` prints one to start from. The app picks up a change on its next refresh, with no update.
+
+The Alerts tab carries a red badge with the number of alerts waiting. System, Agent and Tracker show a green count of the work running there. Pages open on the current tab's stack. Tapping the current tab again goes back to its top.
 
 On **iPad and Mac** the same screens sit in a sidebar instead of tabs:
 
-- the top of the sidebar: Home, Agents, Desk, Tracker and Alerts
+- the top of the sidebar: Home, System, Agent, Tracker and Alerts
 - below them: your spaces
 - then every section, with a pin on the ones pinned to Home
 - at the bottom: Automations, Manage and Settings

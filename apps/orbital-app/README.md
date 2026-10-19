@@ -3,14 +3,14 @@
 The app for your Orbital Agents hub. It draws whatever your feeds publish (sections made of blocks), shows your machines and the AI agents running on them, takes alerts as notifications, and gives you a voice desk for starting work while you are away from the keyboard. One SwiftUI target runs on iPhone, iPad and, as Mac Catalyst, on the Mac.
 
 <p>
-<img src="../../docs/assets/screenshots/app-home.png" width="19%" alt="Home">
-<img src="../../docs/assets/screenshots/app-section-charts.png" width="19%" alt="A section with charts">
-<img src="../../docs/assets/screenshots/app-agents.png" width="19%" alt="Agents">
-<img src="../../docs/assets/screenshots/app-tracker.png" width="19%" alt="Tracker">
-<img src="../../docs/assets/screenshots/app-alerts.png" width="19%" alt="Alerts">
+<img src="../../docs/assets/screenshots/app-home.webp" width="19%" alt="Home">
+<img src="../../docs/assets/screenshots/app-agent.webp" width="19%" alt="Agent">
+<img src="../../docs/assets/screenshots/app-satellites.webp" width="19%" alt="Satellites">
+<img src="../../docs/assets/screenshots/app-tracker.webp" width="19%" alt="Tracker">
+<img src="../../docs/assets/screenshots/app-alerts.webp" width="19%" alt="Alerts">
 </p>
 
-The screenshots are the app in preview mode with the sample data in `Fixtures/preview`.
+The screenshots are the app in preview mode with the sample data in `Fixtures/preview`. The full set is in the [repo README](../../README.md#see-it).
 
 ## Requirements
 
