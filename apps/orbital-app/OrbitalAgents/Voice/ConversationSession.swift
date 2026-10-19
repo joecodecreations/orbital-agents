@@ -443,7 +443,7 @@ final class ConversationSession: ObservableObject {
     }
 
     /// `cue` plays the low "not listening" tone when continuous talk was open.
-    /// One-shot dictation stays quiet: that mode is the mic button, not the glasses.
+    /// One-shot Talk stays quiet on stop (its ready chime already played on start).
     func stopListening(cue: Bool = false) {
         let playStop = cue && isListening && !oneShot && !isPaused
         tearDownTask?.cancel()

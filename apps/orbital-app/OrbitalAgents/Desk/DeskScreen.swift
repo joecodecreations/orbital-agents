@@ -385,6 +385,8 @@ struct DeskScreen: View {
         if !partial.isEmpty, partial != "…" { return partial }
         if desk.conversation.isAssistantSpeaking { return "Talking. Just speak to cut in." }
         if desk.isBusy { return "Thinking…" }
+        // Before the ready chime: mic engine is up but PCM is not flowing yet.
+        if desk.conversation.statusText == "Getting mic ready…" { return "Getting mic ready…" }
         return desk.liveConversationOn ? "Listening. Just talk." : "Listening. Pause to send."
     }
 

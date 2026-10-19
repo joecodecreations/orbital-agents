@@ -581,6 +581,9 @@ final class DeskState: ObservableObject {
         Task {
             guard ensureSTTReady() else { return }
             speechSettings.ttsEnabled = true
+            // Start the hub desk model while the mic comes up; the ready chime
+            // still waits for local mic audio, not for this network call.
+            warm()
             await conversation.startListening(oneShot: true)
             if let err = conversation.lastError { banner = err }
         }

@@ -131,9 +131,10 @@ enum TTSProvider: String, CaseIterable, Identifiable, Codable {
 }
 
 /// Extra feedback style. The two listen-state chimes always play as tones:
-/// a rising chime when it starts listening, a low tone when it stops.
-/// Spoken words are only used for the voice-mute beep, and never for the
-/// listen chime, because the mic would send that word as a new turn.
+/// a rising chime when the mic is actually listening (after the first buffer,
+/// not on button press), a low tone when it stops. Spoken words are only used
+/// for the voice-mute beep, and never for the listen chime, because the mic
+/// would send that word as a new turn.
 enum PauseCueStyle: String, CaseIterable, Identifiable, Codable {
     case tones = "tones"
     case spoken = "spoken"
@@ -152,11 +153,11 @@ enum PauseCueStyle: String, CaseIterable, Identifiable, Codable {
     var detail: String {
         switch self {
         case .tones:
-            return "Rising chime when you can talk. Low tone when she stops listening. These two always play."
+            return "Rising chime when the mic is ready and you can talk. Low tone when listening stops. These two always play."
         case .spoken:
             return "The listen chimes stay tones, so the mic does not send a word. Mute uses a spoken word."
         case .off:
-            return "Hides the mute beep. The rising chime and the low tone still play."
+            return "Hides the mute beep. The rising ready chime and the low tone still play."
         }
     }
 }

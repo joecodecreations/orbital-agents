@@ -95,7 +95,7 @@ struct DeskVoiceSettingsView: View {
                         picker("Pause and listen cue", selection: $speech.pauseCueStyle) {
                             ForEach(PauseCueStyle.allCases) { Text($0.title).tag($0) }
                         }
-                        caption("Glasses and hands-free always play a rising chime when listening starts and a low tone when it stops, so you can tell with your eyes closed. The mic does not send those sounds.")
+                        caption("Talk and hands-free play a rising chime only after the mic is actually listening, and a low tone when it stops, so you can tell with your eyes closed. The mic does not send those sounds.")
                         HStack(spacing: 10) {
                             Button("Play listening") { desk.conversation.pauseCues.playEarcon(.micOn) }
                                 .buttonStyle(.bordered)

@@ -86,6 +86,24 @@ final class AudioCaptureService: NSObject, ObservableObject {
     /// Engine playback is available (the mic is on).
     var canPlay: Bool { engine?.isRunning == true && player != nil && playerFormat != nil }
 
+    /// True once this start has delivered at least one mic buffer (engine may be "running" before that).
+    var hasMicAudio: Bool {
+        isRunning && lastBufferAt > 0 && lastBufferAt >= startedAt
+    }
+
+    /// Wait until mic PCM is actually flowing, or `timeout` elapses. Used so the ready chime
+    /// plays only when listening is live — not on button press, and not on a silent false start.
+    func waitForFirstBuffer(timeout: TimeInterval = 2.5) async -> Bool {
+        if hasMicAudio { return true }
+        let deadline = Date().addingTimeInterval(timeout)
+        while Date() < deadline {
+            if hasMicAudio { return true }
+            if !isRunning { return false }
+            try? await Task.sleep(nanoseconds: 40_000_000)
+        }
+        return hasMicAudio
+    }
+
     /// Give the audio session back when voice is off. Holding a play-and-record session after
     /// the conversation ends mutes notification sounds, like being on a call.
     static func releaseSession() {
