@@ -220,6 +220,7 @@ COUNTED = [
     (re.compile(r"\b(\d+) failed\b"), "{n} failed"),
     (re.compile(r"\bproblems[ =](\d+)"), "{n} problems"),
 ]
+ALREADY_RUNNING = re.compile(r"\balready[ _-]running\b", re.I)
 KV_SKIP = {"code", "full", "profile", "revision", "alerts", "new", "state", "status", "source_id", "id", "level"}
 
 
@@ -264,9 +265,15 @@ def classify(lines: list[str], exit_code: int | None, timed_out: bool = False) -
         result_lines.append(last_result)
     for line in result_lines[-6:]:
         for key, value in KV_TOKEN.findall(line):
-            if key in KV_SKIP or value not in BAD_VALUES:
+            if key in KV_SKIP:
                 continue
-            add(f"{nice(key)}: {details.get(key) or BAD_VALUES[value]}")
+            if value in BAD_VALUES:
+                add(f"{nice(key)}: {details.get(key) or BAD_VALUES[value]}")
+            elif any(value.endswith("_" + bad) for bad in BAD_VALUES):
+                # extension_offline, bridge_offline, identity_signed_out: say the whole thing.
+                add(f"{nice(key)}: {details.get(key) or value.replace('_', ' ')}")
+    if ALREADY_RUNNING.search(last_result):
+        add("Skipped: another copy was already running (a second scheduler, or a stuck run holding its lock)")
     if re.search(r"\bok=(False|false)\b", last_result):
         code = re.search(r"\bcode=([\w-]+)", last_result)
         add(f"Read failed{': ' + code.group(1).replace('_', ' ') if code and code.group(1) != '-' else ''}")
@@ -1264,6 +1271,11 @@ def self_test() -> None:
     assert schedule_label(10800, 0) == "Every 3 h"
     good = classify(["uptime pushed sites=3 down=0 alerts=0"], 0)
     assert good["status"] == "ok", good
+    offline = classify(["custody-social instagram=extension_offline:0 facebook=ok new=0"], 0)
+    assert offline["status"] == "warn" and offline["issues"] == ["Instagram: extension offline"], offline
+    busy = classify(["valux-paced posted=0 skipped=already-running"], 0)
+    assert busy["status"] == "warn" and busy["issues"][0].startswith("Skipped: another copy"), busy
+    assert classify(["civic-watch gatherer already running"], 0)["status"] == "warn"
     warn = classify(["weather pushed revision=12 forecast=ok radar=unavailable alerts=0"], 0)
     assert warn["status"] == "warn" and warn["issues"] == ["Radar: unavailable"], warn
     crash = classify(["Traceback (most recent call last):", '  File "x.py", line 1',
