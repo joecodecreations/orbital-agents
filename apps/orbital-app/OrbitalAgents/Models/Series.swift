@@ -160,6 +160,47 @@ struct TaskRef: Identifiable, Equatable {
     var item: TaskItem
 }
 
+/// The newest social activity from the timeline next to a social series.
+struct SocialEvent: Identifiable, Equatable {
+    var id: String
+    var spaceID: String
+    var platform: String?
+    var at: Date?
+    var when: String
+    var title: String
+    var detail: String?
+    var tone: String?
+    var location: PageLocation
+}
+
+// MARK: - Social timeline
+
+enum SocialTimeline {
+    private static let formatter: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.dateFormat = "d MMM, h:mm a"
+        return formatter
+    }()
+
+    /// "TikTok · 11 Oct, 6:44 AM" (the social feed's `at`) → platform and time. The year is the latest that is not in the future.
+    static func parse(_ raw: String, now: Date = Date()) -> (platform: String?, at: Date?, when: String) {
+        let parts = raw.components(separatedBy: " · ")
+        let platform = parts.count > 1 ? parts[0].lowercased() : nil
+        var text = parts.count > 1 ? parts.dropFirst().joined(separator: " · ") : raw
+        if text.hasPrefix("about ") { text.removeFirst("about ".count) }
+        guard let parsed = formatter.date(from: text) else { return (platform, nil, text) }
+        let calendar = Calendar.current
+        var components = calendar.dateComponents([.month, .day, .hour, .minute], from: parsed)
+        components.year = calendar.component(.year, from: now)
+        guard var date = calendar.date(from: components) else { return (platform, nil, text) }
+        if date > now.addingTimeInterval(86_400) {
+            date = calendar.date(byAdding: .year, value: -1, to: date) ?? date
+        }
+        return (platform, date, text)
+    }
+}
+
 // MARK: - Days and lines
 
 enum Trends {

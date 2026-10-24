@@ -1,8 +1,7 @@
 import SwiftUI
 
-/// The first screen, built only from what the hub sends: what needs you (urgent alerts, open insight
-/// cards, failing feeds, machines offline, services down, to-dos due), what the agents are doing,
-/// the sections you pinned, and a tile per space.
+/// The first screen, built only from what the hub sends: what needs you, agent activity, social and
+/// website charts, money across ledgers, pinned sections, and a tile per space.
 struct HomeView: View {
     @EnvironmentObject private var store: OrbitalStore
     @EnvironmentObject private var router: AppRouter
@@ -15,6 +14,17 @@ struct HomeView: View {
                 InsightHomeStrip()
                 AttentionCard()
                 AgentActivityCard()
+                socialCard
+                siteCard
+                #if ORBITAL_PRIVATE
+                PrivateHomeProductCard()
+                #endif
+                if !store.ledgers.isEmpty {
+                    MoneySummaryCard()
+                }
+                #if ORBITAL_PRIVATE
+                PrivateHomeTasksCard()
+                #endif
                 pinnedSection
                 spacesSection
                 if !store.pulses.isEmpty {
@@ -97,6 +107,44 @@ struct HomeView: View {
                 ForEach(pinned) { entry in
                     PinnedSectionCard(entry: entry)
                 }
+            }
+        }
+    }
+
+    // MARK: - Metric rollups
+
+    private var socialCard: some View {
+        let refs = store.series.filter { $0.block.kind == "social" }
+        return Group {
+            if !refs.isEmpty {
+                RollupChartCard(
+                    eyebrow: "Social",
+                    title: "By platform",
+                    tint: Color(hex: "#FF4FB4") ?? OrbitalTheme.violet,
+                    kind: "social",
+                    refs: refs,
+                    directory: store.directory,
+                    defaultStat: "activity",
+                    onOpen: { router.openView("social") }
+                )
+            }
+        }
+    }
+
+    private var siteCard: some View {
+        let refs = store.series.filter { $0.block.kind == "site" }
+        return Group {
+            if !refs.isEmpty {
+                RollupChartCard(
+                    eyebrow: "Websites",
+                    title: "Site traffic",
+                    tint: Color(hex: "#5AC8FA") ?? OrbitalTheme.accent,
+                    kind: "site",
+                    refs: refs,
+                    directory: store.directory,
+                    defaultStat: "visitors",
+                    onOpen: { router.openView("analytics") }
+                )
             }
         }
     }

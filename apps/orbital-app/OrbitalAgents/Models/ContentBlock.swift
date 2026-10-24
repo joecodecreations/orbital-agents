@@ -44,6 +44,16 @@ enum ContentBlock: Identifiable, Equatable {
         return types
     }()
 
+    /// Types drawn only by the git-ignored Private folder; empty in a public build. Their sample
+    /// payloads live in the git-ignored Fixtures/preview/sections/private.
+    static let privateTypes: Set<String> = {
+        #if ORBITAL_PRIVATE
+        return PrivateBlock.types
+        #else
+        return []
+        #endif
+    }()
+
     var id: String {
         switch self {
         case .heading(let b): return b.id

@@ -24,7 +24,8 @@ final class SectionDecodingTests: XCTestCase {
 
     func testFixturesCoverEveryBlockType() throws {
         let used = Set(try Fixtures.sections().flatMap(\.everyBlock).map(\.typeName))
-        let missing = ContentBlock.knownTypes.subtracting(used)
+        // Private types have their samples in the git-ignored private fixtures folder.
+        let missing = ContentBlock.knownTypes.subtracting(ContentBlock.privateTypes).subtracting(used)
         XCTAssertTrue(missing.isEmpty, "no fixture uses: \(missing.sorted())")
     }
 

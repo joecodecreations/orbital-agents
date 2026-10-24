@@ -604,8 +604,8 @@ struct RollupChartCard: View {
     private var days: [Date] { Trends.days(window) }
 
     private var filtered: [SeriesRef] {
-        // A space page already passes only its own series (tagged with the space, an alias such as
-        // "Firm Binder LLC", or sitting on one of its sections), so there is nothing to narrow.
+        // A space page already passes only its own series (tagged with the space, one of its aliases
+        // such as an old company name, or sitting on one of its sections), so there is nothing to narrow.
         if lockedSpace != nil { return refs }
         return refs.filter { space.isEmpty || directory.resolve($0.block.space) == space }
     }

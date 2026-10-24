@@ -135,12 +135,25 @@ struct VideoLink: Codable, Equatable, Identifiable {
     var action: ButtonAction?
 }
 
+/// A videos block and the page it was found on.
+struct VideoRef: Identifiable, Equatable {
+    var id: String
+    var location: PageLocation
+    var accent: String?
+    var block: VideosBlock
+
+    var spaceID: String { Spaces.key(block.space) }
+}
+
 /// One post of one video, flattened for the day list.
 struct VideoPostRow: Identifiable, Equatable {
     var id: String
     var video: VideoItem
     var post: VideoPost
     var at: Date
+    var spaceID: String
+    var product: String
+    var location: PageLocation
 }
 
 /// One video on one day, with the platforms it reached that day.
@@ -148,6 +161,9 @@ struct VideoDayEntry: Identifiable, Equatable {
     var id: String
     var video: VideoItem
     var posts: [VideoPost]
+    var spaceID: String
+    var product: String
+    var location: PageLocation
     var latest: Date
 }
 
@@ -160,15 +176,30 @@ struct VideoDay: Identifiable, Equatable {
 
 enum VideoFeed {
     /// Every post with a time, newest first. Posts with no time are left out of the day list.
-    static func rows(_ block: VideosBlock) -> [VideoPostRow] {
+    static func rows(_ block: VideosBlock, location: PageLocation = PageLocation(sectionID: "")) -> [VideoPostRow] {
+        rows([VideoRef(id: block.id, location: location, block: block)])
+    }
+
+    /// Every post across videos blocks, newest first.
+    static func rows(_ refs: [VideoRef]) -> [VideoPostRow] {
         var out: [VideoPostRow] = []
         var seen = Set<String>()
-        for video in block.items {
-            for post in video.posts {
-                guard let raw = post.at, let at = OrbitalDates.parse(raw) else { continue }
-                let key = "\(video.id)|\(post.id)"
-                guard seen.insert(key).inserted else { continue }
-                out.append(VideoPostRow(id: key, video: video, post: post, at: at))
+        for ref in refs {
+            for video in ref.block.items {
+                for post in video.posts {
+                    guard let raw = post.at, let at = OrbitalDates.parse(raw) ?? Insights.day(raw) else { continue }
+                    let key = "\(ref.spaceID)|\(video.id)|\(post.id)"
+                    guard seen.insert(key).inserted else { continue }
+                    out.append(VideoPostRow(
+                        id: key,
+                        video: video,
+                        post: post,
+                        at: at,
+                        spaceID: ref.spaceID,
+                        product: ref.block.product,
+                        location: ref.location
+                    ))
+                }
             }
         }
         return out.sorted { $0.at > $1.at }
@@ -182,13 +213,21 @@ enum VideoFeed {
             var order: [String] = []
             var grouped: [String: VideoDayEntry] = [:]
             for row in list.sorted(by: { $0.at > $1.at }) {
-                if var entry = grouped[row.video.id] {
+                let key = "\(row.spaceID)|\(row.video.id)"
+                if var entry = grouped[key] {
                     entry.posts.append(row.post)
-                    grouped[row.video.id] = entry
+                    grouped[key] = entry
                 } else {
-                    order.append(row.video.id)
-                    grouped[row.video.id] = VideoDayEntry(id: "\(Int(day.timeIntervalSince1970))|\(row.video.id)", video: row.video,
-                                                         posts: [row.post], latest: row.at)
+                    order.append(key)
+                    grouped[key] = VideoDayEntry(
+                        id: "\(Int(day.timeIntervalSince1970))|\(key)",
+                        video: row.video,
+                        posts: [row.post],
+                        spaceID: row.spaceID,
+                        product: row.product,
+                        location: row.location,
+                        latest: row.at
+                    )
                 }
             }
             return VideoDay(day: day, entries: order.compactMap { grouped[$0] }, postCount: list.count)
