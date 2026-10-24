@@ -2,7 +2,7 @@ import Foundation
 import SwiftUI
 
 // The hub's navigation document (`GET /v1/nav`, schema orbital.nav.v1): extra bottom-bar items and the
-// sidebar tree. The five fixed tabs (Home, System, Agent, Tracker, Alerts) are not in it. An item with
+// sidebar tree. The fixed tabs (Home, Money, System, Agent, Tracker, Alerts) are not in it. An item with
 // children and no target is a group, a bucket of anything, nested as deep as the hub allows.
 
 enum NavTarget: Equatable, Hashable {
@@ -50,6 +50,11 @@ struct NavItem: Identifiable, Equatable, Hashable {
         case "tracker": return "dot.radiowaves.left.and.right"
         case "alerts": return "bell.fill"
         case "spaces": return "square.stack.3d.up.fill"
+        case "money": return "dollarsign.circle.fill"
+        case "social": return "bubble.left.and.bubble.right.fill"
+        case "analytics": return "chart.xyaxis.line"
+        case "videos": return "play.rectangle.on.rectangle.fill"
+        case "marketing": return "megaphone.fill"
         default: return "square.grid.2x2"
         }
     }
@@ -107,6 +112,15 @@ struct NavDoc: Equatable {
     }
 
     func tab(_ id: String) -> NavItem? { tabs.first { $0.id == id } }
+
+    /// The tabs the bottom bar draws after the fixed ones. Money is built in, so a hub item for it
+    /// (the money view, or an item named Money) is not drawn twice; it still works from the sidebar.
+    var barTabs: [NavItem] {
+        tabs.filter { item in
+            if case .view(let view) = item.target, view == "money" { return false }
+            return item.id.lowercased() != "money" && item.title.lowercased() != "money"
+        }
+    }
 
     /// An item anywhere in the tabs or the sidebar, by its key (`tab:<id>/<id>…` or `side:<id>/<id>…`).
     func item(key: String, sidebar fallback: [NavItem]) -> NavItem? {

@@ -247,6 +247,7 @@
             "buttons",
             "product",
             "ledger",
+            "subscriptions",
             "tasks",
             "series",
             "insight_cards",
@@ -261,7 +262,7 @@
           "minLength": 1
         }
       },
-      "description": "Every block has type and id. product, ledger, tasks, series, insight_cards, videos, buttons, hero, progress, status and links are checked field by field.",
+      "description": "Every block has type and id. product, ledger, subscriptions, tasks, series, insight_cards, videos, buttons, hero, progress, status and links are checked field by field.",
       "allOf": [
         {
           "if": {
@@ -285,6 +286,18 @@
           },
           "then": {
             "$ref": "#/$defs/ledger"
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "subscriptions"
+              }
+            }
+          },
+          "then": {
+            "$ref": "#/$defs/subscriptions"
           }
         },
         {
@@ -717,6 +730,175 @@
           "type": "string",
           "maxLength": 80,
           "description": "Groups the numbers across sections (company is the older name)."
+        }
+      }
+    },
+    "subscriptions": {
+      "type": "object",
+      "required": [
+        "product"
+      ],
+      "description": "Every subscription of one product plus failed payments. The app counts subscribers, MRR, trials and churn from the rows.",
+      "properties": {
+        "title": {
+          "type": "string",
+          "maxLength": 80
+        },
+        "product": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 80
+        },
+        "space": {
+          "type": "string",
+          "maxLength": 80
+        },
+        "company": {
+          "type": "string",
+          "maxLength": 80
+        },
+        "source": {
+          "type": "string",
+          "maxLength": 80
+        },
+        "currency": {
+          "type": "string",
+          "pattern": "^[A-Z]{3,8}$"
+        },
+        "connected": {
+          "type": "boolean"
+        },
+        "as_of": {
+          "type": "string",
+          "maxLength": 40
+        },
+        "note": {
+          "type": "string",
+          "maxLength": 400
+        },
+        "items": {
+          "type": "array",
+          "maxItems": 1000,
+          "items": {
+            "type": "object",
+            "required": [
+              "id",
+              "status",
+              "started"
+            ],
+            "properties": {
+              "id": {
+                "type": "string",
+                "maxLength": 120
+              },
+              "customer": {
+                "type": "string",
+                "maxLength": 120
+              },
+              "plan": {
+                "type": "string",
+                "maxLength": 80
+              },
+              "interval": {
+                "type": "string",
+                "enum": [
+                  "day",
+                  "week",
+                  "month",
+                  "year"
+                ]
+              },
+              "status": {
+                "type": "string",
+                "enum": [
+                  "trialing",
+                  "active",
+                  "past_due",
+                  "canceled",
+                  "unpaid",
+                  "incomplete",
+                  "incomplete_expired",
+                  "paused"
+                ]
+              },
+              "amount": {
+                "type": "number",
+                "minimum": 0
+              },
+              "mrr": {
+                "type": "number",
+                "minimum": 0
+              },
+              "started": {
+                "type": "string",
+                "maxLength": 40
+              },
+              "trial_end": {
+                "type": "string",
+                "maxLength": 40
+              },
+              "period_end": {
+                "type": "string",
+                "maxLength": 40
+              },
+              "cancel_at_period_end": {
+                "type": "boolean"
+              },
+              "canceled_at": {
+                "type": "string",
+                "maxLength": 40
+              },
+              "paid": {
+                "type": "boolean"
+              },
+              "billing": {
+                "type": "string",
+                "enum": [
+                  "stripe",
+                  "app"
+                ]
+              }
+            }
+          }
+        },
+        "failed": {
+          "type": "array",
+          "maxItems": 200,
+          "items": {
+            "type": "object",
+            "required": [
+              "at"
+            ],
+            "properties": {
+              "at": {
+                "type": "string",
+                "maxLength": 40
+              },
+              "amount": {
+                "type": "number",
+                "minimum": 0
+              },
+              "customer": {
+                "type": "string",
+                "maxLength": 120
+              },
+              "reason": {
+                "type": "string",
+                "maxLength": 120
+              },
+              "id": {
+                "type": "string",
+                "maxLength": 120
+              }
+            }
+          }
+        },
+        "metrics": {
+          "type": "array",
+          "maxItems": 8,
+          "items": {
+            "$ref": "#/$defs/metric"
+          }
         }
       }
     },

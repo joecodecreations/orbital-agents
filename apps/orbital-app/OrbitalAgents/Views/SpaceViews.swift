@@ -31,6 +31,14 @@ struct SpaceView: View {
         }
     }
 
+    /// Subscriptions blocks for this space's products, or on its sections.
+    private var spaceSubscriptions: [SubscriptionsRef] {
+        store.subscriptions.filter { ref in
+            store.directory.resolve(ref.space) == current || sectionIDs.contains(ref.location.sectionID)
+                || store.directory.product(ref.productID)?.spaceID == current
+        }
+    }
+
     private var ledgers: [LedgerRef] {
         let all = store.ledgers.filter { store.directory.resolve($0.space) == current || sectionIDs.contains($0.location.sectionID) }
         guard platform != "all", platforms.count > 1 else { return all }
@@ -157,6 +165,9 @@ struct SpaceView: View {
     private func moneyCards(tint: Color, compact: Bool) -> some View {
         if compact || platform == "all" {
             MoneySummaryCard(space: current)
+        }
+        ForEach(spaceSubscriptions) { ref in
+            SubscriptionsSummaryCard(ref: ref, compact: compact)
         }
         if !compact {
             ForEach(ledgers) { ledger in
@@ -473,6 +484,9 @@ struct ProductView: View {
                 }
                 if hasMoney {
                     MoneySummaryCard(space: product?.spaceID, product: productID)
+                }
+                ForEach(store.subscriptions.filter { $0.productID == productID }) { ref in
+                    SubscriptionsSummaryCard(ref: ref)
                 }
                 if let ref {
                     ProductCard(block: ref.block, accent: tint, location: ref.location)

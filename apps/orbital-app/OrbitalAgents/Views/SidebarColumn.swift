@@ -16,6 +16,9 @@ struct SidebarColumn: View {
                     pinned("Home", system: "house.fill", selected: router.destination == .home && router.widePath.isEmpty) {
                         openPinned(.home)
                     }
+                    pinned("Money", system: "dollarsign.circle.fill", selected: router.destination == .money) {
+                        router.openMoney()
+                    }
                     pinned("System", system: "cpu", selected: router.tab == .agents, count: store.activeAgentJobs.count, countTint: OrbitalTheme.success) {
                         router.openSystem(.satellites)
                     }
@@ -28,7 +31,7 @@ struct SidebarColumn: View {
                     pinned("Alerts", system: "bell.fill", selected: router.destination == .alerts, count: store.unackedCount) {
                         openPinned(.alerts)
                     }
-                    ForEach(store.nav.tabs) { item in
+                    ForEach(store.nav.barTabs) { item in
                         pinned(item.title, system: item.symbol, selected: router.destination == .custom(item.id)) {
                             if case .link = item.target { router.open(nav: item, key: "tab:\(item.id)") } else { openPinned(.custom(item.id)) }
                         }

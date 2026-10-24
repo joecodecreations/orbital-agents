@@ -1,0 +1,2989 @@
+{
+ "schema": "orbital.section.v1",
+ "id": "studio",
+ "title": "Studio money",
+ "subtitle": "App, game and book income",
+ "icon": "dollarsign.circle.fill",
+ "order": 9,
+ "accent": "#34D399",
+ "layout": "page",
+ "summary": "Planner Pro, Puzzle Game, Field Guide",
+ "revision": 3,
+ "updated_at": "@now-5m",
+ "space": "studio",
+ "space_title": "Example Studio",
+ "space_icon": "paintpalette.fill",
+ "blocks": [
+  {
+   "type": "ledger",
+   "id": "planner-billing",
+   "title": "Planner Pro \u00b7 Card payments",
+   "currency": "USD",
+   "space": "Example Studio",
+   "source": "Card payments",
+   "connected": true,
+   "as_of": "@now-5m",
+   "days": [
+    {
+     "date": "@day-149",
+     "amount": 24.0,
+     "net": 22.7,
+     "count": 2,
+     "product": "Planner Pro",
+     "category": "Subscription"
+    },
+    {
+     "date": "@day-148",
+     "amount": 24.0,
+     "net": 22.7,
+     "count": 2,
+     "product": "Planner Pro",
+     "category": "Subscription"
+    },
+    {
+     "date": "@day-147",
+     "amount": 12.0,
+     "net": 11.35,
+     "count": 1,
+     "product": "Planner Pro",
+     "category": "Subscription"
+    },
+    {
+     "date": "@day-146",
+     "amount": 24.0,
+     "net": 22.7,
+     "count": 2,
+     "product": "Planner Pro",
+     "category": "Subscription"
+    },
+    {
+     "date": "@day-145",
+     "amount": 12.0,
+     "net": 11.35,
+     "count": 1,
+     "product": "Planner Pro",
+     "category": "Subscription"
+    },
+    {
+     "date": "@day-143",
+     "amount": 48.0,
+     "net": 45.4,
+     "count": 4,
+     "product": "Planner Pro",
+     "category": "Subscription"
+    },
+    {
+     "date": "@day-139",
+     "amount": 48.0,
+     "net": 45.4,
+     "count": 4,
+     "product": "Planner Pro",
+     "category": "Subscription"
+    },
+    {
+     "date": "@day-138",
+     "amount": 24.0,
+     "net": 22.7,
+     "count": 2,
+     "product": "Planner Pro",
+     "category": "Subscription"
+    },
+    {
+     "date": "@day-137",
+     "amount": 36.0,
+     "net": 34.05,
+     "count": 3,
+     "product": "Planner Pro",
+     "category": "Subscription"
+    },
+    {
+     "date": "@day-136",
+     "amount": 48.0,
+     "net": 45.4,
+     "count": 4,
+     "product": "Planner Pro",
+     "category": "Subscription"
+    },
+    {
+     "date": "@day-135",
+     "amount": 12.0,
+     "net": 11.35,
+     "count": 1,
+     "product": "Planner Pro",
+     "category": "Subscription"
+    },
+    {
+     "date": "@day-132",
+     "amount": 48.0,
+     "net": 45.4,
+     "count": 4,
+     "product": "Planner Pro",
+     "category": "Subscription"
+    },
+    {
+     "date": "@day-129",
+     "amount": 12.0,
+     "net": 11.35,
+     "count": 1,
+     "product": "Planner Pro",
+     "category": "Subscription"
+    },
+    {
+     "date": "@day-128",
+     "amount": 48.0,
+     "net": 45.4,
+     "count": 4,
+     "product": "Planner Pro",
+     "category": "Subscription"
+    },
+    {
+     "date": "@day-127",
+     "amount": 48.0,
+     "net": 45.4,
+     "count": 4,
+     "product": "Planner Pro",
+     "category": "Subscription"
+    },
+    {
+     "date": "@day-124",
+     "amount": 24.0,
+     "net": 22.7,
+     "count": 2,
+     "product": "Planner Pro",
+     "category": "Subscription"
+    },
+    {
+     "date": "@day-123",
+     "amount": 36.0,
+     "net": 34.05,
+     "count": 3,
+     "product": "Planner Pro",
+     "category": "Subscription"
+    },
+    {
+     "date": "@day-120",
+     "amount": 48.0,
+     "net": 45.4,
+     "count": 4,
+     "product": "Planner Pro",
+     "category": "Subscription"
+    },
+    {
+     "date": "@day-117",
+     "amount": 12.0,
+     "net": 11.35,
+     "count": 1,
+     "product": "Planner Pro",
+     "category": "Subscription"
+    },
+    {
+     "date": "@day-113",
+     "amount": 48.0,
+     "net": 45.4,
+     "count": 4,
+     "product": "Planner Pro",
+     "category": "Subscription"
+    },
+    {
+     "date": "@day-112",
+     "amount": 24.0,
+     "net": 22.7,
+     "count": 2,
+     "product": "Planner Pro",
+     "category": "Subscription"
+    },
+    {
+     "date": "@day-109",
+     "amount": 36.0,
+     "net": 34.05,
+     "count": 3,
+     "product": "Planner Pro",
+     "category": "Subscription"
+    },
+    {
+     "date": "@day-107",
+     "amount": 36.0,
+     "net": 34.05,
+     "count": 3,
+     "product": "Planner Pro",
+     "category": "Subscription"
+    },
+    {
+     "date": "@day-105",
+     "amount": 48.0,
+     "net": 45.4,
+     "count": 4,
+     "product": "Planner Pro",
+     "category": "Subscription"
+    },
+    {
+     "date": "@day-104",
+     "amount": 48.0,
+     "net": 45.4,
+     "count": 4,
+     "product": "Planner Pro",
+     "category": "Subscription"
+    },
+    {
+     "date": "@day-103",
+     "amount": 36.0,
+     "net": 34.05,
+     "count": 3,
+     "product": "Planner Pro",
+     "category": "Subscription"
+    },
+    {
+     "date": "@day-101",
+     "amount": 36.0,
+     "net": 34.05,
+     "count": 3,
+     "product": "Planner Pro",
+     "category": "Subscription"
+    },
+    {
+     "date": "@day-100",
+     "amount": 24.0,
+     "net": 22.7,
+     "count": 2,
+     "product": "Planner Pro",
+     "category": "Subscription"
+    },
+    {
+     "date": "@day-99",
+     "amount": 36.0,
+     "net": 34.05,
+     "count": 3,
+     "product": "Planner Pro",
+     "category": "Subscription"
+    },
+    {
+     "date": "@day-96",
+     "amount": 36.0,
+     "net": 34.05,
+     "count": 3,
+     "product": "Planner Pro",
+     "category": "Subscription"
+    },
+    {
+     "date": "@day-95",
+     "amount": 12.0,
+     "net": 11.35,
+     "count": 1,
+     "product": "Planner Pro",
+     "category": "Subscription"
+    },
+    {
+     "date": "@day-93",
+     "amount": 48.0,
+     "net": 45.4,
+     "count": 4,
+     "product": "Planner Pro",
+     "category": "Subscription"
+    },
+    {
+     "date": "@day-89",
+     "amount": 48.0,
+     "net": 45.4,
+     "count": 4,
+     "product": "Planner Pro",
+     "category": "Subscription"
+    },
+    {
+     "date": "@day-87",
+     "amount": 48.0,
+     "net": 45.4,
+     "count": 4,
+     "product": "Planner Pro",
+     "category": "Subscription"
+    },
+    {
+     "date": "@day-84",
+     "amount": 12.0,
+     "net": 11.35,
+     "count": 1,
+     "product": "Planner Pro",
+     "category": "Subscription"
+    },
+    {
+     "date": "@day-83",
+     "amount": 24.0,
+     "net": 22.7,
+     "count": 2,
+     "product": "Planner Pro",
+     "category": "Subscription"
+    },
+    {
+     "date": "@day-80",
+     "amount": 36.0,
+     "net": 34.05,
+     "count": 3,
+     "product": "Planner Pro",
+     "category": "Subscription"
+    },
+    {
+     "date": "@day-79",
+     "amount": 36.0,
+     "net": 34.05,
+     "count": 3,
+     "product": "Planner Pro",
+     "category": "Subscription"
+    },
+    {
+     "date": "@day-76",
+     "amount": 36.0,
+     "net": 34.05,
+     "count": 3,
+     "product": "Planner Pro",
+     "category": "Subscription"
+    },
+    {
+     "date": "@day-74",
+     "amount": 36.0,
+     "net": 34.05,
+     "count": 3,
+     "product": "Planner Pro",
+     "category": "Subscription"
+    },
+    {
+     "date": "@day-72",
+     "amount": 24.0,
+     "net": 22.7,
+     "count": 2,
+     "product": "Planner Pro",
+     "category": "Subscription"
+    },
+    {
+     "date": "@day-70",
+     "amount": 12.0,
+     "net": 11.35,
+     "count": 1,
+     "product": "Planner Pro",
+     "category": "Subscription"
+    },
+    {
+     "date": "@day-69",
+     "amount": 36.0,
+     "net": 34.05,
+     "count": 3,
+     "product": "Planner Pro",
+     "category": "Subscription"
+    },
+    {
+     "date": "@day-68",
+     "amount": 36.0,
+     "net": 34.05,
+     "count": 3,
+     "product": "Planner Pro",
+     "category": "Subscription"
+    },
+    {
+     "date": "@day-66",
+     "amount": 36.0,
+     "net": 34.05,
+     "count": 3,
+     "product": "Planner Pro",
+     "category": "Subscription"
+    },
+    {
+     "date": "@day-64",
+     "amount": 48.0,
+     "net": 45.4,
+     "count": 4,
+     "product": "Planner Pro",
+     "category": "Subscription"
+    },
+    {
+     "date": "@day-63",
+     "amount": 12.0,
+     "net": 11.35,
+     "count": 1,
+     "product": "Planner Pro",
+     "category": "Subscription"
+    },
+    {
+     "date": "@day-61",
+     "amount": 24.0,
+     "net": 22.7,
+     "count": 2,
+     "product": "Planner Pro",
+     "category": "Subscription"
+    },
+    {
+     "date": "@day-59",
+     "amount": 24.0,
+     "net": 22.7,
+     "count": 2,
+     "product": "Planner Pro",
+     "category": "Subscription"
+    },
+    {
+     "date": "@day-56",
+     "amount": 36.0,
+     "net": 34.05,
+     "count": 3,
+     "product": "Planner Pro",
+     "category": "Subscription"
+    },
+    {
+     "date": "@day-54",
+     "amount": 36.0,
+     "net": 34.05,
+     "count": 3,
+     "product": "Planner Pro",
+     "category": "Subscription"
+    },
+    {
+     "date": "@day-48",
+     "amount": 12.0,
+     "net": 11.35,
+     "count": 1,
+     "product": "Planner Pro",
+     "category": "Subscription"
+    },
+    {
+     "date": "@day-47",
+     "amount": 12.0,
+     "net": 11.35,
+     "count": 1,
+     "product": "Planner Pro",
+     "category": "Subscription"
+    },
+    {
+     "date": "@day-46",
+     "amount": 24.0,
+     "net": 22.7,
+     "count": 2,
+     "product": "Planner Pro",
+     "category": "Subscription"
+    },
+    {
+     "date": "@day-45",
+     "amount": 12.0,
+     "net": 11.35,
+     "count": 1,
+     "product": "Planner Pro",
+     "category": "Subscription"
+    },
+    {
+     "date": "@day-44",
+     "amount": 24.0,
+     "net": 22.7,
+     "count": 2,
+     "product": "Planner Pro",
+     "category": "Subscription"
+    },
+    {
+     "date": "@day-43",
+     "amount": 24.0,
+     "net": 22.7,
+     "count": 2,
+     "product": "Planner Pro",
+     "category": "Subscription"
+    },
+    {
+     "date": "@day-39",
+     "amount": 24.0,
+     "net": 22.7,
+     "count": 2,
+     "product": "Planner Pro",
+     "category": "Subscription"
+    },
+    {
+     "date": "@day-37",
+     "amount": 12.0,
+     "net": 11.35,
+     "count": 1,
+     "product": "Planner Pro",
+     "category": "Subscription"
+    },
+    {
+     "date": "@day-32",
+     "amount": 48.0,
+     "net": 45.4,
+     "count": 4,
+     "product": "Planner Pro",
+     "category": "Subscription"
+    },
+    {
+     "date": "@day-27",
+     "amount": 12.0,
+     "net": 11.35,
+     "count": 1,
+     "product": "Planner Pro",
+     "category": "Subscription"
+    },
+    {
+     "date": "@day-26",
+     "amount": 12.0,
+     "net": 11.35,
+     "count": 1,
+     "product": "Planner Pro",
+     "category": "Subscription"
+    },
+    {
+     "date": "@day-25",
+     "amount": 36.0,
+     "net": 34.05,
+     "count": 3,
+     "product": "Planner Pro",
+     "category": "Subscription"
+    },
+    {
+     "date": "@day-23",
+     "amount": 48.0,
+     "net": 45.4,
+     "count": 4,
+     "product": "Planner Pro",
+     "category": "Subscription"
+    },
+    {
+     "date": "@day-19",
+     "amount": 24.0,
+     "net": 22.7,
+     "count": 2,
+     "product": "Planner Pro",
+     "category": "Subscription"
+    },
+    {
+     "date": "@day-18",
+     "amount": 12.0,
+     "net": 11.35,
+     "count": 1,
+     "product": "Planner Pro",
+     "category": "Subscription"
+    },
+    {
+     "date": "@day-17",
+     "amount": 24.0,
+     "net": 22.7,
+     "count": 2,
+     "product": "Planner Pro",
+     "category": "Subscription"
+    },
+    {
+     "date": "@day-15",
+     "amount": 24.0,
+     "net": 22.7,
+     "count": 2,
+     "product": "Planner Pro",
+     "category": "Subscription"
+    },
+    {
+     "date": "@day-13",
+     "amount": 48.0,
+     "net": 45.4,
+     "count": 4,
+     "product": "Planner Pro",
+     "category": "Subscription"
+    },
+    {
+     "date": "@day-12",
+     "amount": 24.0,
+     "net": 22.7,
+     "count": 2,
+     "product": "Planner Pro",
+     "category": "Subscription"
+    },
+    {
+     "date": "@day-11",
+     "amount": 48.0,
+     "net": 45.4,
+     "count": 4,
+     "product": "Planner Pro",
+     "category": "Subscription"
+    },
+    {
+     "date": "@day-8",
+     "amount": 12.0,
+     "net": 11.35,
+     "count": 1,
+     "product": "Planner Pro",
+     "category": "Subscription"
+    },
+    {
+     "date": "@day-7",
+     "amount": 24.0,
+     "net": 22.7,
+     "count": 2,
+     "product": "Planner Pro",
+     "category": "Subscription"
+    },
+    {
+     "date": "@day-5",
+     "amount": 24.0,
+     "net": 22.7,
+     "count": 2,
+     "product": "Planner Pro",
+     "category": "Subscription"
+    },
+    {
+     "date": "@day-4",
+     "amount": 12.0,
+     "net": 11.35,
+     "count": 1,
+     "product": "Planner Pro",
+     "category": "Subscription"
+    },
+    {
+     "date": "@day-2",
+     "amount": 12.0,
+     "net": 11.35,
+     "count": 1,
+     "product": "Planner Pro",
+     "category": "Subscription"
+    },
+    {
+     "date": "@day-1",
+     "amount": 12.0,
+     "net": 11.35,
+     "count": 1,
+     "product": "Planner Pro",
+     "category": "Subscription"
+    },
+    {
+     "date": "@day-9",
+     "amount": -12.0,
+     "count": 1,
+     "product": "Planner Pro",
+     "category": "Refund"
+    },
+    {
+     "date": "@day-40",
+     "amount": -12.0,
+     "count": 1,
+     "product": "Planner Pro",
+     "category": "Refund"
+    },
+    {
+     "date": "@day-3",
+     "amount": 159.42,
+     "count": 1,
+     "product": "Planner Pro",
+     "category": "Payout"
+    },
+    {
+     "date": "@day-17",
+     "amount": 257.29,
+     "count": 1,
+     "product": "Planner Pro",
+     "category": "Payout"
+    },
+    {
+     "date": "@day-31",
+     "amount": 224.09,
+     "count": 1,
+     "product": "Planner Pro",
+     "category": "Payout"
+    },
+    {
+     "date": "@day-45",
+     "amount": 143.7,
+     "count": 1,
+     "product": "Planner Pro",
+     "category": "Payout"
+    },
+    {
+     "date": "@day-59",
+     "amount": 156.61,
+     "count": 1,
+     "product": "Planner Pro",
+     "category": "Payout"
+    }
+   ],
+   "entries": [
+    {
+     "id": "pay-0",
+     "at": "@now-2h",
+     "amount": 12.0,
+     "label": "ana@example.com",
+     "status": "succeeded",
+     "product": "Planner Pro",
+     "category": "Subscription"
+    },
+    {
+     "id": "pay-1",
+     "at": "@now-1d",
+     "amount": 12.0,
+     "label": "ben@example.com",
+     "status": "succeeded",
+     "product": "Planner Pro",
+     "category": "Subscription"
+    },
+    {
+     "id": "pay-2",
+     "at": "@now-2d",
+     "amount": 120.0,
+     "label": "cara@example.net",
+     "status": "succeeded",
+     "product": "Planner Pro",
+     "category": "Subscription"
+    },
+    {
+     "id": "pay-3",
+     "at": "@now-3d",
+     "amount": 12.0,
+     "label": "dev@example.org",
+     "status": "failed",
+     "product": "Planner Pro",
+     "category": "Subscription"
+    },
+    {
+     "id": "pay-4",
+     "at": "@now-9d",
+     "amount": -12.0,
+     "label": "eli@example.com",
+     "status": "refunded",
+     "product": "Planner Pro",
+     "category": "Refund"
+    },
+    {
+     "id": "pay-5",
+     "at": "@now-11d",
+     "amount": 12.0,
+     "label": "fay@example.net",
+     "status": "succeeded",
+     "product": "Planner Pro",
+     "category": "Subscription"
+    }
+   ],
+   "metrics": [
+    {
+     "id": "balance",
+     "label": "Balance",
+     "value": "$184",
+     "caption": "available"
+    }
+   ]
+  },
+  {
+   "type": "subscriptions",
+   "id": "planner-subscriptions",
+   "title": "Planner Pro subscriptions",
+   "product": "Planner Pro",
+   "space": "Example Studio",
+   "source": "Card payments",
+   "currency": "USD",
+   "connected": true,
+   "as_of": "@now-5m",
+   "note": "Sample data: subscriptions and in-app trials.",
+   "items": [
+    {
+     "id": "sub-1",
+     "customer": "ana@example.com",
+     "plan": "Pro",
+     "interval": "month",
+     "status": "active",
+     "started": "@now-140d",
+     "billing": "stripe",
+     "amount": 12,
+     "mrr": 12,
+     "period_end": "@now+12d",
+     "paid": true
+    },
+    {
+     "id": "sub-2",
+     "customer": "ben@example.com",
+     "plan": "Pro",
+     "interval": "month",
+     "status": "active",
+     "started": "@now-95d",
+     "billing": "stripe",
+     "amount": 12,
+     "mrr": 12,
+     "period_end": "@now+20d",
+     "paid": true
+    },
+    {
+     "id": "sub-3",
+     "customer": "cara@example.net",
+     "plan": "Pro yearly",
+     "interval": "year",
+     "status": "active",
+     "started": "@now-60d",
+     "billing": "stripe",
+     "amount": 120,
+     "mrr": 10,
+     "period_end": "@now+305d",
+     "paid": true
+    },
+    {
+     "id": "sub-4",
+     "customer": "fay@example.net",
+     "plan": "Pro",
+     "interval": "month",
+     "status": "active",
+     "started": "@now-33d",
+     "billing": "stripe",
+     "amount": 12,
+     "mrr": 12,
+     "period_end": "@now+27d",
+     "cancel_at_period_end": true,
+     "paid": true
+    },
+    {
+     "id": "sub-5",
+     "customer": "dev@example.org",
+     "plan": "Pro",
+     "interval": "month",
+     "status": "past_due",
+     "started": "@now-80d",
+     "billing": "stripe",
+     "amount": 12,
+     "mrr": 12,
+     "period_end": "@now-3d",
+     "paid": true
+    },
+    {
+     "id": "sub-6",
+     "customer": "gia@example.com",
+     "plan": "Pro",
+     "interval": "month",
+     "status": "trialing",
+     "started": "@now-12d",
+     "billing": "stripe",
+     "amount": 12,
+     "trial_end": "@now+2d",
+     "paid": false
+    },
+    {
+     "id": "sub-7",
+     "customer": "hal@example.org",
+     "plan": "Free trial",
+     "status": "trialing",
+     "started": "@now-3d",
+     "billing": "app",
+     "trial_end": "@now+11d",
+     "paid": false
+    },
+    {
+     "id": "sub-8",
+     "customer": "ivy@example.net",
+     "plan": "Free trial",
+     "status": "trialing",
+     "started": "@now-1d",
+     "billing": "app",
+     "trial_end": "@now+13d",
+     "paid": false
+    },
+    {
+     "id": "sub-9",
+     "customer": "eli@example.com",
+     "plan": "Pro",
+     "interval": "month",
+     "status": "canceled",
+     "started": "@now-70d",
+     "billing": "stripe",
+     "amount": 12,
+     "canceled_at": "@now-9d",
+     "paid": true
+    },
+    {
+     "id": "sub-10",
+     "customer": "jo@example.com",
+     "plan": "Pro",
+     "interval": "month",
+     "status": "canceled",
+     "started": "@now-20d",
+     "billing": "stripe",
+     "amount": 12,
+     "trial_end": "@now-6d",
+     "canceled_at": "@now-6d",
+     "paid": false
+    },
+    {
+     "id": "sub-11",
+     "customer": "kim@example.org",
+     "plan": "Pro",
+     "interval": "month",
+     "status": "active",
+     "started": "@now-6d",
+     "billing": "stripe",
+     "amount": 12,
+     "mrr": 12,
+     "trial_end": "@now-1d",
+     "period_end": "@now+29d",
+     "paid": true
+    }
+   ],
+   "failed": [
+    {
+     "id": "fail-1",
+     "at": "@now-3d",
+     "amount": 12,
+     "customer": "dev@example.org",
+     "reason": "card_declined"
+    },
+    {
+     "id": "fail-2",
+     "at": "@now-34d",
+     "amount": 12,
+     "customer": "lee@example.net",
+     "reason": "insufficient_funds"
+    }
+   ],
+   "metrics": [
+    {
+     "id": "active",
+     "label": "Active",
+     "value": "5"
+    },
+    {
+     "id": "mrr",
+     "label": "MRR",
+     "value": "$58"
+    }
+   ]
+  },
+  {
+   "type": "ledger",
+   "id": "puzzle-store",
+   "title": "Puzzle Game \u00b7 App Store",
+   "currency": "USD",
+   "space": "Example Studio",
+   "source": "App Store",
+   "connected": true,
+   "as_of": "@now-1h",
+   "days": [
+    {
+     "date": "@day-200",
+     "amount": 19.08,
+     "count": 6,
+     "product": "Puzzle Game",
+     "category": "App Store proceeds"
+    },
+    {
+     "date": "@day-199",
+     "amount": 21.07,
+     "count": 7,
+     "product": "Puzzle Game",
+     "category": "App Store proceeds"
+    },
+    {
+     "date": "@day-198",
+     "amount": 12.62,
+     "count": 4,
+     "product": "Puzzle Game",
+     "category": "App Store proceeds"
+    },
+    {
+     "date": "@day-197",
+     "amount": 15.55,
+     "count": 5,
+     "product": "Puzzle Game",
+     "category": "App Store proceeds"
+    },
+    {
+     "date": "@day-196",
+     "amount": 11.91,
+     "count": 3,
+     "product": "Puzzle Game",
+     "category": "App Store proceeds"
+    },
+    {
+     "date": "@day-195",
+     "amount": 14.92,
+     "count": 4,
+     "product": "Puzzle Game",
+     "category": "App Store proceeds"
+    },
+    {
+     "date": "@day-194",
+     "amount": 15.43,
+     "count": 5,
+     "product": "Puzzle Game",
+     "category": "App Store proceeds"
+    },
+    {
+     "date": "@day-193",
+     "amount": 11.27,
+     "count": 3,
+     "product": "Puzzle Game",
+     "category": "App Store proceeds"
+    },
+    {
+     "date": "@day-192",
+     "amount": 21.45,
+     "count": 7,
+     "product": "Puzzle Game",
+     "category": "App Store proceeds"
+    },
+    {
+     "date": "@day-191",
+     "amount": 11.46,
+     "count": 3,
+     "product": "Puzzle Game",
+     "category": "App Store proceeds"
+    },
+    {
+     "date": "@day-189",
+     "amount": 17.13,
+     "count": 5,
+     "product": "Puzzle Game",
+     "category": "App Store proceeds"
+    },
+    {
+     "date": "@day-188",
+     "amount": 10.15,
+     "count": 3,
+     "product": "Puzzle Game",
+     "category": "App Store proceeds"
+    },
+    {
+     "date": "@day-187",
+     "amount": 10.03,
+     "count": 3,
+     "product": "Puzzle Game",
+     "category": "App Store proceeds"
+    },
+    {
+     "date": "@day-186",
+     "amount": 24.31,
+     "count": 8,
+     "product": "Puzzle Game",
+     "category": "App Store proceeds"
+    },
+    {
+     "date": "@day-185",
+     "amount": 10.28,
+     "count": 3,
+     "product": "Puzzle Game",
+     "category": "App Store proceeds"
+    },
+    {
+     "date": "@day-184",
+     "amount": 9.56,
+     "count": 3,
+     "product": "Puzzle Game",
+     "category": "App Store proceeds"
+    },
+    {
+     "date": "@day-183",
+     "amount": 17.79,
+     "count": 5,
+     "product": "Puzzle Game",
+     "category": "App Store proceeds"
+    },
+    {
+     "date": "@day-182",
+     "amount": 15.49,
+     "count": 5,
+     "product": "Puzzle Game",
+     "category": "App Store proceeds"
+    },
+    {
+     "date": "@day-181",
+     "amount": 10.88,
+     "count": 3,
+     "product": "Puzzle Game",
+     "category": "App Store proceeds"
+    },
+    {
+     "date": "@day-180",
+     "amount": 21.33,
+     "count": 7,
+     "product": "Puzzle Game",
+     "category": "App Store proceeds"
+    },
+    {
+     "date": "@day-179",
+     "amount": 16.56,
+     "count": 5,
+     "product": "Puzzle Game",
+     "category": "App Store proceeds"
+    },
+    {
+     "date": "@day-178",
+     "amount": 5.06,
+     "count": 1,
+     "product": "Puzzle Game",
+     "category": "App Store proceeds"
+    },
+    {
+     "date": "@day-177",
+     "amount": 1.91,
+     "count": 1,
+     "product": "Puzzle Game",
+     "category": "App Store proceeds"
+    },
+    {
+     "date": "@day-176",
+     "amount": 12.07,
+     "count": 4,
+     "product": "Puzzle Game",
+     "category": "App Store proceeds"
+    },
+    {
+     "date": "@day-175",
+     "amount": 16.98,
+     "count": 5,
+     "product": "Puzzle Game",
+     "category": "App Store proceeds"
+    },
+    {
+     "date": "@day-174",
+     "amount": 13.63,
+     "count": 4,
+     "product": "Puzzle Game",
+     "category": "App Store proceeds"
+    },
+    {
+     "date": "@day-173",
+     "amount": 18.02,
+     "count": 6,
+     "product": "Puzzle Game",
+     "category": "App Store proceeds"
+    },
+    {
+     "date": "@day-172",
+     "amount": 19.68,
+     "count": 6,
+     "product": "Puzzle Game",
+     "category": "App Store proceeds"
+    },
+    {
+     "date": "@day-171",
+     "amount": 14.72,
+     "count": 4,
+     "product": "Puzzle Game",
+     "category": "App Store proceeds"
+    },
+    {
+     "date": "@day-169",
+     "amount": 6.2,
+     "count": 2,
+     "product": "Puzzle Game",
+     "category": "App Store proceeds"
+    },
+    {
+     "date": "@day-168",
+     "amount": 7.45,
+     "count": 2,
+     "product": "Puzzle Game",
+     "category": "App Store proceeds"
+    },
+    {
+     "date": "@day-167",
+     "amount": 9.58,
+     "count": 3,
+     "product": "Puzzle Game",
+     "category": "App Store proceeds"
+    },
+    {
+     "date": "@day-164",
+     "amount": 12.91,
+     "count": 4,
+     "product": "Puzzle Game",
+     "category": "App Store proceeds"
+    },
+    {
+     "date": "@day-163",
+     "amount": 12.18,
+     "count": 4,
+     "product": "Puzzle Game",
+     "category": "App Store proceeds"
+    },
+    {
+     "date": "@day-162",
+     "amount": 25.14,
+     "count": 8,
+     "product": "Puzzle Game",
+     "category": "App Store proceeds"
+    },
+    {
+     "date": "@day-161",
+     "amount": 13.52,
+     "count": 4,
+     "product": "Puzzle Game",
+     "category": "App Store proceeds"
+    },
+    {
+     "date": "@day-160",
+     "amount": 13.37,
+     "count": 4,
+     "product": "Puzzle Game",
+     "category": "App Store proceeds"
+    },
+    {
+     "date": "@day-159",
+     "amount": 12.88,
+     "count": 4,
+     "product": "Puzzle Game",
+     "category": "App Store proceeds"
+    },
+    {
+     "date": "@day-158",
+     "amount": 15.55,
+     "count": 5,
+     "product": "Puzzle Game",
+     "category": "App Store proceeds"
+    },
+    {
+     "date": "@day-157",
+     "amount": 15.4,
+     "count": 5,
+     "product": "Puzzle Game",
+     "category": "App Store proceeds"
+    },
+    {
+     "date": "@day-156",
+     "amount": 14.09,
+     "count": 4,
+     "product": "Puzzle Game",
+     "category": "App Store proceeds"
+    },
+    {
+     "date": "@day-154",
+     "amount": 19.97,
+     "count": 6,
+     "product": "Puzzle Game",
+     "category": "App Store proceeds"
+    },
+    {
+     "date": "@day-153",
+     "amount": 2.16,
+     "count": 1,
+     "product": "Puzzle Game",
+     "category": "App Store proceeds"
+    },
+    {
+     "date": "@day-150",
+     "amount": 10.2,
+     "count": 3,
+     "product": "Puzzle Game",
+     "category": "App Store proceeds"
+    },
+    {
+     "date": "@day-149",
+     "amount": 6.13,
+     "count": 2,
+     "product": "Puzzle Game",
+     "category": "App Store proceeds"
+    },
+    {
+     "date": "@day-147",
+     "amount": 23.66,
+     "count": 7,
+     "product": "Puzzle Game",
+     "category": "App Store proceeds"
+    },
+    {
+     "date": "@day-146",
+     "amount": 14.49,
+     "count": 4,
+     "product": "Puzzle Game",
+     "category": "App Store proceeds"
+    },
+    {
+     "date": "@day-145",
+     "amount": 18.35,
+     "count": 6,
+     "product": "Puzzle Game",
+     "category": "App Store proceeds"
+    },
+    {
+     "date": "@day-144",
+     "amount": 13.96,
+     "count": 4,
+     "product": "Puzzle Game",
+     "category": "App Store proceeds"
+    },
+    {
+     "date": "@day-143",
+     "amount": 14.54,
+     "count": 4,
+     "product": "Puzzle Game",
+     "category": "App Store proceeds"
+    },
+    {
+     "date": "@day-142",
+     "amount": 0.43,
+     "count": 1,
+     "product": "Puzzle Game",
+     "category": "App Store proceeds"
+    },
+    {
+     "date": "@day-141",
+     "amount": 7.99,
+     "count": 2,
+     "product": "Puzzle Game",
+     "category": "App Store proceeds"
+    },
+    {
+     "date": "@day-140",
+     "amount": 7.34,
+     "count": 2,
+     "product": "Puzzle Game",
+     "category": "App Store proceeds"
+    },
+    {
+     "date": "@day-139",
+     "amount": 7.93,
+     "count": 2,
+     "product": "Puzzle Game",
+     "category": "App Store proceeds"
+    },
+    {
+     "date": "@day-137",
+     "amount": 21.56,
+     "count": 7,
+     "product": "Puzzle Game",
+     "category": "App Store proceeds"
+    },
+    {
+     "date": "@day-136",
+     "amount": 6.39,
+     "count": 2,
+     "product": "Puzzle Game",
+     "category": "App Store proceeds"
+    },
+    {
+     "date": "@day-135",
+     "amount": 20.77,
+     "count": 6,
+     "product": "Puzzle Game",
+     "category": "App Store proceeds"
+    },
+    {
+     "date": "@day-134",
+     "amount": 19.15,
+     "count": 6,
+     "product": "Puzzle Game",
+     "category": "App Store proceeds"
+    },
+    {
+     "date": "@day-133",
+     "amount": 14.91,
+     "count": 4,
+     "product": "Puzzle Game",
+     "category": "App Store proceeds"
+    },
+    {
+     "date": "@day-132",
+     "amount": 17.45,
+     "count": 5,
+     "product": "Puzzle Game",
+     "category": "App Store proceeds"
+    },
+    {
+     "date": "@day-131",
+     "amount": 17.44,
+     "count": 5,
+     "product": "Puzzle Game",
+     "category": "App Store proceeds"
+    },
+    {
+     "date": "@day-130",
+     "amount": 14.01,
+     "count": 4,
+     "product": "Puzzle Game",
+     "category": "App Store proceeds"
+    },
+    {
+     "date": "@day-129",
+     "amount": 26.06,
+     "count": 8,
+     "product": "Puzzle Game",
+     "category": "App Store proceeds"
+    },
+    {
+     "date": "@day-128",
+     "amount": 15.95,
+     "count": 5,
+     "product": "Puzzle Game",
+     "category": "App Store proceeds"
+    },
+    {
+     "date": "@day-127",
+     "amount": 13.92,
+     "count": 4,
+     "product": "Puzzle Game",
+     "category": "App Store proceeds"
+    },
+    {
+     "date": "@day-126",
+     "amount": 19.54,
+     "count": 6,
+     "product": "Puzzle Game",
+     "category": "App Store proceeds"
+    },
+    {
+     "date": "@day-125",
+     "amount": 25.02,
+     "count": 8,
+     "product": "Puzzle Game",
+     "category": "App Store proceeds"
+    },
+    {
+     "date": "@day-123",
+     "amount": 16.39,
+     "count": 5,
+     "product": "Puzzle Game",
+     "category": "App Store proceeds"
+    },
+    {
+     "date": "@day-122",
+     "amount": 15.43,
+     "count": 5,
+     "product": "Puzzle Game",
+     "category": "App Store proceeds"
+    },
+    {
+     "date": "@day-121",
+     "amount": 15.69,
+     "count": 5,
+     "product": "Puzzle Game",
+     "category": "App Store proceeds"
+    },
+    {
+     "date": "@day-120",
+     "amount": 10.87,
+     "count": 3,
+     "product": "Puzzle Game",
+     "category": "App Store proceeds"
+    },
+    {
+     "date": "@day-118",
+     "amount": 18.54,
+     "count": 6,
+     "product": "Puzzle Game",
+     "category": "App Store proceeds"
+    },
+    {
+     "date": "@day-117",
+     "amount": 19.98,
+     "count": 6,
+     "product": "Puzzle Game",
+     "category": "App Store proceeds"
+    },
+    {
+     "date": "@day-116",
+     "amount": 25.86,
+     "count": 8,
+     "product": "Puzzle Game",
+     "category": "App Store proceeds"
+    },
+    {
+     "date": "@day-115",
+     "amount": 12.39,
+     "count": 4,
+     "product": "Puzzle Game",
+     "category": "App Store proceeds"
+    },
+    {
+     "date": "@day-114",
+     "amount": 11.57,
+     "count": 3,
+     "product": "Puzzle Game",
+     "category": "App Store proceeds"
+    },
+    {
+     "date": "@day-113",
+     "amount": 16.7,
+     "count": 5,
+     "product": "Puzzle Game",
+     "category": "App Store proceeds"
+    },
+    {
+     "date": "@day-112",
+     "amount": 14.97,
+     "count": 4,
+     "product": "Puzzle Game",
+     "category": "App Store proceeds"
+    },
+    {
+     "date": "@day-111",
+     "amount": 8.72,
+     "count": 2,
+     "product": "Puzzle Game",
+     "category": "App Store proceeds"
+    },
+    {
+     "date": "@day-105",
+     "amount": 15.06,
+     "count": 5,
+     "product": "Puzzle Game",
+     "category": "App Store proceeds"
+    },
+    {
+     "date": "@day-104",
+     "amount": 21.17,
+     "count": 7,
+     "product": "Puzzle Game",
+     "category": "App Store proceeds"
+    },
+    {
+     "date": "@day-103",
+     "amount": 18.78,
+     "count": 6,
+     "product": "Puzzle Game",
+     "category": "App Store proceeds"
+    },
+    {
+     "date": "@day-102",
+     "amount": 14.85,
+     "count": 4,
+     "product": "Puzzle Game",
+     "category": "App Store proceeds"
+    },
+    {
+     "date": "@day-101",
+     "amount": 20.29,
+     "count": 6,
+     "product": "Puzzle Game",
+     "category": "App Store proceeds"
+    },
+    {
+     "date": "@day-97",
+     "amount": 12.24,
+     "count": 4,
+     "product": "Puzzle Game",
+     "category": "App Store proceeds"
+    },
+    {
+     "date": "@day-96",
+     "amount": 14.58,
+     "count": 4,
+     "product": "Puzzle Game",
+     "category": "App Store proceeds"
+    },
+    {
+     "date": "@day-95",
+     "amount": 17.93,
+     "count": 5,
+     "product": "Puzzle Game",
+     "category": "App Store proceeds"
+    },
+    {
+     "date": "@day-94",
+     "amount": 23.31,
+     "count": 7,
+     "product": "Puzzle Game",
+     "category": "App Store proceeds"
+    },
+    {
+     "date": "@day-93",
+     "amount": 7.26,
+     "count": 2,
+     "product": "Puzzle Game",
+     "category": "App Store proceeds"
+    },
+    {
+     "date": "@day-92",
+     "amount": 14.78,
+     "count": 4,
+     "product": "Puzzle Game",
+     "category": "App Store proceeds"
+    },
+    {
+     "date": "@day-91",
+     "amount": 11.6,
+     "count": 3,
+     "product": "Puzzle Game",
+     "category": "App Store proceeds"
+    },
+    {
+     "date": "@day-89",
+     "amount": 14.01,
+     "count": 4,
+     "product": "Puzzle Game",
+     "category": "App Store proceeds"
+    },
+    {
+     "date": "@day-88",
+     "amount": 7.16,
+     "count": 2,
+     "product": "Puzzle Game",
+     "category": "App Store proceeds"
+    },
+    {
+     "date": "@day-87",
+     "amount": 8.66,
+     "count": 2,
+     "product": "Puzzle Game",
+     "category": "App Store proceeds"
+    },
+    {
+     "date": "@day-85",
+     "amount": 23.36,
+     "count": 7,
+     "product": "Puzzle Game",
+     "category": "App Store proceeds"
+    },
+    {
+     "date": "@day-84",
+     "amount": 23.1,
+     "count": 7,
+     "product": "Puzzle Game",
+     "category": "App Store proceeds"
+    },
+    {
+     "date": "@day-83",
+     "amount": 10.84,
+     "count": 3,
+     "product": "Puzzle Game",
+     "category": "App Store proceeds"
+    },
+    {
+     "date": "@day-82",
+     "amount": 21.57,
+     "count": 7,
+     "product": "Puzzle Game",
+     "category": "App Store proceeds"
+    },
+    {
+     "date": "@day-80",
+     "amount": 24.58,
+     "count": 8,
+     "product": "Puzzle Game",
+     "category": "App Store proceeds"
+    },
+    {
+     "date": "@day-77",
+     "amount": 9.54,
+     "count": 3,
+     "product": "Puzzle Game",
+     "category": "App Store proceeds"
+    },
+    {
+     "date": "@day-76",
+     "amount": 20.11,
+     "count": 6,
+     "product": "Puzzle Game",
+     "category": "App Store proceeds"
+    },
+    {
+     "date": "@day-75",
+     "amount": 22.55,
+     "count": 7,
+     "product": "Puzzle Game",
+     "category": "App Store proceeds"
+    },
+    {
+     "date": "@day-74",
+     "amount": 12.42,
+     "count": 4,
+     "product": "Puzzle Game",
+     "category": "App Store proceeds"
+    },
+    {
+     "date": "@day-72",
+     "amount": 21.77,
+     "count": 7,
+     "product": "Puzzle Game",
+     "category": "App Store proceeds"
+    },
+    {
+     "date": "@day-71",
+     "amount": 5.9,
+     "count": 1,
+     "product": "Puzzle Game",
+     "category": "App Store proceeds"
+    },
+    {
+     "date": "@day-70",
+     "amount": 12.81,
+     "count": 4,
+     "product": "Puzzle Game",
+     "category": "App Store proceeds"
+    },
+    {
+     "date": "@day-69",
+     "amount": 18.29,
+     "count": 6,
+     "product": "Puzzle Game",
+     "category": "App Store proceeds"
+    },
+    {
+     "date": "@day-68",
+     "amount": 11.22,
+     "count": 3,
+     "product": "Puzzle Game",
+     "category": "App Store proceeds"
+    },
+    {
+     "date": "@day-66",
+     "amount": 15.55,
+     "count": 5,
+     "product": "Puzzle Game",
+     "category": "App Store proceeds"
+    },
+    {
+     "date": "@day-65",
+     "amount": 2.74,
+     "count": 1,
+     "product": "Puzzle Game",
+     "category": "App Store proceeds"
+    },
+    {
+     "date": "@day-64",
+     "amount": 7.5,
+     "count": 2,
+     "product": "Puzzle Game",
+     "category": "App Store proceeds"
+    },
+    {
+     "date": "@day-62",
+     "amount": 6.84,
+     "count": 2,
+     "product": "Puzzle Game",
+     "category": "App Store proceeds"
+    },
+    {
+     "date": "@day-61",
+     "amount": 12.55,
+     "count": 4,
+     "product": "Puzzle Game",
+     "category": "App Store proceeds"
+    },
+    {
+     "date": "@day-60",
+     "amount": 14.22,
+     "count": 4,
+     "product": "Puzzle Game",
+     "category": "App Store proceeds"
+    },
+    {
+     "date": "@day-59",
+     "amount": 14.49,
+     "count": 4,
+     "product": "Puzzle Game",
+     "category": "App Store proceeds"
+    },
+    {
+     "date": "@day-58",
+     "amount": 4.49,
+     "count": 1,
+     "product": "Puzzle Game",
+     "category": "App Store proceeds"
+    },
+    {
+     "date": "@day-57",
+     "amount": 15.6,
+     "count": 5,
+     "product": "Puzzle Game",
+     "category": "App Store proceeds"
+    },
+    {
+     "date": "@day-56",
+     "amount": 6.41,
+     "count": 2,
+     "product": "Puzzle Game",
+     "category": "App Store proceeds"
+    },
+    {
+     "date": "@day-55",
+     "amount": 13.12,
+     "count": 4,
+     "product": "Puzzle Game",
+     "category": "App Store proceeds"
+    },
+    {
+     "date": "@day-54",
+     "amount": 9.79,
+     "count": 3,
+     "product": "Puzzle Game",
+     "category": "App Store proceeds"
+    },
+    {
+     "date": "@day-53",
+     "amount": 12.32,
+     "count": 4,
+     "product": "Puzzle Game",
+     "category": "App Store proceeds"
+    },
+    {
+     "date": "@day-52",
+     "amount": 6.3,
+     "count": 2,
+     "product": "Puzzle Game",
+     "category": "App Store proceeds"
+    },
+    {
+     "date": "@day-51",
+     "amount": 13.63,
+     "count": 4,
+     "product": "Puzzle Game",
+     "category": "App Store proceeds"
+    },
+    {
+     "date": "@day-49",
+     "amount": 8.59,
+     "count": 2,
+     "product": "Puzzle Game",
+     "category": "App Store proceeds"
+    },
+    {
+     "date": "@day-48",
+     "amount": 9.37,
+     "count": 3,
+     "product": "Puzzle Game",
+     "category": "App Store proceeds"
+    },
+    {
+     "date": "@day-47",
+     "amount": 6.92,
+     "count": 2,
+     "product": "Puzzle Game",
+     "category": "App Store proceeds"
+    },
+    {
+     "date": "@day-46",
+     "amount": 16.18,
+     "count": 5,
+     "product": "Puzzle Game",
+     "category": "App Store proceeds"
+    },
+    {
+     "date": "@day-44",
+     "amount": 24.23,
+     "count": 8,
+     "product": "Puzzle Game",
+     "category": "App Store proceeds"
+    },
+    {
+     "date": "@day-43",
+     "amount": 3.97,
+     "count": 1,
+     "product": "Puzzle Game",
+     "category": "App Store proceeds"
+    },
+    {
+     "date": "@day-42",
+     "amount": 24.76,
+     "count": 8,
+     "product": "Puzzle Game",
+     "category": "App Store proceeds"
+    },
+    {
+     "date": "@day-41",
+     "amount": 9.99,
+     "count": 3,
+     "product": "Puzzle Game",
+     "category": "App Store proceeds"
+    },
+    {
+     "date": "@day-40",
+     "amount": 11.82,
+     "count": 3,
+     "product": "Puzzle Game",
+     "category": "App Store proceeds"
+    },
+    {
+     "date": "@day-39",
+     "amount": 14.83,
+     "count": 4,
+     "product": "Puzzle Game",
+     "category": "App Store proceeds"
+    },
+    {
+     "date": "@day-38",
+     "amount": 8.91,
+     "count": 2,
+     "product": "Puzzle Game",
+     "category": "App Store proceeds"
+    },
+    {
+     "date": "@day-36",
+     "amount": 4.81,
+     "count": 1,
+     "product": "Puzzle Game",
+     "category": "App Store proceeds"
+    },
+    {
+     "date": "@day-35",
+     "amount": 12.22,
+     "count": 4,
+     "product": "Puzzle Game",
+     "category": "App Store proceeds"
+    },
+    {
+     "date": "@day-32",
+     "amount": 11.18,
+     "count": 3,
+     "product": "Puzzle Game",
+     "category": "App Store proceeds"
+    },
+    {
+     "date": "@day-28",
+     "amount": 15.45,
+     "count": 5,
+     "product": "Puzzle Game",
+     "category": "App Store proceeds"
+    },
+    {
+     "date": "@day-27",
+     "amount": 8.57,
+     "count": 2,
+     "product": "Puzzle Game",
+     "category": "App Store proceeds"
+    },
+    {
+     "date": "@day-26",
+     "amount": 13.47,
+     "count": 4,
+     "product": "Puzzle Game",
+     "category": "App Store proceeds"
+    },
+    {
+     "date": "@day-25",
+     "amount": 13.79,
+     "count": 4,
+     "product": "Puzzle Game",
+     "category": "App Store proceeds"
+    },
+    {
+     "date": "@day-24",
+     "amount": 12.83,
+     "count": 4,
+     "product": "Puzzle Game",
+     "category": "App Store proceeds"
+    },
+    {
+     "date": "@day-23",
+     "amount": 19.35,
+     "count": 6,
+     "product": "Puzzle Game",
+     "category": "App Store proceeds"
+    },
+    {
+     "date": "@day-22",
+     "amount": 14.61,
+     "count": 4,
+     "product": "Puzzle Game",
+     "category": "App Store proceeds"
+    },
+    {
+     "date": "@day-21",
+     "amount": 30.0,
+     "count": 10,
+     "product": "Puzzle Game",
+     "category": "App Store proceeds"
+    },
+    {
+     "date": "@day-20",
+     "amount": 20.84,
+     "count": 6,
+     "product": "Puzzle Game",
+     "category": "App Store proceeds"
+    },
+    {
+     "date": "@day-18",
+     "amount": 13.83,
+     "count": 4,
+     "product": "Puzzle Game",
+     "category": "App Store proceeds"
+    },
+    {
+     "date": "@day-17",
+     "amount": 15.7,
+     "count": 5,
+     "product": "Puzzle Game",
+     "category": "App Store proceeds"
+    },
+    {
+     "date": "@day-16",
+     "amount": 18.32,
+     "count": 6,
+     "product": "Puzzle Game",
+     "category": "App Store proceeds"
+    },
+    {
+     "date": "@day-13",
+     "amount": 18.57,
+     "count": 6,
+     "product": "Puzzle Game",
+     "category": "App Store proceeds"
+    },
+    {
+     "date": "@day-12",
+     "amount": 20.82,
+     "count": 6,
+     "product": "Puzzle Game",
+     "category": "App Store proceeds"
+    },
+    {
+     "date": "@day-11",
+     "amount": 10.21,
+     "count": 3,
+     "product": "Puzzle Game",
+     "category": "App Store proceeds"
+    },
+    {
+     "date": "@day-10",
+     "amount": 22.57,
+     "count": 7,
+     "product": "Puzzle Game",
+     "category": "App Store proceeds"
+    },
+    {
+     "date": "@day-9",
+     "amount": 17.24,
+     "count": 5,
+     "product": "Puzzle Game",
+     "category": "App Store proceeds"
+    },
+    {
+     "date": "@day-8",
+     "amount": 21.88,
+     "count": 7,
+     "product": "Puzzle Game",
+     "category": "App Store proceeds"
+    },
+    {
+     "date": "@day-6",
+     "amount": 10.78,
+     "count": 3,
+     "product": "Puzzle Game",
+     "category": "App Store proceeds"
+    },
+    {
+     "date": "@day-4",
+     "amount": 18.29,
+     "count": 6,
+     "product": "Puzzle Game",
+     "category": "App Store proceeds"
+    },
+    {
+     "date": "@day-3",
+     "amount": 8.99,
+     "count": 2,
+     "product": "Puzzle Game",
+     "category": "App Store proceeds"
+    },
+    {
+     "date": "@day-2",
+     "amount": 18.24,
+     "count": 6,
+     "product": "Puzzle Game",
+     "category": "App Store proceeds"
+    },
+    {
+     "date": "@day-1",
+     "amount": 11.89,
+     "count": 3,
+     "product": "Puzzle Game",
+     "category": "App Store proceeds"
+    },
+    {
+     "date": "@day",
+     "amount": 14.21,
+     "count": 4,
+     "product": "Puzzle Game",
+     "category": "App Store proceeds"
+    }
+   ]
+  },
+  {
+   "type": "ledger",
+   "id": "puzzle-play",
+   "title": "Puzzle Game \u00b7 Google Play",
+   "currency": "USD",
+   "space": "Example Studio",
+   "source": "Google Play",
+   "connected": false,
+   "note": "Play Console reports are not readable yet.",
+   "days": []
+  },
+  {
+   "type": "ledger",
+   "id": "books",
+   "title": "Book royalties",
+   "currency": "USD",
+   "space": "Example Books",
+   "source": "Book store",
+   "connected": true,
+   "as_of": "@now-6h",
+   "days": [
+    {
+     "date": "@day-330",
+     "amount": 2.83,
+     "count": 1,
+     "product": "Field Guide",
+     "category": "Royalties"
+    },
+    {
+     "date": "@day-329",
+     "amount": 4.48,
+     "count": 1,
+     "product": "Trail Notes",
+     "category": "Royalties"
+    },
+    {
+     "date": "@day-328",
+     "amount": 5.75,
+     "count": 1,
+     "product": "Field Guide",
+     "category": "Royalties"
+    },
+    {
+     "date": "@day-327",
+     "amount": 2.62,
+     "count": 1,
+     "product": "Field Guide",
+     "category": "Royalties"
+    },
+    {
+     "date": "@day-326",
+     "amount": 7.27,
+     "count": 1,
+     "product": "Field Guide",
+     "category": "Royalties"
+    },
+    {
+     "date": "@day-325",
+     "amount": 5.59,
+     "count": 1,
+     "product": "Trail Notes",
+     "category": "Royalties"
+    },
+    {
+     "date": "@day-324",
+     "amount": 7.82,
+     "count": 1,
+     "product": "Field Guide",
+     "category": "Royalties"
+    },
+    {
+     "date": "@day-317",
+     "amount": 7.91,
+     "count": 1,
+     "product": "Trail Notes",
+     "category": "Royalties"
+    },
+    {
+     "date": "@day-314",
+     "amount": 2.85,
+     "count": 1,
+     "product": "Field Guide",
+     "category": "Royalties"
+    },
+    {
+     "date": "@day-313",
+     "amount": 7.32,
+     "count": 1,
+     "product": "Field Guide",
+     "category": "Royalties"
+    },
+    {
+     "date": "@day-312",
+     "amount": 3.05,
+     "count": 1,
+     "product": "Trail Notes",
+     "category": "Royalties"
+    },
+    {
+     "date": "@day-309",
+     "amount": 4.07,
+     "count": 1,
+     "product": "Field Guide",
+     "category": "Royalties"
+    },
+    {
+     "date": "@day-307",
+     "amount": 5.4,
+     "count": 1,
+     "product": "Field Guide",
+     "category": "Royalties"
+    },
+    {
+     "date": "@day-303",
+     "amount": 8.78,
+     "count": 1,
+     "product": "Field Guide",
+     "category": "Royalties"
+    },
+    {
+     "date": "@day-301",
+     "amount": 4.98,
+     "count": 1,
+     "product": "Field Guide",
+     "category": "Royalties"
+    },
+    {
+     "date": "@day-299",
+     "amount": 5.78,
+     "count": 1,
+     "product": "Field Guide",
+     "category": "Royalties"
+    },
+    {
+     "date": "@day-298",
+     "amount": 3.08,
+     "count": 1,
+     "product": "Field Guide",
+     "category": "Royalties"
+    },
+    {
+     "date": "@day-297",
+     "amount": 2.65,
+     "count": 1,
+     "product": "Field Guide",
+     "category": "Royalties"
+    },
+    {
+     "date": "@day-296",
+     "amount": 6.31,
+     "count": 1,
+     "product": "Field Guide",
+     "category": "Royalties"
+    },
+    {
+     "date": "@day-290",
+     "amount": 8.9,
+     "count": 1,
+     "product": "Field Guide",
+     "category": "Royalties"
+    },
+    {
+     "date": "@day-287",
+     "amount": 7.93,
+     "count": 1,
+     "product": "Trail Notes",
+     "category": "Royalties"
+    },
+    {
+     "date": "@day-283",
+     "amount": 5.9,
+     "count": 1,
+     "product": "Field Guide",
+     "category": "Royalties"
+    },
+    {
+     "date": "@day-275",
+     "amount": 2.7,
+     "count": 1,
+     "product": "Field Guide",
+     "category": "Royalties"
+    },
+    {
+     "date": "@day-273",
+     "amount": 7.93,
+     "count": 1,
+     "product": "Field Guide",
+     "category": "Royalties"
+    },
+    {
+     "date": "@day-268",
+     "amount": 7.69,
+     "count": 1,
+     "product": "Trail Notes",
+     "category": "Royalties"
+    },
+    {
+     "date": "@day-264",
+     "amount": 7.29,
+     "count": 1,
+     "product": "Field Guide",
+     "category": "Royalties"
+    },
+    {
+     "date": "@day-263",
+     "amount": 4.23,
+     "count": 1,
+     "product": "Trail Notes",
+     "category": "Royalties"
+    },
+    {
+     "date": "@day-262",
+     "amount": 7.31,
+     "count": 1,
+     "product": "Trail Notes",
+     "category": "Royalties"
+    },
+    {
+     "date": "@day-254",
+     "amount": 3.46,
+     "count": 1,
+     "product": "Field Guide",
+     "category": "Royalties"
+    },
+    {
+     "date": "@day-252",
+     "amount": 6.19,
+     "count": 1,
+     "product": "Field Guide",
+     "category": "Royalties"
+    },
+    {
+     "date": "@day-251",
+     "amount": 4.25,
+     "count": 1,
+     "product": "Field Guide",
+     "category": "Royalties"
+    },
+    {
+     "date": "@day-248",
+     "amount": 5.86,
+     "count": 1,
+     "product": "Field Guide",
+     "category": "Royalties"
+    },
+    {
+     "date": "@day-246",
+     "amount": 8.31,
+     "count": 1,
+     "product": "Field Guide",
+     "category": "Royalties"
+    },
+    {
+     "date": "@day-243",
+     "amount": 5.48,
+     "count": 1,
+     "product": "Trail Notes",
+     "category": "Royalties"
+    },
+    {
+     "date": "@day-240",
+     "amount": 3.86,
+     "count": 1,
+     "product": "Trail Notes",
+     "category": "Royalties"
+    },
+    {
+     "date": "@day-239",
+     "amount": 6.28,
+     "count": 1,
+     "product": "Field Guide",
+     "category": "Royalties"
+    },
+    {
+     "date": "@day-236",
+     "amount": 7.83,
+     "count": 1,
+     "product": "Field Guide",
+     "category": "Royalties"
+    },
+    {
+     "date": "@day-233",
+     "amount": 8.34,
+     "count": 1,
+     "product": "Field Guide",
+     "category": "Royalties"
+    },
+    {
+     "date": "@day-232",
+     "amount": 2.52,
+     "count": 1,
+     "product": "Field Guide",
+     "category": "Royalties"
+    },
+    {
+     "date": "@day-230",
+     "amount": 3.41,
+     "count": 1,
+     "product": "Field Guide",
+     "category": "Royalties"
+    },
+    {
+     "date": "@day-229",
+     "amount": 7.96,
+     "count": 1,
+     "product": "Field Guide",
+     "category": "Royalties"
+    },
+    {
+     "date": "@day-226",
+     "amount": 8.52,
+     "count": 1,
+     "product": "Trail Notes",
+     "category": "Royalties"
+    },
+    {
+     "date": "@day-224",
+     "amount": 4.92,
+     "count": 1,
+     "product": "Field Guide",
+     "category": "Royalties"
+    },
+    {
+     "date": "@day-219",
+     "amount": 2.81,
+     "count": 1,
+     "product": "Field Guide",
+     "category": "Royalties"
+    },
+    {
+     "date": "@day-217",
+     "amount": 8.58,
+     "count": 1,
+     "product": "Field Guide",
+     "category": "Royalties"
+    },
+    {
+     "date": "@day-216",
+     "amount": 5.82,
+     "count": 1,
+     "product": "Field Guide",
+     "category": "Royalties"
+    },
+    {
+     "date": "@day-206",
+     "amount": 7.26,
+     "count": 1,
+     "product": "Field Guide",
+     "category": "Royalties"
+    },
+    {
+     "date": "@day-203",
+     "amount": 2.82,
+     "count": 1,
+     "product": "Trail Notes",
+     "category": "Royalties"
+    },
+    {
+     "date": "@day-202",
+     "amount": 5.57,
+     "count": 1,
+     "product": "Field Guide",
+     "category": "Royalties"
+    },
+    {
+     "date": "@day-201",
+     "amount": 7.3,
+     "count": 1,
+     "product": "Trail Notes",
+     "category": "Royalties"
+    },
+    {
+     "date": "@day-200",
+     "amount": 6.76,
+     "count": 1,
+     "product": "Field Guide",
+     "category": "Royalties"
+    },
+    {
+     "date": "@day-197",
+     "amount": 3.55,
+     "count": 1,
+     "product": "Field Guide",
+     "category": "Royalties"
+    },
+    {
+     "date": "@day-194",
+     "amount": 8.39,
+     "count": 1,
+     "product": "Trail Notes",
+     "category": "Royalties"
+    },
+    {
+     "date": "@day-192",
+     "amount": 3.75,
+     "count": 1,
+     "product": "Field Guide",
+     "category": "Royalties"
+    },
+    {
+     "date": "@day-191",
+     "amount": 3.09,
+     "count": 1,
+     "product": "Field Guide",
+     "category": "Royalties"
+    },
+    {
+     "date": "@day-190",
+     "amount": 6.2,
+     "count": 1,
+     "product": "Trail Notes",
+     "category": "Royalties"
+    },
+    {
+     "date": "@day-184",
+     "amount": 2.9,
+     "count": 1,
+     "product": "Field Guide",
+     "category": "Royalties"
+    },
+    {
+     "date": "@day-182",
+     "amount": 5.77,
+     "count": 1,
+     "product": "Field Guide",
+     "category": "Royalties"
+    },
+    {
+     "date": "@day-180",
+     "amount": 4.26,
+     "count": 1,
+     "product": "Field Guide",
+     "category": "Royalties"
+    },
+    {
+     "date": "@day-174",
+     "amount": 2.71,
+     "count": 1,
+     "product": "Trail Notes",
+     "category": "Royalties"
+    },
+    {
+     "date": "@day-170",
+     "amount": 5.04,
+     "count": 1,
+     "product": "Trail Notes",
+     "category": "Royalties"
+    },
+    {
+     "date": "@day-166",
+     "amount": 3.21,
+     "count": 1,
+     "product": "Field Guide",
+     "category": "Royalties"
+    },
+    {
+     "date": "@day-157",
+     "amount": 7.58,
+     "count": 1,
+     "product": "Field Guide",
+     "category": "Royalties"
+    },
+    {
+     "date": "@day-154",
+     "amount": 3.33,
+     "count": 1,
+     "product": "Field Guide",
+     "category": "Royalties"
+    },
+    {
+     "date": "@day-151",
+     "amount": 2.96,
+     "count": 1,
+     "product": "Field Guide",
+     "category": "Royalties"
+    },
+    {
+     "date": "@day-148",
+     "amount": 6.41,
+     "count": 1,
+     "product": "Field Guide",
+     "category": "Royalties"
+    },
+    {
+     "date": "@day-147",
+     "amount": 5.49,
+     "count": 1,
+     "product": "Trail Notes",
+     "category": "Royalties"
+    },
+    {
+     "date": "@day-143",
+     "amount": 4.11,
+     "count": 1,
+     "product": "Trail Notes",
+     "category": "Royalties"
+    },
+    {
+     "date": "@day-141",
+     "amount": 2.64,
+     "count": 1,
+     "product": "Field Guide",
+     "category": "Royalties"
+    },
+    {
+     "date": "@day-138",
+     "amount": 6.84,
+     "count": 1,
+     "product": "Trail Notes",
+     "category": "Royalties"
+    },
+    {
+     "date": "@day-137",
+     "amount": 2.72,
+     "count": 1,
+     "product": "Field Guide",
+     "category": "Royalties"
+    },
+    {
+     "date": "@day-134",
+     "amount": 7.68,
+     "count": 1,
+     "product": "Trail Notes",
+     "category": "Royalties"
+    },
+    {
+     "date": "@day-132",
+     "amount": 8.8,
+     "count": 1,
+     "product": "Field Guide",
+     "category": "Royalties"
+    },
+    {
+     "date": "@day-130",
+     "amount": 3.94,
+     "count": 1,
+     "product": "Trail Notes",
+     "category": "Royalties"
+    },
+    {
+     "date": "@day-129",
+     "amount": 8.69,
+     "count": 1,
+     "product": "Field Guide",
+     "category": "Royalties"
+    },
+    {
+     "date": "@day-128",
+     "amount": 3.95,
+     "count": 1,
+     "product": "Field Guide",
+     "category": "Royalties"
+    },
+    {
+     "date": "@day-125",
+     "amount": 5.06,
+     "count": 1,
+     "product": "Field Guide",
+     "category": "Royalties"
+    },
+    {
+     "date": "@day-123",
+     "amount": 2.84,
+     "count": 1,
+     "product": "Field Guide",
+     "category": "Royalties"
+    },
+    {
+     "date": "@day-116",
+     "amount": 3.71,
+     "count": 1,
+     "product": "Trail Notes",
+     "category": "Royalties"
+    },
+    {
+     "date": "@day-114",
+     "amount": 6.82,
+     "count": 1,
+     "product": "Field Guide",
+     "category": "Royalties"
+    },
+    {
+     "date": "@day-112",
+     "amount": 3.6,
+     "count": 1,
+     "product": "Field Guide",
+     "category": "Royalties"
+    },
+    {
+     "date": "@day-111",
+     "amount": 4.78,
+     "count": 1,
+     "product": "Trail Notes",
+     "category": "Royalties"
+    },
+    {
+     "date": "@day-110",
+     "amount": 8.77,
+     "count": 1,
+     "product": "Field Guide",
+     "category": "Royalties"
+    },
+    {
+     "date": "@day-105",
+     "amount": 5.58,
+     "count": 1,
+     "product": "Field Guide",
+     "category": "Royalties"
+    },
+    {
+     "date": "@day-103",
+     "amount": 4.87,
+     "count": 1,
+     "product": "Trail Notes",
+     "category": "Royalties"
+    },
+    {
+     "date": "@day-102",
+     "amount": 5.17,
+     "count": 1,
+     "product": "Trail Notes",
+     "category": "Royalties"
+    },
+    {
+     "date": "@day-100",
+     "amount": 2.73,
+     "count": 1,
+     "product": "Field Guide",
+     "category": "Royalties"
+    },
+    {
+     "date": "@day-98",
+     "amount": 7.36,
+     "count": 1,
+     "product": "Trail Notes",
+     "category": "Royalties"
+    },
+    {
+     "date": "@day-97",
+     "amount": 4.27,
+     "count": 1,
+     "product": "Trail Notes",
+     "category": "Royalties"
+    },
+    {
+     "date": "@day-95",
+     "amount": 7.16,
+     "count": 1,
+     "product": "Field Guide",
+     "category": "Royalties"
+    },
+    {
+     "date": "@day-94",
+     "amount": 2.52,
+     "count": 1,
+     "product": "Trail Notes",
+     "category": "Royalties"
+    },
+    {
+     "date": "@day-90",
+     "amount": 4.02,
+     "count": 1,
+     "product": "Field Guide",
+     "category": "Royalties"
+    },
+    {
+     "date": "@day-86",
+     "amount": 5.29,
+     "count": 1,
+     "product": "Field Guide",
+     "category": "Royalties"
+    },
+    {
+     "date": "@day-84",
+     "amount": 7.72,
+     "count": 1,
+     "product": "Trail Notes",
+     "category": "Royalties"
+    },
+    {
+     "date": "@day-80",
+     "amount": 4.58,
+     "count": 1,
+     "product": "Field Guide",
+     "category": "Royalties"
+    },
+    {
+     "date": "@day-78",
+     "amount": 3.78,
+     "count": 1,
+     "product": "Trail Notes",
+     "category": "Royalties"
+    },
+    {
+     "date": "@day-77",
+     "amount": 2.92,
+     "count": 1,
+     "product": "Field Guide",
+     "category": "Royalties"
+    },
+    {
+     "date": "@day-75",
+     "amount": 8.87,
+     "count": 1,
+     "product": "Trail Notes",
+     "category": "Royalties"
+    },
+    {
+     "date": "@day-73",
+     "amount": 3.05,
+     "count": 1,
+     "product": "Field Guide",
+     "category": "Royalties"
+    },
+    {
+     "date": "@day-69",
+     "amount": 5.21,
+     "count": 1,
+     "product": "Field Guide",
+     "category": "Royalties"
+    },
+    {
+     "date": "@day-64",
+     "amount": 7.97,
+     "count": 1,
+     "product": "Field Guide",
+     "category": "Royalties"
+    },
+    {
+     "date": "@day-60",
+     "amount": 4.11,
+     "count": 1,
+     "product": "Field Guide",
+     "category": "Royalties"
+    },
+    {
+     "date": "@day-59",
+     "amount": 8.25,
+     "count": 1,
+     "product": "Field Guide",
+     "category": "Royalties"
+    },
+    {
+     "date": "@day-58",
+     "amount": 5.07,
+     "count": 1,
+     "product": "Trail Notes",
+     "category": "Royalties"
+    },
+    {
+     "date": "@day-56",
+     "amount": 7.75,
+     "count": 1,
+     "product": "Field Guide",
+     "category": "Royalties"
+    },
+    {
+     "date": "@day-54",
+     "amount": 5.59,
+     "count": 1,
+     "product": "Trail Notes",
+     "category": "Royalties"
+    },
+    {
+     "date": "@day-51",
+     "amount": 4.41,
+     "count": 1,
+     "product": "Field Guide",
+     "category": "Royalties"
+    },
+    {
+     "date": "@day-50",
+     "amount": 8.82,
+     "count": 1,
+     "product": "Field Guide",
+     "category": "Royalties"
+    },
+    {
+     "date": "@day-45",
+     "amount": 7.56,
+     "count": 1,
+     "product": "Trail Notes",
+     "category": "Royalties"
+    },
+    {
+     "date": "@day-44",
+     "amount": 6.37,
+     "count": 1,
+     "product": "Field Guide",
+     "category": "Royalties"
+    },
+    {
+     "date": "@day-43",
+     "amount": 4.9,
+     "count": 1,
+     "product": "Field Guide",
+     "category": "Royalties"
+    },
+    {
+     "date": "@day-42",
+     "amount": 4.16,
+     "count": 1,
+     "product": "Field Guide",
+     "category": "Royalties"
+    },
+    {
+     "date": "@day-40",
+     "amount": 2.57,
+     "count": 1,
+     "product": "Field Guide",
+     "category": "Royalties"
+    },
+    {
+     "date": "@day-38",
+     "amount": 4.53,
+     "count": 1,
+     "product": "Field Guide",
+     "category": "Royalties"
+    },
+    {
+     "date": "@day-35",
+     "amount": 3.16,
+     "count": 1,
+     "product": "Field Guide",
+     "category": "Royalties"
+    },
+    {
+     "date": "@day-32",
+     "amount": 3.56,
+     "count": 1,
+     "product": "Field Guide",
+     "category": "Royalties"
+    },
+    {
+     "date": "@day-30",
+     "amount": 4.5,
+     "count": 1,
+     "product": "Trail Notes",
+     "category": "Royalties"
+    },
+    {
+     "date": "@day-29",
+     "amount": 6.18,
+     "count": 1,
+     "product": "Field Guide",
+     "category": "Royalties"
+    },
+    {
+     "date": "@day-24",
+     "amount": 7.23,
+     "count": 1,
+     "product": "Field Guide",
+     "category": "Royalties"
+    },
+    {
+     "date": "@day-23",
+     "amount": 8.36,
+     "count": 1,
+     "product": "Field Guide",
+     "category": "Royalties"
+    },
+    {
+     "date": "@day-18",
+     "amount": 2.6,
+     "count": 1,
+     "product": "Field Guide",
+     "category": "Royalties"
+    },
+    {
+     "date": "@day-15",
+     "amount": 6.54,
+     "count": 1,
+     "product": "Field Guide",
+     "category": "Royalties"
+    },
+    {
+     "date": "@day-13",
+     "amount": 4.34,
+     "count": 1,
+     "product": "Field Guide",
+     "category": "Royalties"
+    },
+    {
+     "date": "@day-11",
+     "amount": 5.69,
+     "count": 1,
+     "product": "Trail Notes",
+     "category": "Royalties"
+    },
+    {
+     "date": "@day-9",
+     "amount": 3.32,
+     "count": 1,
+     "product": "Trail Notes",
+     "category": "Royalties"
+    },
+    {
+     "date": "@day-6",
+     "amount": 8.52,
+     "count": 1,
+     "product": "Field Guide",
+     "category": "Royalties"
+    },
+    {
+     "date": "@day-2",
+     "amount": 7.61,
+     "count": 1,
+     "product": "Field Guide",
+     "category": "Royalties"
+    }
+   ]
+  }
+ ]
+}

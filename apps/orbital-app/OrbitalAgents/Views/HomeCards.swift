@@ -766,20 +766,22 @@ struct MoneySummaryCard: View {
         let thirty = Insights.total(rows, in: MoneyPeriod.last30.range())
         VStack(alignment: .leading, spacing: 12) {
             Button {
-                if let first = ledgers.first { router.show(first.location, tab: first.location.tabID) }
+                // Money, narrowed to this space or product.
+                var filter = MoneyFilter()
+                filter.business = space
+                filter.product = product
+                router.openMoney(filter.isNarrowed ? filter : nil)
             } label: {
                 HStack {
                     OrbitalEyebrow(text: "Money", color: OrbitalTheme.success)
                     Spacer(minLength: 0)
-                    if ledgers.count == 1, let first = ledgers.first {
-                        HStack(spacing: 3) {
-                            Text(first.title)
-                            Image(systemName: "chevron.right")
-                                .font(.caption2.weight(.bold))
-                        }
-                        .font(.caption.weight(.semibold))
-                        .foregroundStyle(OrbitalTheme.success)
+                    HStack(spacing: 3) {
+                        Text(ledgers.count == 1 ? (ledgers.first?.title ?? "Money") : "Money")
+                        Image(systemName: "chevron.right")
+                            .font(.caption2.weight(.bold))
                     }
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(OrbitalTheme.success)
                 }
                 .frame(minHeight: 28)
                 .contentShape(Rectangle())

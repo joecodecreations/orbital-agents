@@ -6,6 +6,7 @@ import UIKit
 /// hub's extra items (`/v1/nav` tabs) by id. `.agents` is the System tab and `.desk` the Agent tab.
 enum RootTab: Hashable {
     case home
+    case money
     case agents
     case desk
     case tracker
@@ -55,6 +56,12 @@ enum BrowseRoute: Hashable {
     /// The tracker's items, and one item with its notes, media, and subagents.
     case tracker
     case trackerItem(String)
+    /// Money narrowed to a business, product, source or category (the Money tab's drill-down).
+    case money(MoneyFilter)
+    /// Every payment and ledger day for a Money filter.
+    case moneyEntries(MoneyFilter)
+    /// One product's subscriptions (SpaceDirectory product id).
+    case subscriptions(String)
 }
 
 /// Shell navigation shared by buttons, notification taps, the tab bar, the left bar, and orbital:// links.
@@ -62,6 +69,7 @@ enum BrowseRoute: Hashable {
 final class AppRouter: ObservableObject {
     enum Destination: Equatable {
         case home
+        case money
         case agents
         case desk
         case tracker
@@ -104,6 +112,7 @@ final class AppRouter: ObservableObject {
     @Published var pendingStack: RootTab?
     /// iPhone stacks, one per tab.
     @Published var homePath: [BrowseRoute] = []
+    @Published var moneyPath: [BrowseRoute] = []
     @Published var agentsPath: [BrowseRoute] = []
     @Published var deskPath: [BrowseRoute] = []
     @Published var trackerPath: [BrowseRoute] = []
@@ -122,6 +131,7 @@ final class AppRouter: ObservableObject {
     var tab: RootTab {
         switch destination {
         case .home, .section: return .home
+        case .money: return .money
         case .agents, .settings, .automations, .manage: return .agents
         case .desk: return .desk
         case .tracker: return .tracker
@@ -138,6 +148,7 @@ final class AppRouter: ObservableObject {
         }
         switch tab {
         case .home: destination = .home
+        case .money: destination = .money
         case .agents: destination = .agents
         case .desk: destination = .desk
         case .tracker: destination = .tracker
@@ -149,6 +160,7 @@ final class AppRouter: ObservableObject {
     private func setPath(_ path: [BrowseRoute], for tab: RootTab) {
         switch tab {
         case .home: homePath = path
+        case .money: moneyPath = path
         case .agents: agentsPath = path
         case .desk: deskPath = path
         case .tracker: trackerPath = path
@@ -206,6 +218,14 @@ final class AppRouter: ObservableObject {
         case "tracker": openTracker(item: nil)
         case "alerts": openAlerts()
         case "spaces": push(.spaces)
+        case "money": openMoney()
+        case "social", "analytics", "videos":
+            // Hub nav tabs (orbital nav) host these screens; tab id matches the view name.
+            destination = .custom(view)
+            customPaths[view] = []
+        case "marketing":
+            destination = .custom("marketing")
+            customPaths["marketing"] = []
         default: openBrowse()
         }
         navigationToken += 1
@@ -278,7 +298,7 @@ final class AppRouter: ObservableObject {
             navigationToken += 1
             return
         }
-        guard tab == .home || tab == .alerts else {
+        guard tab == .home || tab == .alerts || tab == .money else {
             open(section: location.sectionID, node: location.nodeID, tab: pageTab ?? location.tabID)
             return
         }
@@ -303,6 +323,7 @@ final class AppRouter: ObservableObject {
         }
         switch tab {
         case .home: homePath.append(route)
+        case .money: moneyPath.append(route)
         case .alerts: alertsPath.append(route)
         case .agents: agentsPath.append(route)
         case .custom(let id): customPaths[id, default: []].append(route)
@@ -320,6 +341,17 @@ final class AppRouter: ObservableObject {
     func openSpace(_ id: String) { push(.space(id)) }
 
     func openProduct(_ id: String) { push(.product(id)) }
+
+    /// The Money tab, optionally narrowed (a business, a product) with that view on top.
+    func openMoney(_ filter: MoneyFilter? = nil) {
+        destination = .money
+        let path: [BrowseRoute] = filter.map { [.money($0)] } ?? []
+        if isCompact { moneyPath = path } else { widePath = path }
+        navigationToken += 1
+    }
+
+    /// One product's subscriptions, pushed on the current stack.
+    func openSubscriptions(_ productID: String) { push(.subscriptions(productID)) }
 
     func openAlerts() {
         destination = .alerts
@@ -374,6 +406,19 @@ final class AppRouter: ObservableObject {
             if let job = q("id") { openAgents(route: .agentJob(job)) }
         case "alerts":
             openAlerts()
+        case "money":
+            // orbital://money?business=<space>&product=<name>
+            var filter = MoneyFilter()
+            filter.business = q("business").map(Spaces.key)
+            filter.product = q("product").map(Spaces.key)
+            openMoney(filter.isNarrowed ? filter : nil)
+        case "subscriptions":
+            // orbital://subscriptions?product=<name>: on the Money tab, over that product's money.
+            guard let product = q("product").map(Spaces.key) else { return }
+            var filter = MoneyFilter()
+            filter.product = product
+            openMoney(filter)
+            if isCompact { moneyPath.append(.subscriptions(product)) } else { widePath.append(.subscriptions(product)) }
         case "system", "satellites":
             openSystem(.satellites)
         case "spaces":

@@ -35,6 +35,8 @@ final class OrbitalStore: ObservableObject {
     @Published private(set) var tasks: [TaskRef] = []
     /// Every series block. Home, the space pages, and the product pages chart these.
     @Published private(set) var series: [SeriesRef] = []
+    /// Every subscriptions block. The Money tab and the product pages read these.
+    @Published private(set) var subscriptions: [SubscriptionsRef] = []
     /// Spaces and their products, from the catalog and the blocks.
     @Published private(set) var directory = SpaceDirectory()
     /// Sections filed under System (machine health and the like), shown there instead of as a space.
@@ -509,6 +511,7 @@ final class OrbitalStore: ObservableObject {
         if found.ledgers != ledgers { ledgers = found.ledgers }
         if found.tasks != tasks { tasks = found.tasks }
         if found.series != series { series = found.series }
+        if found.subscriptions != subscriptions { subscriptions = found.subscriptions }
         var built = SpaceDirectory.build(catalog: catalog, declared: declaredSpaces, sections: sectionsByID, collected: found)
         let system = built.spaces.filter { SystemSpace.ids.contains($0.id) }.flatMap(\.sectionIDs)
         built.spaces.removeAll { SystemSpace.ids.contains($0.id) }

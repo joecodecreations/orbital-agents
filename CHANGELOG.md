@@ -4,12 +4,18 @@ All notable changes to Orbital Agents are listed here. The format follows [Keep 
 
 ## [Unreleased]
 
+### Added
+
+- **Money tab:** a built-in Money tab on iPhone (and in the iPad and Mac sidebar) adds up every ledger: today, this week, this month, this year and all time, a chart, and a row per business. Tap a business for its products and sources, a product for its sources and categories, and on down to every entry. Filter by business, product, source, category, date range (or custom dates), and income, refunds or payouts.
+- **`subscriptions` block:** a product's subscriptions (status, plan, start, trial end, renewal, cancellation, failed payments). The app shows subscribers, MRR, trials and when they end, new, cancelled and churned, and every subscription, from Money and the product and space pages. `orbital.feeds.blocks.subscriptions()` builds one.
+
 ### Fixed
 
 - **Home Lab, Projects and System data:** the machine-health daily chart shows today's load and memory instead of adding 30 daily averages together (series metrics take `level`, and `blocks.series_metric(level=True)` sets it). The GitHub example feed reads private repositories through the GitHub CLI sign-in when `GITHUB_TOKEN` is unset, and shows commits per day, the latest commits and the last push; stars and forks only for public repositories.
 - **Agent:** an action written on the same line as the reply (`On it. >>> {"type":"task",…}`) is now run instead of being shown and read aloud as text.
 - **Alerts:** a device's first sync gets every waiting alert, not only the newest 200.
 - **iPhone app:** a space with a `money` series no longer shows two Money tabs, and a product named only on a series or ledger row shows its page's icon instead of a blank square.
+- **iPhone app:** a **Sections** control on the bottom bar opens the spaces-and-pages drawer. While typing in the Agent field (or any other field), a **Done** strip stays above the keyboard so you can leave the composer and use the tab bar again without force-closing the app.
 
 ## [0.1.0] - 2026-10-17
 

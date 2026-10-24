@@ -95,6 +95,18 @@
       "revision": 12,
       "updated_at": "@now-4m",
       "space": "homelab"
+    },
+    {
+      "id": "studio",
+      "title": "Studio money",
+      "subtitle": "App, game and book income",
+      "icon": "dollarsign.circle.fill",
+      "order": 9,
+      "accent": "#34D399",
+      "summary": "Planner Pro, Puzzle Game, Field Guide",
+      "revision": 3,
+      "updated_at": "@now-5m",
+      "space": "studio"
     }
   ],
   "spaces": [
@@ -132,6 +144,15 @@
       "subtitle": "Weather, fitness and chores",
       "icon": "house.fill",
       "order": 5
+    },
+    {
+      "id": "studio",
+      "title": "Example Studio",
+      "subtitle": "Apps, games and books",
+      "icon": "paintpalette.fill",
+      "accent": "#34D399",
+      "order": 6,
+      "aliases": ["Example Studio"]
     }
   ]
 }

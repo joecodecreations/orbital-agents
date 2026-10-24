@@ -3,6 +3,28 @@ import SwiftUI
 
 // Money pieces shared by a ledger block on its own page and the money card on space and product pages.
 
+enum MoneyColors {
+    /// Biggest group gets the first colour, so the main earner is always green.
+    static func assign(_ groups: [String]) -> [String: Color] {
+        // Success first, then accent, then the rest of the palette.
+        let palette: [Color] = [
+            OrbitalTheme.success,
+            OrbitalTheme.accent,
+            OrbitalTheme.violet,
+            OrbitalTheme.warning,
+            OrbitalTheme.palette[4],
+            OrbitalTheme.palette[5],
+            OrbitalTheme.danger,
+            OrbitalTheme.textSecondary,
+        ]
+        var out: [String: Color] = [:]
+        for (index, group) in groups.enumerated() {
+            out[group] = palette[index % palette.count]
+        }
+        return out
+    }
+}
+
 struct MoneyBar: Identifiable {
     var id: String { "\(day.timeIntervalSince1970)-\(group)" }
     var day: Date
@@ -11,19 +33,22 @@ struct MoneyBar: Identifiable {
     var inPeriod: Bool
 }
 
-/// Daily bars for the last 30 days (back to the 1st when the month is longer), stacked by product.
+/// Daily bars for the last 30 days (back to the 1st when the month is longer), stacked by grouping.
 /// Days inside `highlight` are full strength. The biggest earner is green, the rest follow the palette.
 struct MoneyChart: View {
     let rows: [MoneyRow]
     var currency: String = "USD"
+    var grouping: MoneyGrouping = .product
     var highlight: ClosedRange<Date>?
     var height: CGFloat = 180
+    var colors: [String: Color] = [:]
 
     var body: some View {
         let window = Self.window()
         let days = (Calendar.current.dateComponents([.day], from: window.lowerBound, to: window.upperBound).day ?? 29) + 1
         let bars = bars(in: window)
         let groups = orderedGroups(bars)
+        let palette = colors.isEmpty ? MoneyColors.assign(groups) : colors
         if bars.allSatisfy({ abs($0.amount) < 0.005 }) {
             VStack(spacing: 6) {
                 Image(systemName: "chart.bar.xaxis")
@@ -43,7 +68,7 @@ struct MoneyChart: View {
                 .opacity(bar.inPeriod ? 1 : 0.3)
                 .cornerRadius(3)
             }
-            .chartForegroundStyleScale(domain: groups, range: groups.indices.map { OrbitalTheme.palette[($0 == 0 ? 1 : ($0 == 1 ? 0 : $0)) % OrbitalTheme.palette.count] })
+            .chartForegroundStyleScale(domain: groups, range: groups.map { palette[$0] ?? OrbitalTheme.accent })
             .chartLegend(.hidden)
             .chartXScale(domain: window.lowerBound ... (Calendar.current.date(byAdding: .day, value: 1, to: window.upperBound) ?? window.upperBound))
             .chartXAxis {
@@ -82,8 +107,9 @@ struct MoneyChart: View {
     private func bars(in window: ClosedRange<Date>) -> [MoneyBar] {
         var sums: [String: MoneyBar] = [:]
         for row in rows where window.contains(row.day) {
-            let key = "\(row.day.timeIntervalSince1970)|\(row.product)"
-            var bar = sums[key] ?? MoneyBar(day: row.day, group: row.product, amount: 0, inPeriod: highlight?.contains(row.day) ?? true)
+            let group = row.value(for: grouping)
+            let key = "\(row.day.timeIntervalSince1970)|\(group)"
+            var bar = sums[key] ?? MoneyBar(day: row.day, group: group, amount: 0, inPeriod: highlight?.contains(row.day) ?? true)
             bar.amount += row.amount
             sums[key] = bar
         }

@@ -11,7 +11,7 @@ final class HubPayloadTests: XCTestCase {
         let catalog = try Fixtures.decode(CatalogResponse.self, "catalog.json")
         XCTAssertEqual(catalog.sections.count, try Fixtures.sectionFiles().count)
         let spaces = try XCTUnwrap(catalog.spaces)
-        XCTAssertEqual(spaces.map(\.id), ["homelab", "websites", "shop", "open-source", "home"])
+        XCTAssertEqual(spaces.map(\.id), ["homelab", "websites", "shop", "open-source", "home", "studio"])
         XCTAssertEqual(spaces.first?.icon, "server.rack")
     }
 
@@ -48,7 +48,8 @@ final class HubPayloadTests: XCTestCase {
 
     func testInsightsCollectAcrossSections() throws {
         let collected = Insights.collect(try Fixtures.sections())
-        XCTAssertEqual(collected.ledgers.count, 1)
+        XCTAssertEqual(collected.ledgers.count, 5)
+        XCTAssertEqual(collected.subscriptions.count, 1)
         XCTAssertEqual(collected.products.count, 3)
         XCTAssertGreaterThanOrEqual(collected.series.count, 6)
         XCTAssertGreaterThanOrEqual(collected.tasks.count, 10)

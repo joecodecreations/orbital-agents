@@ -27,6 +27,7 @@ APP_BLOCKS: list[tuple[str, str]] = [
     ("links", "A short list of places to go: label, url, detail, and an SF Symbol icon."),
     ("product", "Status card for one app, game, site, or service: releases, ratings, reviews, headline metrics. Feeds the Home screen."),
     ("ledger", "Money for one source: daily rows tagged by space, product, category, and source, plus recent entries. Feeds the Money view."),
+    ("subscriptions", "Subscriptions for one product: each one's plan, status, price, start, trial and renewal dates, plus failed payments. Feeds the Money and product pages."),
     ("tasks", "A checklist the app can tick (task.set_done) and add to (task.add). The owner feed writes taps back to its source."),
     ("series", "Daily numbers for one product, tagged kind, space, and product. Draws as one line chart with toggles. Feeds the dashboard charts."),
     ("insight_cards", "Findings a feed raised, one card each: severity, evidence, and up to four actions (an email preview or an agent brief) the user approves in the app."),
@@ -37,6 +38,7 @@ APP_BLOCKS: list[tuple[str, str]] = [
 AGGREGATED_BLOCKS: dict[str, str] = {
     "product": "Home: one card per product block, pending releases, latest reviews, stale checks.",
     "ledger": "Money: totals for today, this week, and this month, a chart, and breakdowns by space, product, category, and source.",
+    "subscriptions": "Money and product pages: subscribers, MRR, trials, new, cancelled, churned, failed payments, and the list of subscriptions, per product.",
     "tasks": "Home: open items across every tasks block, deduped by id, most urgent first.",
     "series": "Dashboard charts: numbers of the same kind are added up across sections (by metric, per product). Toggles filter by space and product.",
     "status": "Home: every status block with a row down or degraded, with the rows that need a look.",

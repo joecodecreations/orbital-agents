@@ -35,7 +35,7 @@ from orbital.hub.web import body_of, fail
 
 SCHEMA = "orbital.nav.v1"
 VIEWS = ("home", "system", "satellites", "automations", "manage", "settings", "agent", "tracker", "alerts",
-         "browse", "spaces")
+         "browse", "spaces", "money", "social", "analytics", "videos", "marketing")
 MAX_TABS = 12
 MAX_ITEMS = 400
 MAX_DEPTH = 6

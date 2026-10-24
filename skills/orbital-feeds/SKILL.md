@@ -57,12 +57,13 @@ with HubClient.from_config() as hub:              # hub URL from config.toml, to
 | `b.links(id, [b.link(label, url, detail=, icon=)])` | links | places to go (up to 30): https, http, orbital://, mailto:, tel:, ssh://, vnc://, smb://; each url once |
 | `b.tasks(id, [b.task(id, title, done=, due=)], add_label=)` | tasks | a checklist people tick and add to |
 | `b.ledger(id, [b.ledger_day(date, amount, product=)], currency="USD", space=)` | ledger | money per day (real figures only) |
+| `b.subscriptions(id, [b.subscription(id, status, started, plan=, amount=, mrr=)], product=, failed=)` | subscriptions | every subscription of one product, plus failed payments |
 | `b.series(id, [b.series_metric(id, label, [(date, y)])], kind=, product=, space=)` | series | daily numbers for the dashboards |
 | `b.product(kind="site", headline=, tone=, metrics=, links=)` | product | the status card of an app, game, site or service |
 | `b.section(id, title, blocks, icon=, layout=, tabs=[b.tab(...)], nodes=[b.node(...)], space=)` | section | `page`, `tabs` or `sidebar` layout |
 | `b.slug(text)` | | a valid id from any text |
 
-`insight_cards` and `videos` have no builder: write the dict (see the docs). Inside `product`, `ledger`, `series`, `insight_cards` and `videos`, `space` (older name `company`) groups numbers across sections; a section's own `space` is the home-tile id.
+`insight_cards` and `videos` have no builder: write the dict (see the docs). Inside `product`, `ledger`, `subscriptions`, `series`, `insight_cards` and `videos`, `space` (older name `company`) groups numbers across sections; a section's own `space` is the home-tile id.
 
 On `tabs` and `sidebar` sections, the section's own `blocks` are drawn above the tab or node content; block ops without `node_id`/`tab_id` edit them on any layout.
 

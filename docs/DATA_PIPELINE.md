@@ -353,16 +353,17 @@ Every block has a `type` and an `id` (`^[a-z0-9][a-z0-9-]{0,63}$`, unique within
 | [`links`](#links) | places to go | `links()` + `link()` |
 | [`tasks`](#tasks) | a checklist people tick and add to | `tasks()` + `task()` |
 | [`ledger`](#ledger) | money for one source, added up across sections | `ledger()` + `ledger_day()` |
+| [`subscriptions`](#subscriptions) | every subscription of one product, plus failed payments | `subscriptions()` + `subscription()` |
 | [`product`](#product) | the status card for an app, game, site or service | `product()` |
 | [`series`](#series) | daily numbers for the dashboard charts | `series()` + `series_metric()` |
 | [`insight_cards`](#insight_cards) | findings with actions you approve | none (plain dict) |
 | [`videos`](#videos) | a video channel and where each video was posted | none (plain dict) |
 
-The hub checks `product`, `ledger`, `tasks`, `series`, `insight_cards`, `videos`, `buttons`, `hero`, `progress`, `status` and `links` field by field, because the app adds them up across sections, acts on them, or draws their numbers, colours and links. Other types are checked for `type` and `id` only. A type the app does not draw is stored and skipped on screen; `validate` warns about it (`not_rendered`).
+The hub checks `product`, `ledger`, `subscriptions`, `tasks`, `series`, `insight_cards`, `videos`, `buttons`, `hero`, `progress`, `status` and `links` field by field, because the app adds them up across sections, acts on them, or draws their numbers, colours and links. Other types are checked for `type` and `id` only. A type the app does not draw is stored and skipped on screen; `validate` warns about it (`not_rendered`).
 
 Pass only figures your source returned. Format numbers the way you want them shown (`"412 GB"`, `"12%"`): `value` fields in metrics are display strings.
 
-**`space` inside blocks.** `product`, `ledger`, `series`, `insight_cards` and `videos` blocks take an optional `space` (free text, up to 80 characters, for example `"Example Shop"` or `"Me"`) that groups their numbers across sections in the app's Home, Money and chart views. `company` is accepted as its older name. This is separate from a section's `space` id, which picks its home tile.
+**`space` inside blocks.** `product`, `ledger`, `subscriptions`, `series`, `insight_cards` and `videos` blocks take an optional `space` (free text, up to 80 characters, for example `"Example Shop"` or `"Me"`) that groups their numbers across sections in the app's Home, Money and chart views. `company` is accepted as its older name. This is separate from a section's `space` id, which picks its home tile.
 
 ### heading
 
@@ -600,6 +601,31 @@ Money for one source: a shop's sales, donations, subscription income, or spendin
 | `title`, `source`, `note`, `as_of`, `timezone`, `metrics` | presentation |
 
 Amounts must be real numbers from your source. A demo ledger should use zeros, so your totals stay true.
+
+### subscriptions
+
+```json
+{"type": "subscriptions", "id": "example-shop", "title": "Example Shop subscriptions", "product": "Example Shop",
+ "space": "Example Shop", "source": "Stripe", "currency": "USD", "connected": true, "as_of": "2026-10-17T09:00:00Z",
+ "items": [{"id": "sub_1001", "customer": "someone@example.com", "plan": "Pro", "interval": "month", "status": "active",
+            "amount": 9.99, "mrr": 9.99, "started": "2026-08-30T00:59:07Z", "period_end": "2026-10-30T00:59:07Z",
+            "cancel_at_period_end": false, "paid": true, "billing": "stripe"},
+           {"id": "trial-42", "customer": "another@example.com", "plan": "Free trial", "status": "trialing",
+            "mrr": 0, "started": "2026-10-15", "trial_end": "2026-10-22", "paid": false, "billing": "app"}],
+ "failed": [{"at": "2026-10-16T12:00:00Z", "amount": 9.99, "customer": "someone@example.com", "reason": "card_declined", "id": "ch_2001"}],
+ "metrics": [{"label": "Active", "value": "1"}, {"label": "MRR", "value": "$9.99"}]}
+```
+
+Every subscription of one product: paying, trialing, past due and cancelled. The app counts subscribers, MRR, trials, new, cancelled and churned from the rows, and lists failed payments. Send one block per product.
+
+| Field | Meaning |
+|---|---|
+| `product` | required; the product name, up to 80 characters |
+| `items[]` | up to 1000: `id` (required, unique), `status` (required: `trialing`, `active`, `past_due`, `canceled`, `unpaid`, `incomplete`, `incomplete_expired`, `paused`), `started` (required, ISO 8601 time or `YYYY-MM-DD`), optional `customer` (an identifier such as an email, up to 120; never card data), `plan`, `interval` (`day`, `week`, `month`, `year`), `amount` (price per interval) and `mrr` (monthly value), both numbers ≥ 0, `trial_end`, `period_end` (next renewal, or the end date when `cancel_at_period_end`), `cancel_at_period_end`, `canceled_at`, `paid` (has had a successful payment: churn versus a trial that never paid), `billing` (`stripe` or `app` for an in-app trial with no billing subscription) |
+| `failed[]` | up to 200 failed payments: `at` (required), optional `amount`, `customer`, `reason`, `id` |
+| `connected` | false when the source could not be read (the view says so instead of showing zero) |
+| `space` | groups it with other money (`company` is the older name); up to 80 characters |
+| `title`, `source`, `currency`, `note`, `as_of`, `metrics` | presentation; `metrics` are display strings for older app versions |
 
 ### product
 
@@ -1002,6 +1028,8 @@ Every builder returns a plain dict. Optional fields left as `None` are dropped. 
 | `tasks` | `tasks(id, items, *, title=None, add_label=None, empty_text=None)`; `add_label` turns on the add field |
 | `ledger_day` | `ledger_day(date, amount, *, count=None, net=None, **tags)`; tags: `product`, `category`, `source`, `space` |
 | `ledger` | `ledger(id, days, *, title=None, currency="USD", source=None, space=None, entries=(), connected=True, note=None, as_of=None, company=None)`; `as_of` defaults to now; `company=` is the older name for `space=` |
+| `subscription` | `subscription(id, status, started, *, customer=None, plan=None, interval=None, amount=None, mrr=None, trial_end=None, period_end=None, cancel_at_period_end=None, canceled_at=None, paid=None, billing=None)` |
+| `subscriptions` | `subscriptions(id, items, *, product, title=None, space=None, source=None, currency="USD", connected=True, as_of=None, note=None, failed=(), metrics=(), company=None)`; `as_of` defaults to now |
 | `series_metric` | `series_metric(id, label, points, *, format=None, platform=None, stat=None, group=None)`; points are `(YYYY-MM-DD, y)` pairs |
 | `series` | `series(id, metrics, *, kind, product, space=None, title=None, caption=None, site=None, window=None, company=None)`; `company=` is the older name for `space=` |
 | `product` | `product(id="product", *, kind="app", headline=None, tone=None, space=None, metrics=(), releases=(), ratings=(), links=(), company=None)`; `checked_at` is set to now; `company=` is the older name for `space=` |

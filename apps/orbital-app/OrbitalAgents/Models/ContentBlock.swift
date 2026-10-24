@@ -25,6 +25,7 @@ enum ContentBlock: Identifiable, Equatable {
     case series(SeriesBlock)
     case insightCards(InsightCardsBlock)
     case videos(VideosBlock)
+    case subscriptions(SubscriptionsBlock)
     #if ORBITAL_PRIVATE
     case extra(PrivateBlock)        // local-only block types in OrbitalAgents/Private (git-ignored)
     #endif
@@ -35,7 +36,7 @@ enum ContentBlock: Identifiable, Equatable {
         var types: Set<String> = [
             "heading", "paragraph", "bullets", "callout", "metrics", "key_value", "table", "timeline", "divider",
             "chart", "image", "hero", "buttons", "progress", "status", "links", "product", "ledger", "tasks",
-            "series", "insight_cards", "videos",
+            "series", "insight_cards", "videos", "subscriptions",
         ]
         #if ORBITAL_PRIVATE
         types.formUnion(PrivateBlock.types)
@@ -67,6 +68,7 @@ enum ContentBlock: Identifiable, Equatable {
         case .series(let b): return b.id
         case .insightCards(let b): return b.id
         case .videos(let b): return b.id
+        case .subscriptions(let b): return b.id
         #if ORBITAL_PRIVATE
         case .extra(let b): return b.id
         #endif
@@ -99,6 +101,7 @@ enum ContentBlock: Identifiable, Equatable {
         case .series: return "series"
         case .insightCards: return "insight_cards"
         case .videos: return "videos"
+        case .subscriptions: return "subscriptions"
         #if ORBITAL_PRIVATE
         case .extra(let b): return b.typeName
         #endif
@@ -139,6 +142,7 @@ extension ContentBlock: Codable {
             case "series": self = .series(try SeriesBlock(from: decoder))
             case "insight_cards": self = .insightCards(try InsightCardsBlock(from: decoder))
             case "videos": self = .videos(try VideosBlock(from: decoder))
+            case "subscriptions": self = .subscriptions(try SubscriptionsBlock(from: decoder))
             default:
                 #if ORBITAL_PRIVATE
                 if let extra = try PrivateBlock(type: type, decoder: decoder) {
@@ -184,6 +188,7 @@ extension ContentBlock: Codable {
         case .series(let b): try b.encode(to: encoder)
         case .insightCards(let b): try b.encode(to: encoder)
         case .videos(let b): try b.encode(to: encoder)
+        case .subscriptions(let b): try b.encode(to: encoder)
         #if ORBITAL_PRIVATE
         case .extra(let b): try b.encode(to: encoder)
         #endif

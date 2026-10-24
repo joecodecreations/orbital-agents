@@ -122,7 +122,14 @@ struct RootView: View {
         // text box) must sit above the tab bar, not under it.
         VStack(spacing: 0) {
             compactTabs
-            if !keyboardUp {
+            if keyboardUp {
+                // Keyboard covers the full tab bar; keep a Done / Sections strip so typing never traps you.
+                OrbitalKeyboardBar(
+                    onDone: { OrbitalKeyboard.dismiss() },
+                    onOpenSections: openSections
+                )
+                .transition(.opacity)
+            } else {
                 OrbitalTabBar(
                     selection: router.tab,
                     badges: [.alerts: store.unackedCount],
@@ -131,18 +138,14 @@ struct RootView: View {
                         .desk: desk.tasks.values.filter(\.isActive).count,
                         .tracker: desk.trackerActive,
                     ],
-                    extra: store.nav.tabs
-                ) { tab in
-                    // A link item opens its link instead of becoming a tab.
-                    if case .custom(let id) = tab, let item = store.nav.tab(id), case .link = item.target {
-                        router.open(nav: item, key: "tab:\(id)")
-                    } else {
-                        router.select(tab: tab)
-                    }
-                }
+                    extra: store.nav.barTabs,
+                    onSelect: selectTab,
+                    onOpenSections: openSections
+                )
                 .transition(.opacity)
             }
         }
+        .animation(.easeInOut(duration: 0.18), value: keyboardUp)
         .onAppear { visitedTabs.insert(router.tab) }
         .onChange(of: router.tab) { _, tab in visitedTabs.insert(tab) }
         .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardWillShowNotification)) { _ in
@@ -153,11 +156,32 @@ struct RootView: View {
         }
     }
 
+    private func selectTab(_ tab: RootTab) {
+        OrbitalKeyboard.dismiss()
+        // A link item opens its link instead of becoming a tab.
+        if case .custom(let id) = tab, let item = store.nav.tab(id), case .link = item.target {
+            router.open(nav: item, key: "tab:\(id)")
+        } else {
+            router.select(tab: tab)
+        }
+    }
+
+    private func openSections() {
+        OrbitalKeyboard.dismiss()
+        router.showDrawer = true
+    }
+
     private var compactTabs: some View {
         ZStack {
             compactTab(.home) {
                 NavigationStack(path: $router.homePath) {
                     HomeView()
+                        .navigationDestination(for: BrowseRoute.self) { RouteView(route: $0) }
+                }
+            }
+            compactTab(.money) {
+                NavigationStack(path: $router.moneyPath) {
+                    MoneyView()
                         .navigationDestination(for: BrowseRoute.self) { RouteView(route: $0) }
                 }
             }
@@ -167,7 +191,7 @@ struct RootView: View {
                         .navigationDestination(for: BrowseRoute.self) { RouteView(route: $0) }
                 }
             }
-            ForEach(store.nav.tabs) { item in
+            ForEach(store.nav.barTabs) { item in
                 compactTab(.custom(item.id)) {
                     NavigationStack(path: router.customPath(item.id)) {
                         NavTabRoot(tabID: item.id)
@@ -274,6 +298,8 @@ struct RootView: View {
         switch router.destination {
         case .home:
             HomeView()
+        case .money:
+            MoneyView()
         case .agents, .manage, .settings, .automations:
             SystemView()
         case .desk:

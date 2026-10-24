@@ -57,6 +57,23 @@ struct MoneyRow: Identifiable {
     var source: String
     var space: String
     var ledgerID: String
+
+    func value(for grouping: MoneyGrouping) -> String {
+        switch grouping {
+        case .product: return product
+        case .category: return category
+        case .source: return source
+        case .space: return space
+        }
+    }
+}
+
+enum MoneyGrouping: String, CaseIterable, Identifiable {
+    case product = "Product"
+    case category = "Category"
+    case source = "Source"
+    case space = "Space"
+    var id: String { rawValue }
 }
 
 /// A single payment or proceeds line.
@@ -98,6 +115,29 @@ enum MoneyPeriod: String, CaseIterable, Identifiable {
         return start ... today
     }
 
+    /// The same number of days, one period earlier, for the delta.
+    func previousRange(now: Date = Date(), calendar: Calendar = .current) -> ClosedRange<Date> {
+        let current = range(now: now, calendar: calendar)
+        let span = calendar.dateComponents([.day], from: current.lowerBound, to: current.upperBound).day ?? 0
+        switch self {
+        case .today, .week:
+            let back = self == .today ? -1 : -7
+            let start = calendar.date(byAdding: .day, value: back, to: current.lowerBound) ?? current.lowerBound
+            let end = calendar.date(byAdding: .day, value: span, to: start) ?? start
+            return start ... end
+        case .last30:
+            let end = calendar.date(byAdding: .day, value: -1, to: current.lowerBound) ?? current.lowerBound
+            let start = calendar.date(byAdding: .day, value: -29, to: end) ?? end
+            return start ... end
+        case .month:
+            // The same day of last month, clamped to its last day: on 31 Mar that is 1–28 Feb, never into March.
+            let start = calendar.date(byAdding: .month, value: -1, to: current.lowerBound) ?? current.lowerBound
+            let sameDay = calendar.date(byAdding: .month, value: -1, to: current.upperBound) ?? start
+            let lastOfMonth = calendar.date(byAdding: .day, value: -1, to: current.lowerBound) ?? start
+            return start ... max(start, min(sameDay, lastOfMonth))
+        }
+    }
+
     /// Fits four across on a phone.
     var short: String {
         switch self {
@@ -105,6 +145,15 @@ enum MoneyPeriod: String, CaseIterable, Identifiable {
         case .week: return "Week"
         case .month: return "Month"
         case .last30: return "30 days"
+        }
+    }
+
+    var comparison: String {
+        switch self {
+        case .today: return "vs yesterday"
+        case .week: return "vs same days last week"
+        case .month: return "vs same days last month"
+        case .last30: return "vs the 30 days before"
         }
     }
 }
@@ -116,6 +165,7 @@ enum Insights {
         var ledgers: [LedgerRef] = []
         var tasks: [TaskRef] = []
         var series: [SeriesRef] = []
+        var subscriptions: [SubscriptionsRef] = []
     }
 
     /// Product, ledger, tasks, and series blocks across every section, in left-bar order then node order.
@@ -159,6 +209,13 @@ enum Insights {
                             space: nonEmpty(ledger.space) ?? sectionSpace,
                             source: nonEmpty(ledger.source) ?? section.title,
                             block: ledger
+                        ))
+                    case .subscriptions(let block):
+                        found.subscriptions.append(SubscriptionsRef(
+                            id: key,
+                            location: location,
+                            space: nonEmpty(block.space) ?? sectionSpace,
+                            block: block
                         ))
                     case .tasks(let block):
                         for item in block.items where taskIDs.insert("\(section.id)/\(item.id)").inserted {
@@ -237,6 +294,10 @@ enum Insights {
         rows.filter { range.contains($0.day) }.reduce(0) { $0 + $1.amount }
     }
 
+    static func count(_ rows: [MoneyRow], in range: ClosedRange<Date>) -> Int {
+        rows.filter { range.contains($0.day) }.reduce(0) { $0 + $1.count }
+    }
+
     /// "2026-10-01" as midnight in the device's calendar. Ledger dates are calendar days, not instants.
     static func day(_ raw: String, calendar: Calendar = .current) -> Date? {
         let parts = raw.prefix(10).split(separator: "-").compactMap { Int($0) }
@@ -268,5 +329,14 @@ enum OrbitalMoney {
         formatter.minimumFractionDigits = whole ? 0 : 2
         formatter.maximumFractionDigits = whole ? 0 : 2
         return formatter.string(from: NSNumber(value: amount)) ?? "\(currency) \(amount)"
+    }
+
+    static func delta(_ current: Double, _ previous: Double, currency: String = "USD") -> (text: String, direction: String)? {
+        let diff = current - previous
+        if abs(diff) < 0.005 {
+            return previous == 0 && current == 0 ? nil : ("No change", "flat")
+        }
+        let sign = diff > 0 ? "+" : "−"
+        return ("\(sign)\(format(abs(diff), currency: currency))", diff > 0 ? "up" : "down")
     }
 }

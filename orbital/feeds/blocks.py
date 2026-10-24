@@ -14,7 +14,7 @@
 
 Block type names (schema/orbital.section.v1.schema.json): heading, paragraph (text), bullets (list),
 callout, metrics, key_value, table, timeline, divider, chart, image, hero, buttons, progress, status,
-links, tasks, ledger, product, series. Nothing here fetches or estimates: pass only figures your
+links, tasks, ledger, subscriptions, product, series. Nothing here fetches or estimates: pass only figures your
 source returned.
 """
 
@@ -312,6 +312,31 @@ def ledger(id: str, days: Iterable[dict], *, title: str | None = None, currency:
     return _clean({"type": "ledger", "id": id, "title": title, "currency": currency, "source": source, "space": space or company,
                    "connected": connected, "note": note, "as_of": as_of or now_iso(), "days": _list(days),
                    "entries": _list(entries)})
+
+
+def subscription(id: str, status: str, started: str, *, customer: str | None = None, plan: str | None = None,
+                 interval: str | None = None, amount: float | None = None, mrr: float | None = None,
+                 trial_end: str | None = None, period_end: str | None = None,
+                 cancel_at_period_end: bool | None = None, canceled_at: str | None = None,
+                 paid: bool | None = None, billing: str | None = None) -> dict:
+    """One row of subscriptions(). status: trialing, active, past_due, canceled, unpaid, incomplete,
+    incomplete_expired, paused. interval: day, week, month, year. amount is the price per interval,
+    mrr the monthly value. billing: "stripe" or "app" (an in-app trial). Never pass card data."""
+    return _clean({"id": id, "customer": customer, "plan": plan, "interval": interval, "status": status,
+                   "amount": amount, "mrr": mrr, "started": started, "trial_end": trial_end,
+                   "period_end": period_end, "cancel_at_period_end": cancel_at_period_end,
+                   "canceled_at": canceled_at, "paid": paid, "billing": billing})
+
+
+def subscriptions(id: str, items: Iterable[dict], *, product: str, title: str | None = None,
+                  space: str | None = None, source: str | None = None, currency: str = "USD",
+                  connected: bool = True, as_of: str | None = None, note: str | None = None,
+                  failed: Iterable[dict] = (), metrics: Iterable[dict] = (), company: str | None = None) -> dict:
+    """Every subscription of one product (subscription() rows) plus failed payments
+    ({"at", "amount", "customer", "reason", "id"}). The app counts subscribers, MRR, trials and churn."""
+    return _clean({"type": "subscriptions", "id": id, "title": title, "product": product, "space": space or company,
+                   "source": source, "currency": currency, "connected": connected, "as_of": as_of or now_iso(),
+                   "note": note, "items": _list(items), "failed": _list(failed), "metrics": _list(metrics)})
 
 
 def series_metric(id: str, label: str, points: Iterable[Any], *, format: str | None = None,  # noqa: A002

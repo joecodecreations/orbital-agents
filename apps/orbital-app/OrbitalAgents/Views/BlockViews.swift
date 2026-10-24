@@ -64,6 +64,8 @@ struct BlockView: View {
             InsightCardsBlockView(block: insights, location: location)
         case .videos(let videos):
             VideosBlockCard(block: videos, accent: accent)
+        case .subscriptions(let subscriptions):
+            SubscriptionsBlockCard(block: subscriptions, accent: accent, location: location)
         #if ORBITAL_PRIVATE
         case .extra(let block):
             PrivateBlockView(block: block, accent: accent, location: location)

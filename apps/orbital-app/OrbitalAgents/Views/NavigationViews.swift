@@ -88,6 +88,11 @@ struct NavViewScreen: View {
         case "tracker": TrackerListView()
         case "alerts": AlertsInboxView()
         case "spaces": SpacesListView()
+        case "money": MoneyView()
+        case "social": SocialView()
+        case "analytics": AnalyticsView()
+        case "videos": VideosHubView()
+        case "marketing": RouteView(route: .section("marketing")).environment(\.orbitalPushed, false)
         default: BrowseView()
         }
     }

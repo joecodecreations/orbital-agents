@@ -1,6 +1,6 @@
 """Field checks for the structured block types the apps add up across sections.
 
-`product` feeds the Home screen, `ledger` feeds the Money view, `series` feeds the
+`product` feeds the Home screen, `ledger` and `subscriptions` feed the Money view, `series` feeds the
 dashboard charts, `insight_cards` feeds the top of Home, `videos` feeds the Videos
 view, and `tasks` feeds the open to-dos, so a bad field there would show a wrong figure
 across the whole app, not on one page. `buttons` and `hero` actions are checked so a
@@ -39,6 +39,8 @@ def check_block(block: dict, where: str) -> None:
         _check_product(block, f"product block {block.get('id')} on {where}")
     elif kind == "ledger":
         _check_ledger(block, f"ledger block {block.get('id')} on {where}")
+    elif kind == "subscriptions":
+        _check_subscriptions(block, f"subscriptions block {block.get('id')} on {where}")
     elif kind == "tasks":
         _check_tasks(block, f"tasks block {block.get('id')} on {where}")
     elif kind == "series":
@@ -599,3 +601,60 @@ def _check_links(block: dict, label: str) -> None:
         _text(item.get("label"), f"{where}.label", limit=80)
         _text(item.get("detail"), f"{where}.detail", limit=200)
         _text(item.get("icon"), f"{where}.icon", limit=64)
+
+
+# subscriptions: every subscription of one product (paid, trialing, cancelled) and its failed
+# payments. The app counts subscribers, MRR, trials and churn from the rows.
+SUBSCRIPTION_STATUS = {
+    "trialing", "active", "past_due", "canceled", "unpaid", "incomplete", "incomplete_expired", "paused",
+}
+SUBSCRIPTION_INTERVALS = {"day", "week", "month", "year"}
+SUBSCRIPTION_BILLING = {"stripe", "app"}
+
+
+def _check_subscriptions(block: dict, label: str) -> None:
+    currency = block.get("currency", "USD")
+    if not isinstance(currency, str) or not CURRENCY.match(currency):
+        raise OpsError(f"{label}: currency must be an uppercase code such as USD")
+    _flag(block.get("connected"), f"{label}: connected")
+    _text(block.get("product"), f"{label}: product", required=True, limit=80)
+    _space(block, label)
+    for key in ("title", "source", "as_of", "note"):
+        _text(block.get(key), f"{label}: {key}", limit=400 if key == "note" else (40 if key == "as_of" else 80))
+    rows = _items(block.get("items"), f"{label}: items", 1000)
+    _unique_ids(rows, f"{label}: items")
+    for index, row in enumerate(rows):
+        where = f"{label}: items[{index}]"
+        _text(row.get("id"), f"{where}.id", required=True, limit=120)
+        if row.get("status") not in SUBSCRIPTION_STATUS:
+            raise OpsError(f"{where}.status must be one of {', '.join(sorted(SUBSCRIPTION_STATUS))}")
+        interval = row.get("interval")
+        if interval is not None and interval not in SUBSCRIPTION_INTERVALS:
+            raise OpsError(f"{where}.interval must be day, week, month, or year")
+        billing = row.get("billing")
+        if billing is not None and billing not in SUBSCRIPTION_BILLING:
+            raise OpsError(f"{where}.billing must be stripe or app")
+        _text(row.get("customer"), f"{where}.customer", limit=120)
+        _text(row.get("plan"), f"{where}.plan", limit=80)
+        for key in ("amount", "mrr"):
+            _number(row.get(key), f"{where}.{key}")
+            if row.get(key) is not None and row[key] < 0:
+                raise OpsError(f"{where}.{key} must not be negative")
+        _text(row.get("started"), f"{where}.started", required=True, limit=40)
+        _stamp(row.get("started"), f"{where}.started")
+        for key in ("trial_end", "period_end", "canceled_at"):
+            _text(row.get(key), f"{where}.{key}", limit=40)
+            _stamp(row.get(key), f"{where}.{key}")
+        for key in ("cancel_at_period_end", "paid"):
+            _flag(row.get(key), f"{where}.{key}")
+    for index, row in enumerate(_items(block.get("failed"), f"{label}: failed", 200)):
+        where = f"{label}: failed[{index}]"
+        _text(row.get("at"), f"{where}.at", required=True, limit=40)
+        _stamp(row.get("at"), f"{where}.at")
+        _number(row.get("amount"), f"{where}.amount")
+        if row.get("amount") is not None and row["amount"] < 0:
+            raise OpsError(f"{where}.amount must not be negative")
+        _text(row.get("customer"), f"{where}.customer", limit=120)
+        for key in ("reason", "id"):
+            _text(row.get(key), f"{where}.{key}", limit=120)
+    _metrics(block.get("metrics"), f"{label}: metrics")

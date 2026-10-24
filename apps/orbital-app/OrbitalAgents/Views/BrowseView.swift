@@ -80,6 +80,12 @@ struct RouteView: View {
                 NavGroupView(key: key)
             case .spaces:
                 SpacesListView()
+            case .money(let filter):
+                MoneyView(scope: filter)
+            case .moneyEntries(let filter):
+                MoneyEntriesView(scope: filter)
+            case .subscriptions(let product):
+                SubscriptionsView(productID: product)
             }
         }
         .environment(\.orbitalPushed, true)

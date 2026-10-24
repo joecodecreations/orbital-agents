@@ -12,28 +12,47 @@ The screenshots use the sample data in `apps/orbital-app/Fixtures/preview` (prev
 
 ## iPhone, iPad and Mac
 
-On **iPhone** the bottom bar always has these five tabs:
+On **iPhone** the bottom bar always has these controls:
 
 | Tab | Shows |
 |---|---|
 | **Home** | what needs you, what the agents are doing, pinned pages, one tile per space, live values |
+| **Money** | every ledger added up: today, this week, this month, this year and all time, a chart, and a row per business you can tap into ([Money](#money)) |
 | **System** | the hub at the top, then **Satellites** (every machine with its CPU, memory, disks, uptime, agents, browser and jobs, and **Run an agent**), **Automations** (every feed, plain script or agent run, with subscription usage), **Manage** (sections) and **Settings** |
 | **Agent** | talk or type; a fast model on your subscription answers and hands real work to agents on your machines |
 | **Tracker** | the Agent Satellite Tracker's items, live and history, with progress and token use |
 | **Alerts** | the alerts inbox |
+| **Sections** | opens the spaces-and-pages drawer so you can dive into any section, space, or hub nav item from the bottom bar |
 
-Extra tabs after these (a Money view, a space, a page, a group of pages) come from the hub's navigation document, set with `orbital nav set <file>`; `orbital nav example` prints one to start from. The app picks up a change on its next refresh, with no update.
+Extra tabs after these (a space, a page, a group of pages) come from the hub's navigation document, set with `orbital nav set <file>`; `orbital nav example` prints one to start from. The app picks up a change on its next refresh, with no update. Money is built in, so a nav item that opens the `money` view (or is named Money) is left off the bar; in the sidebar it opens the same screen.
+
+While you type (for example in the Agent field), the full tab bar steps aside for the keyboard and a slim strip with **Sections** and **Done** stays at the bottom. Tap **Done**, the keyboard's Done, or the thread above the field to dismiss the keyboard and bring the tab bar back; you do not need to force-close the app.
 
 The Alerts tab carries a red badge with the number of alerts waiting. System, Agent and Tracker show a green count of the work running there. Pages open on the current tab's stack. Tapping the current tab again goes back to its top.
 
 On **iPad and Mac** the same screens sit in a sidebar instead of tabs:
 
-- the top of the sidebar: Home, System, Agent, Tracker and Alerts
+- the top of the sidebar: Home, Money, System, Agent, Tracker and Alerts
 - below them: your spaces
 - then every section, with a pin on the ones pinned to Home
 - at the bottom: Automations, Manage and Settings
 
 The chosen screen opens beside the sidebar. A section with a sidebar layout adds a middle column listing its pages. On the Mac the window opens at 1280 × 860 and won't shrink below 960 × 620. The Mac app is the iPhone target built for Mac Catalyst: same features, same bundle id, same sign-in.
+
+## Money
+
+The **Money** tab adds up every `ledger` block across your sections ([DATA_PIPELINE.md](DATA_PIPELINE.md#ledger)), in the currency most ledgers use; a ledger in another currency is listed but left out of the totals.
+
+- **Totals:** the chosen range with its change against the same span before, and tiles for today, this week, this month, this year and all time. Tap a tile to pick that range.
+- **Chart:** bars by day (by month for ranges over three months), stacked by business, then by product inside a business.
+- **By business** and **By product:** each with its share. Tap one to open the same screen narrowed to it: a business shows its products and sources, a product its sources and categories, and so on down to single categories.
+- **Payments** and **Every entry:** single payments the feeds sent, then every ledger day.
+- **Where it comes from:** each ledger, connected or not, and when it last reported. Tap one for its page.
+- **Filters:** the date range (today, week, month, 30 days, year, all time, or custom dates), income, refunds or payouts, and **Filter** for business, product, source and category. **Show all** clears them. Payouts (a category naming a payout) are money already counted when it came in, so they show only when you pick Payouts; refunds are a refund category or a negative amount.
+
+A product with a `subscriptions` block gets a **Subscriptions** card on Money, on its product page and on its space. Tap it for subscribers and MRR, trials and when each ends, new, cancelled and churned subscriptions and failed payments for the period you pick, a chart of paying subscribers over 90 days, and every subscription with its plan, status, start, and renewal or end date. It shows only what the feed sends: a customer's email or id, never card details.
+
+`orbital://money`, `orbital://money?business=<space>&product=<name>` and `orbital://subscriptions?product=<name>` open these screens.
 
 ## Connect and sign in
 
