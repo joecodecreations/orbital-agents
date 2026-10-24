@@ -44,6 +44,19 @@ def test_splitter_streams_the_reply_and_holds_back_actions():
     assert actions == [{"type": "task", "title": "X"}]
 
 
+def test_splitter_catches_an_action_on_the_same_line_as_the_reply():
+    splitter = ReplySplitter()
+    chunks = ["On it. I'm sending the build", " for review. >", '>> {"type":"task","title":"Submit"', ',"effort":"high"} >>> {"type":"todo","title":"Check"}']
+    out = "".join(splitter.feed(c) for c in chunks)
+    assert out == "On it. I'm sending the build for review."
+    reply, actions = splitter.finish()
+    assert reply == "On it. I'm sending the build for review."
+    assert actions == [{"type": "task", "title": "Submit", "effort": "high"}, {"type": "todo", "title": "Check"}]
+    plain = ReplySplitter()
+    assert plain.feed("Five > three, and 2 >> 1.") == "Five > three, and 2 >> 1."
+    assert plain.finish() == ("Five > three, and 2 >> 1.", [])
+
+
 def test_without_a_key_the_desk_uses_the_subscription_engines(ports):
     client, hub = make_client()
     snap = client.get("/v1/desk", headers=AUTH).json()

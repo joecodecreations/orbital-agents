@@ -215,15 +215,20 @@ struct SpaceDirectory: Equatable {
                 location: product.location, kind: product.block.kind)
         }
         for ref in collected.series where !ref.block.product.isEmpty {
-            let node = sections[ref.location.sectionID]?.nodes.first { $0.id == ref.location.nodeID }
+            let section = sections[ref.location.sectionID]
+            let node = section?.nodes.first { $0.id == ref.location.nodeID }
             let space = ref.block.space.isEmpty ? (spaceOf(section: ref.location.sectionID) ?? "") : ref.block.space
-            add(ref.block.product, space: space, image: node?.iconImage, accent: ref.accent)
+            // A product named only on a series row draws its page's icon symbol, not the blank app square.
+            let symbol = [node?.icon, section?.icon].compactMap { $0 }.first { !$0.isEmpty && !$0.hasPrefix("/") }
+            add(ref.block.product, space: space, image: node?.iconImage, symbol: symbol, accent: ref.accent)
         }
         for ledger in collected.ledgers {
+            let section = sections[ledger.location.sectionID]
+            let symbol = section.map(\.icon).flatMap { $0.isEmpty || $0.hasPrefix("/") ? nil : $0 }
             for day in ledger.block.days {
                 guard let name = Insights.nonEmpty(day.product) else { continue }
                 let space = Insights.nonEmpty(day.space) ?? (ledger.space.isEmpty ? (spaceOf(section: ledger.location.sectionID) ?? "") : ledger.space)
-                add(name, space: space, accent: ledger.accent)
+                add(name, space: space, symbol: symbol, accent: ledger.accent)
             }
         }
         let productList = productOrder.compactMap { found[$0] }

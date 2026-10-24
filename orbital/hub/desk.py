@@ -154,8 +154,14 @@ def _clean_spoken(text: str) -> str:
     return text.strip()
 
 
+# Some models put the first action on the same line as the reply ("On it. >>> {...}").
+MARK_INLINE = re.compile(r"[ \t]*>>>[ \t]*\{")
+# The end of the text might be the start of an inline action (" >", " >>", " >>> "); hold it back.
+MARK_PARTIAL = re.compile(r"[ \t]+>{1,3}[ \t]*$")
+
+
 class ReplySplitter:
-    """Streams the spoken reply and holds back `>>>` action lines."""
+    """Streams the spoken reply and holds back `>>>` action lines, also one that starts mid-line."""
 
     def __init__(self) -> None:
         self.text = ""
@@ -166,15 +172,16 @@ class ReplySplitter:
         self.text += chunk
         if self.cut is not None:
             return ""
-        match = MARK_LINE.search(self.text)
-        if match:
-            self.cut = match.start()
+        starts = [m.start() for m in (MARK_LINE.search(self.text), MARK_INLINE.search(self.text)) if m]
+        if starts:
+            self.cut = min(starts)
             end = self.cut
         else:
             line_start = self.text.rfind("\n") + 1
             tail = self.text[line_start:].lstrip()
+            partial = MARK_PARTIAL.search(self.text, line_start)
             # A last line of ">" or ">>" might become an action line; wait for more.
-            end = line_start if tail and MARK.startswith(tail) else len(self.text)
+            end = line_start if tail and MARK.startswith(tail) else (partial.start() if partial else len(self.text))
         # Trailing whitespace waits for the next chunk, so the reply never ends in a stray newline.
         while end > self.emitted and self.text[end - 1].isspace():
             end -= 1
@@ -185,7 +192,8 @@ class ReplySplitter:
     def finish(self) -> tuple[str, list[dict]]:
         reply_lines: list[str] = []
         actions: list[dict] = []
-        for line in self.text.splitlines():
+        text = MARK_INLINE.sub(lambda m: "\n" + m.group(0).lstrip(" \t"), self.text)
+        for line in text.splitlines():
             stripped = line.strip()
             if stripped.startswith(MARK):
                 raw = stripped[len(MARK) :].strip()

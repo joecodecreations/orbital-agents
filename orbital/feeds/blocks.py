@@ -315,10 +315,13 @@ def ledger(id: str, days: Iterable[dict], *, title: str | None = None, currency:
 
 
 def series_metric(id: str, label: str, points: Iterable[Any], *, format: str | None = None,  # noqa: A002
-                  platform: str | None = None, stat: str | None = None, group: str | None = None) -> dict:
-    """One daily line for series(). points: (YYYY-MM-DD, y) pairs. format: number, usd, percent, duration."""
+                  platform: str | None = None, stat: str | None = None, group: str | None = None,
+                  level: bool | None = None) -> dict:
+    """One daily line for series(). points: (YYYY-MM-DD, y) pairs. format: number, usd, percent, duration.
+    level=True marks a reading (an average, a peak, a balance): the app shows its latest value instead of adding the days up."""
     rows = [dict(p) if isinstance(p, Mapping) else {"x": p[0], "y": p[1]} for p in points]
-    return _clean({"id": id, "label": label, "format": format, "platform": platform, "stat": stat, "group": group, "points": rows})
+    return _clean({"id": id, "label": label, "format": format, "platform": platform, "stat": stat, "group": group,
+                   "level": True if level else None, "points": rows})
 
 
 def series(id: str, metrics: Iterable[dict], *, kind: str, product: str, space: str | None = None, title: str | None = None,

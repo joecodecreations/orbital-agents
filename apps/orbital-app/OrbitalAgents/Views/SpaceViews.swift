@@ -80,9 +80,14 @@ struct SpaceView: View {
     private var areas: [(id: String, title: String, symbol: String)] {
         var out: [(String, String, String)] = [("overview", "Overview", "square.grid.2x2")]
         for kind in SpaceArea.order where kinds.contains(kind) { out.append((kind, SpaceArea.title(kind), SpaceArea.symbol(kind))) }
-        for kind in kinds where !SpaceArea.order.contains(kind) { out.append((kind, StatStyle.kindLabel(kind), "chart.xyaxis.line")) }
-        if !ledgers.isEmpty || store.ledgers.contains(where: { sectionIDs.contains($0.location.sectionID) }) { out.append(("money", "Money", "dollarsign.circle")) }
-        if !videos.isEmpty { out.append(("videos", "Videos", "play.rectangle")) }
+        // Money and Videos get their own tab below, so a `money` or `videos` series kind must not add a second one.
+        let ownTabs: Set<String> = ["overview", "money", "videos", "pages"]
+        for kind in kinds where !SpaceArea.order.contains(kind) && !ownTabs.contains(kind) {
+            out.append((kind, StatStyle.kindLabel(kind), "chart.xyaxis.line"))
+        }
+        let hasLedger = !ledgers.isEmpty || store.ledgers.contains(where: { sectionIDs.contains($0.location.sectionID) })
+        if hasLedger || kinds.contains("money") { out.append(("money", "Money", "dollarsign.circle")) }
+        if !videos.isEmpty || kinds.contains("videos") { out.append(("videos", "Videos", "play.rectangle")) }
         out.append(("pages", "Pages", "doc.on.doc"))
         return out.map { (id: $0.0, title: $0.1, symbol: $0.2) }
     }

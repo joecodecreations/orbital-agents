@@ -280,6 +280,15 @@ def test_sync_returns_newer_sections_only(api):
     assert [doc["id"] for doc in changed] == ["weather"]
 
 
+def test_first_sync_sends_the_whole_alert_backlog(api):
+    put(api, server_section())
+    alerts = [{"schema": "orbital.alert.v1", "id": f"a{n}", "kind": "event", "title": f"Alert {n}", "body": "x"} for n in range(230)]
+    assert api.post("/v1/alerts", headers=AUTH, json={"alerts": alerts}).status_code == 200
+    assert len(api.get("/v1/sync", headers=AUTH).json()["alerts"]) == 230, "a fresh device sees every waiting alert"
+    known = ",".join(f"{row['id']}:{row['revision']}" for row in api.get("/v1/catalog", headers=AUTH).json()["sections"])
+    assert len(api.get(f"/v1/sync?known={known}", headers=AUTH).json()["alerts"]) == 200, "later syncs send the newest 200"
+
+
 def test_prefs_are_shared(api):
     res = api.post("/v1/prefs", headers=AUTH, json={"prefs": {"monthly_goal": 6500, "home.space": "home-lab"}})
     assert res.status_code == 200, res.text

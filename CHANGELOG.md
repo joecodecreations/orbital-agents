@@ -4,6 +4,13 @@ All notable changes to Orbital Agents are listed here. The format follows [Keep 
 
 ## [Unreleased]
 
+### Fixed
+
+- **Home Lab, Projects and System data:** the machine-health daily chart shows today's load and memory instead of adding 30 daily averages together (series metrics take `level`, and `blocks.series_metric(level=True)` sets it). The GitHub example feed reads private repositories through the GitHub CLI sign-in when `GITHUB_TOKEN` is unset, and shows commits per day, the latest commits and the last push; stars and forks only for public repositories.
+- **Agent:** an action written on the same line as the reply (`On it. >>> {"type":"task",…}`) is now run instead of being shown and read aloud as text.
+- **Alerts:** a device's first sync gets every waiting alert, not only the newest 200.
+- **iPhone app:** a space with a `money` series no longer shows two Money tabs, and a product named only on a series or ledger row shows its page's icon instead of a blank square.
+
 ## [0.1.0] - 2026-10-17
 
 The first public release.

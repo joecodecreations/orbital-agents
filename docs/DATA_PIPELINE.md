@@ -639,7 +639,8 @@ Daily numbers for one thing, drawn as one line chart with a toggle per metric. T
 | `kind` | `social`, `site`, `usage`, `players`, `search`, `health`, `money` or `other` |
 | `product` | required: what the numbers belong to |
 | `space` | optional: who or which group they belong to (use "Me" for personal data); `company` is the older name |
-| `metrics[]` | 1 to 60: `id`, `label`, optional `format` (`number`, `usd`, `percent`, `duration`), `platform`, `stat`, `group`, and `points` (up to 120, `x` is `YYYY-MM-DD`, each day once) |
+| `metrics[]` | 1 to 60: `id`, `label`, optional `format` (`number`, `usd`, `percent`, `duration`), `platform`, `stat`, `group`, `level`, and `points` (up to 120, `x` is `YYYY-MM-DD`, each day once) |
+| `level` | `true` for a reading (a daily average, a peak, a balance): the app shows its latest value and carries it across days instead of adding the days up. `percent` metrics are readings unless they say `"level": false` |
 | `window` | days shown, 1 to 90 |
 | `title`, `caption`, `site`, `as_of` | presentation |
 

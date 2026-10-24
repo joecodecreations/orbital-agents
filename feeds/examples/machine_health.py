@@ -170,13 +170,14 @@ def build(sample: dict, state: dict, *, section_id: str = FEED, disk_alert_pct: 
     load_points = [(feedkit.local_time(s["t"]), s["load"]) for s in samples]
     mem_points = [(feedkit.local_time(s["t"]), round(s["mem"] / 100, 4)) for s in samples if s.get("mem") is not None]
     daily = state.get("daily") or {}
-    series_metrics = [b.series_metric("load", "Load (daily average)", [(d, round(r["load"] / r["n"], 2)) for d, r in sorted(daily.items()) if r["n"]])]
+    series_metrics = [b.series_metric("load", "Load (daily average)", [(d, round(r["load"] / r["n"], 2)) for d, r in sorted(daily.items()) if r["n"]],
+                                       level=True)]
     mem_daily = [(d, round(r["mem"] / r["mem_n"], 1)) for d, r in sorted(daily.items()) if r.get("mem_n")]
     if mem_daily:
-        series_metrics.append(b.series_metric("memory", "Memory used % (daily average)", mem_daily))
+        series_metrics.append(b.series_metric("memory", "Memory used % (daily average)", mem_daily, format="percent", level=True))
     disk_daily = [(d, r["disk"]) for d, r in sorted(daily.items()) if r.get("disk")]
     if disk_daily:
-        series_metrics.append(b.series_metric("disk", "Disk used % (daily peak)", disk_daily))
+        series_metrics.append(b.series_metric("disk", "Disk used % (daily peak)", disk_daily, format="percent", level=True))
 
     page: list[dict] = []
     alerts: list[dict] = []

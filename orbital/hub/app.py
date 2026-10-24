@@ -704,7 +704,9 @@ def create_app(cfg: Config | None = None, *, background: bool = True, clock=time
         return JSONResponse({
             "catalog": store.catalog(),
             "sections": changed,
-            "alerts": store.query_alerts("pending", 200),
+            # A device's first sync (it knows no sections yet) gets every waiting alert, so a fresh install
+            # shows the whole backlog; later syncs send the newest 200 and the app keeps what it already has.
+            "alerts": store.query_alerts("pending", 200 if revisions else 500),
             "pulse": hub.pulses.all(),
             "retracted": store.recently_retracted(),
             "acked": store.acked_ids(),
