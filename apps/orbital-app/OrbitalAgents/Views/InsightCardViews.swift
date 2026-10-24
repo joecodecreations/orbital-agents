@@ -320,11 +320,16 @@ struct InsightCardsBlockView: View {
     @EnvironmentObject private var router: AppRouter
     @State private var selection: InsightSelection?
     @State private var showClosed = false
+    /// The product the list is narrowed to; nil shows every card.
+    @State private var product: String?
 
     var body: some View {
-        let refs = InsightFeed.collect(Array(store.sectionsByID.values)).filter { ref in
+        let all = InsightFeed.collect(Array(store.sectionsByID.values)).filter { ref in
             ref.blockID == block.id && (location == nil || ref.sectionID == location?.sectionID)
         }
+        let products = Self.products(all)
+        let picked = product.flatMap { wanted in products.contains(wanted) ? wanted : nil }
+        let refs = picked.map { wanted in all.filter { $0.card.product == wanted } } ?? all
         let open = InsightFeed.open(refs)
         let closed = refs.filter { !$0.card.isOpen }.sorted { ($0.card.updatedAt ?? "") > ($1.card.updatedAt ?? "") }
         VStack(alignment: .leading, spacing: 10) {
@@ -343,6 +348,9 @@ struct InsightCardsBlockView: View {
                 Text(note)
                     .font(.footnote)
                     .foregroundStyle(OrbitalTheme.textSecondary)
+            }
+            if products.count > 1 {
+                productBar(products, picked: picked, all: all)
             }
             if open.isEmpty {
                 Label(block.emptyText ?? "Nothing needs you right now.", systemImage: "checkmark.seal.fill")
@@ -386,6 +394,45 @@ struct InsightCardsBlockView: View {
                 .environmentObject(store)
                 .environmentObject(router)
         }
+    }
+
+    /// Products named on these cards, the busiest first. Cards about the whole business carry none.
+    static func products(_ refs: [InsightRef]) -> [String] {
+        var open: [String: Int] = [:]
+        var order: [String] = []
+        for ref in refs {
+            guard let name = ref.card.product?.trimmingCharacters(in: .whitespaces), !name.isEmpty else { continue }
+            if open[name] == nil { order.append(name) }
+            open[name, default: 0] += ref.card.isOpen ? 1 : 0
+        }
+        return order.enumerated().sorted { lhs, rhs in
+            let (a, b) = (open[lhs.element] ?? 0, open[rhs.element] ?? 0)
+            return a != b ? a > b : lhs.offset < rhs.offset
+        }.map(\.element)
+    }
+
+    private func productBar(_ products: [String], picked: String?, all: [InsightRef]) -> some View {
+        let openAll = InsightFeed.open(all)
+        return ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 6) {
+                productChip("All · \(openAll.count)", selected: picked == nil) { product = nil }
+                ForEach(products, id: \.self) { name in
+                    let count = openAll.filter { $0.card.product == name }.count
+                    productChip("\(name) · \(count)", selected: picked == name) { product = name }
+                }
+            }
+            .padding(.vertical, 1)
+        }
+    }
+
+    private func productChip(_ text: String, selected: Bool, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            OrbitalChip(text: text, tint: selected ? OrbitalTheme.accent : OrbitalTheme.textSecondary)
+                .frame(minHeight: 32)
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityAddTraits(selected ? .isSelected : [])
     }
 }
 
