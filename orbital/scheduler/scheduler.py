@@ -1271,11 +1271,11 @@ def self_test() -> None:
     assert schedule_label(10800, 0) == "Every 3 h"
     good = classify(["uptime pushed sites=3 down=0 alerts=0"], 0)
     assert good["status"] == "ok", good
-    offline = classify(["custody-social instagram=extension_offline:0 facebook=ok new=0"], 0)
+    offline = classify(["shop-social instagram=extension_offline:0 facebook=ok new=0"], 0)
     assert offline["status"] == "warn" and offline["issues"] == ["Instagram: extension offline"], offline
-    busy = classify(["valux-paced posted=0 skipped=already-running"], 0)
+    busy = classify(["shop-poster posted=0 skipped=already-running"], 0)
     assert busy["status"] == "warn" and busy["issues"][0].startswith("Skipped: another copy"), busy
-    assert classify(["civic-watch gatherer already running"], 0)["status"] == "warn"
+    assert classify(["game-stats gatherer already running"], 0)["status"] == "warn"
     warn = classify(["weather pushed revision=12 forecast=ok radar=unavailable alerts=0"], 0)
     assert warn["status"] == "warn" and warn["issues"] == ["Radar: unavailable"], warn
     crash = classify(["Traceback (most recent call last):", '  File "x.py", line 1',
