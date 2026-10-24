@@ -604,8 +604,10 @@ struct RollupChartCard: View {
     private var days: [Date] { Trends.days(window) }
 
     private var filtered: [SeriesRef] {
-        let wanted = lockedSpace ?? space
-        return refs.filter { wanted.isEmpty || $0.spaceID == wanted }
+        // A space page already passes only its own series (tagged with the space, an alias such as
+        // "Firm Binder LLC", or sitting on one of its sections), so there is nothing to narrow.
+        if lockedSpace != nil { return refs }
+        return refs.filter { space.isEmpty || directory.resolve($0.block.space) == space }
     }
 
     private var stats: [String] { StatStyle.present(filtered, kind: kind) }
@@ -640,11 +642,16 @@ struct RollupChartCard: View {
             grouped[key, default: []].append(metric)
             names[key] = directory.product(key)?.name ?? (Insights.nonEmpty(ref.block.product) ?? metric.label)
         }
-        return order.map { key in
+        var out = order.map { key in
             let mine = grouped[key] ?? []
             return TrendLine(id: key, name: names[key] ?? key, color: directory.product(key)?.tint ?? OrbitalTheme.color(for: key, hex: mine.first?.color),
                              values: Trends.combine(mine, days: days), format: mine.first?.format, level: mine.first?.level ?? false)
         }
+        // Products on one page share its accent; give each line its own color so they can be told apart.
+        if Set(out.map(\.color)).count < out.count {
+            for index in out.indices { out[index].color = OrbitalTheme.palette[index % OrbitalTheme.palette.count] }
+        }
+        return out
     }
 
     private var statChoices: [PillChoice] {
@@ -658,7 +665,7 @@ struct RollupChartCard: View {
     }
 
     private var spaceChoices: [CircleChoice] {
-        let present = Set(refs.map(\.spaceID))
+        let present = Set(refs.map { directory.resolve($0.block.space) })
         return [CircleChoice.all()] + directory.spaces.filter { present.contains($0.id) }.map(CircleChoice.space)
     }
 
