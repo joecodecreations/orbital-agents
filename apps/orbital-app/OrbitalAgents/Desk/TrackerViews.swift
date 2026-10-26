@@ -657,6 +657,8 @@ struct TrackerLiveCard: View {
 
     private var who: String {
         var parts = [item.agentLabel ?? item.agentName]
+        if let origin = item.shownOrigin { parts.append(origin) }
+        if let model = item.shownModel { parts.append(model) }
         if let machine = item.machine, !machine.isEmpty { parts.append(machine) }
         if let project = item.project, !project.isEmpty { parts.append(project) }
         return parts.joined(separator: " · ")
@@ -805,6 +807,8 @@ struct TrackerRow: View {
 
     private var subtitle: String {
         var parts = [item.agentLabel ?? item.agentName]
+        if let origin = item.shownOrigin { parts.append(origin) }
+        if let model = item.shownModel { parts.append(model) }
         if let machine = item.machine, !machine.isEmpty { parts.append(machine) }
         if let project = item.project { parts.append(project) }
         return parts.joined(separator: " · ")
@@ -938,6 +942,19 @@ struct TrackerItemView: View {
             Text(item.title)
                 .font(.title2.weight(.bold))
                 .foregroundStyle(OrbitalTheme.text)
+            if item.shownOrigin != nil || item.shownModel != nil {
+                HStack(spacing: 8) {
+                    if let origin = item.shownOrigin {
+                        OrbitalChip(text: origin, tint: OrbitalTheme.accent)
+                    }
+                    if let model = item.shownModel {
+                        Text(model)
+                            .font(.caption.weight(.semibold).monospaced())
+                            .foregroundStyle(OrbitalTheme.textSecondary)
+                            .lineLimit(1)
+                    }
+                }
+            }
             if let done = item.completedAt {
                 Text("Finished \(DeskTime.clock(done))")
                     .font(.caption)

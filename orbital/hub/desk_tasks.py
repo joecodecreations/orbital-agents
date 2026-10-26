@@ -55,6 +55,23 @@ KEEP_INBOX = 50
 REPORT_LOG_CHARS = 24_000
 REPORT_KEEP_CHARS = 12_000
 MAX_ENGINE_SWITCHES = 3
+# Tracker item origins the satellite stamps (same set as the tracker app).
+TRACKER_ORIGINS = {"ios", "mac", "direct", "agent"}
+
+
+def _tracker_origin(raw: str | None) -> str | None:
+    """ios/mac/direct/agent when known; None when we cannot source it."""
+    if not raw:
+        return None
+    s = str(raw).strip().lower()
+    if s in TRACKER_ORIGINS:
+        return s
+    if s in ("iphone", "ipad"):
+        return "ios"
+    if s in ("macos", "os", "catalyst", "desktop", "app"):
+        return "mac"
+    return None
+
 
 WORKER_HEADER = """You were started from the Orbital Agents app's Desk (desk task {task_id}). The person who asked is away from this machine. They talk to the desk, often by voice, and the desk knows only what you report to it.
 
@@ -209,7 +226,7 @@ class TaskRunner:
         keys = (
             "id", "title", "project", "status", "agent", "job_id", "tracker_id", "created_at", "started_at",
             "finished_at", "last_note", "summary", "spoken", "error", "followups", "runs", "brief", "waiting",
-            "effort", "machine", "progress", "answer", "question", "blocked",
+            "effort", "machine", "client_platform", "progress", "answer", "question", "blocked",
         )
         out = {k: task.get(k) for k in keys}
         out["pending_followups"] = len(task.get("queue") or [])
@@ -221,7 +238,9 @@ class TaskRunner:
     # Dispatch
 
     async def create(self, project: str | None, cwd: str | None, title: str, brief: str, origin: str,
-                     effort: str | None = None, agent: str | None = None, machine: str | None = None) -> dict:
+                     effort: str | None = None, agent: str | None = None, machine: str | None = None,
+                     client_platform: str | None = None) -> dict:
+        platform = _tracker_origin(client_platform)
         task = {
             "id": self._next_id(),
             "title": (title or "Agent task").strip()[:60],
@@ -229,6 +248,7 @@ class TaskRunner:
             "cwd": cwd,
             "brief": brief.strip(),
             "origin": origin.strip(),
+            "client_platform": platform,
             "agent": None if self.choose else self.agent(),
             "agent_wanted": (agent or "").strip().lower() or None,
             "machine": (machine or "").strip() or None,
@@ -346,6 +366,9 @@ class TaskRunner:
                       "desk": {"task": task["id"], "token": task["channel_token"]}}
         if task.get("cwd"):
             body["cwd"] = task["cwd"]
+        # Stamp the tracker item with where the user asked from (iOS / Mac app), when known.
+        if task.get("client_platform") in TRACKER_ORIGINS:
+            body["origin"] = task["client_platform"]
         try:
             answer = await call(url, "POST", "/v1/agents/run", token, json_body=body, timeout=15)
         except RelayError as exc:

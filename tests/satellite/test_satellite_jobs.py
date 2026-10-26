@@ -197,8 +197,27 @@ if [ "$1" = "start" ]; then echo "trk42"; fi
     assert wait_for(lambda: len(calls.read_text().splitlines()) >= 2, 10)
     rows = [json.loads(line) for line in calls.read_text().splitlines()]
     assert rows[0][:5] == ["start", "--agent", "echo", "--title", "Tracked title"]
+    assert "--origin" in rows[0] and rows[0][rows[0].index("--origin") + 1] == "agent"
     assert rows[1][:2] == ["done", "trk42"] and rows[1][2] == "--summary"
     assert rows[1][3].startswith("Finished")
+
+
+def test_tracker_start_passes_desk_origin(home, tmp_path):
+    calls = tmp_path / "calls.jsonl"
+    script = tmp_path / "orbital-track"
+    script.write_text(f"""#!/bin/sh
+python3 -c 'import json,sys; open("{calls}","a").write(json.dumps(sys.argv[1:])+"\\n")' "$@"
+if [ "$1" = "start" ]; then echo "trk99"; fi
+""")
+    script.chmod(script.stat().st_mode | stat.S_IEXEC)
+    cfg = make_cfg(home)
+    m = JobManager(cfg, tracker=TrackerReporter(bin_path=str(script)))
+    job = m.submit(agent="echo", prompt="from phone", title="Phone task", by="desk", origin="ios")
+    done = m.wait(job["id"], 10)
+    assert done["tracker_id"] == "trk99"
+    assert wait_for(lambda: calls.is_file() and calls.read_text().strip(), 10)
+    args = json.loads(calls.read_text().splitlines()[0])
+    assert args[args.index("--origin") + 1] == "ios"
 
 
 def test_tracker_missing_is_skipped(home, monkeypatch):

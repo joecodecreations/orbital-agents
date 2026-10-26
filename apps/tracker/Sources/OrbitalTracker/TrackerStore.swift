@@ -154,6 +154,43 @@ final class TrackerStore {
         }
     }
 
+    // MARK: Stale items
+
+    /// Closes agent items with no update for `tracker.stale_hours` into history (see `Stale`).
+    /// Runs every 10 minutes. Returns the closed ids.
+    @discardableResult
+    func closeStale(now: Date = Date()) -> [String] {
+        let hours = config.staleHours
+        let ids = Stale.find(items, hours: hours, now: now)
+        guard !ids.isEmpty else { return [] }
+        withAnimation(.easeOut(duration: 0.3)) {
+            for id in ids {
+                guard let i = items.firstIndex(where: { $0.id == id }) else { continue }
+                let quietSince = Stale.lastActivity(items[i])
+                let summary = Stale.summary(for: items[i], hours: hours)
+                complete(index: i, by: Stale.closedBy, summary: summary)
+                event("closed_stale", ["id": id, "title": items[i].title, "agent": items[i].agent,
+                                       "machine": items[i].machine, "hours": hours,
+                                       "quiet_since": ISO8601DateFormatter().string(from: quietSince)])
+            }
+        }
+        saveNow()
+        return ids
+    }
+
+    /// An agent reported on an item the tracker closed as stale: it is live again.
+    private func reopenIfStale(_ i: Int) {
+        guard items[i].status == .done, items[i].completedBy == Stale.closedBy else { return }
+        withAnimation(.spring(response: 0.35, dampingFraction: 0.8)) {
+            items[i].status = .active
+            items[i].dismissed = false
+            items[i].completedAt = nil
+            items[i].completedBy = nil
+            items[i].summary = nil
+        }
+        event("reopened", ["id": items[i].id, "title": items[i].title, "reason": "agent reported after a stale close"])
+    }
+
     // MARK: Queries
 
     func item(_ id: String) -> TrackedItem? { items.first { $0.id == id } }
@@ -183,11 +220,12 @@ final class TrackerStore {
 
     @discardableResult
     func addPersonal(title: String, details: String, transcript: String?, source: ItemSource, processing: Bool) -> String {
+        // Typed or spoken into the Mac tracker panel → Mac/OS app origin.
         var item = TrackedItem(title: title, details: details, transcript: transcript, source: source,
-                               machine: machineName, colorIndex: takeColor())
+                               origin: .mac, machine: machineName, colorIndex: takeColor())
         item.processing = processing
         withAnimation(.spring(response: 0.35, dampingFraction: 0.8)) { items.append(item) }
-        event("added", ["id": item.id, "title": title, "source": source.rawValue])
+        event("added", ["id": item.id, "title": title, "source": source.rawValue, "origin": ItemOrigin.mac.rawValue])
         scheduleSave()
         return item.id
     }
@@ -275,15 +313,21 @@ final class TrackerStore {
             let id = cmd.id ?? IDGen.make()
             if item(id) != nil { return try update(id: id, cmd: cmd) }
             guard let title = clean(cmd.title) else { throw StoreError(message: "title is required") }
+            let origin = ItemOrigin.parse(cmd.origin)
+            let model = clean(cmd.model).map { String($0.prefix(120)) }
             var item = TrackedItem(id: id, title: String(title.prefix(200)), details: cmd.details ?? "", source: .agent,
-                                   agent: agent, agentLabel: cmd.agentLabel, machine: machine,
-                                   workspace: cmd.workspace, colorIndex: takeColor(),
+                                   agent: agent, agentLabel: cmd.agentLabel, origin: origin, model: model,
+                                   machine: machine, workspace: cmd.workspace, colorIndex: takeColor(),
                                    createdAt: min(cmd.sentAt ?? Date(), Date()))
             item.media = acceptMedia(cmd.media, itemID: id, subID: nil, machine: machine)
             item.progress = cmd.progress.map { min(100, max(0, $0)) }
+            if let usage = cmd.usage {
+                item.usage = usage
+                if item.model == nil, let m = usage.model, !m.isEmpty { item.model = m }
+            }
             withAnimation(.spring(response: 0.35, dampingFraction: 0.8)) { items.append(item) }
             event("added", ["id": id, "title": title, "source": "agent", "agent": agent, "machine": machine,
-                            "workspace": cmd.workspace])
+                            "workspace": cmd.workspace, "origin": origin?.rawValue, "model": model])
             archiveInlineMarkdown(itemID: id, subID: nil, texts: [cmd.details], machine: machine)
             scheduleSave()
             return id
@@ -294,11 +338,18 @@ final class TrackerStore {
             }
             let id = cmd.id ?? IDGen.make()
             if items[p].subagents.contains(where: { $0.id == id }) { return try update(id: id, cmd: cmd) }
+            reopenIfStale(p)
             guard let title = clean(cmd.title) else { throw StoreError(message: "title is required") }
+            // A subagent is work an agent sent in.
             var sub = SubTask(id: id, agent: agent, agentLabel: cmd.agentLabel, machine: machine,
-                              title: String(title.prefix(200)), details: cmd.details ?? "")
+                              title: String(title.prefix(200)), details: cmd.details ?? "",
+                              model: clean(cmd.model).map { String($0.prefix(120)) })
             sub.media = acceptMedia(cmd.media, itemID: parent, subID: id, machine: machine)
             sub.progress = cmd.progress.map { min(100, max(0, $0)) }
+            if let usage = cmd.usage {
+                sub.usage = usage
+                if sub.model == nil, let m = usage.model, !m.isEmpty { sub.model = m }
+            }
             withAnimation {
                 items[p].subagents.append(sub)
                 if items[p].subagents.count > Self.maxSubagents {
@@ -355,6 +406,7 @@ final class TrackerStore {
     private func update(id: String, cmd: TrackerCommand, quiet: Bool = false) throws -> String {
         let machine = clean(cmd.machine) ?? machineName
         if let i = items.firstIndex(where: { $0.id == id }) {
+            reopenIfStale(i)
             if let title = clean(cmd.title) { items[i].title = String(title.prefix(200)) }
             if let details = cmd.details {
                 items[i].details = cmd.appendDetails == true && !items[i].details.isEmpty
@@ -362,7 +414,12 @@ final class TrackerStore {
             }
             if let note = clean(cmd.note) { Self.appendNote(&items[i].notes, note) }
             if let progress = cmd.progress { items[i].progress = min(100, max(0, progress)) }
-            if let usage = cmd.usage { items[i].usage = Self.stamped(usage) }
+            if let origin = ItemOrigin.parse(cmd.origin), items[i].origin == nil { items[i].origin = origin }
+            if let model = clean(cmd.model) { items[i].model = String(model.prefix(120)) }
+            if let usage = cmd.usage {
+                items[i].usage = Self.stamped(usage)
+                if items[i].model == nil, let m = usage.model, !m.isEmpty { items[i].model = m }
+            }
             Self.appendMedia(&items[i].media, acceptMedia(cmd.media, itemID: id, subID: nil, machine: machine))
             items[i].updatedAt = Date()
             archiveInlineMarkdown(itemID: id, subID: nil, texts: [cmd.details, cmd.note, cmd.summary], machine: machine)
@@ -371,6 +428,7 @@ final class TrackerStore {
             return id
         }
         if let (p, s) = subIndex(id) {
+            reopenIfStale(p)
             if let title = clean(cmd.title) { items[p].subagents[s].title = String(title.prefix(200)) }
             if let details = cmd.details {
                 let old = items[p].subagents[s].details
@@ -378,7 +436,13 @@ final class TrackerStore {
             }
             if let note = clean(cmd.note) { Self.appendNote(&items[p].subagents[s].notes, note) }
             if let progress = cmd.progress { items[p].subagents[s].progress = min(100, max(0, progress)) }
-            if let usage = cmd.usage { items[p].subagents[s].usage = Self.stamped(usage) }
+            if let model = clean(cmd.model) { items[p].subagents[s].model = String(model.prefix(120)) }
+            if let usage = cmd.usage {
+                items[p].subagents[s].usage = Self.stamped(usage)
+                if items[p].subagents[s].model == nil, let m = usage.model, !m.isEmpty {
+                    items[p].subagents[s].model = m
+                }
+            }
             Self.appendMedia(&items[p].subagents[s].media,
                              acceptMedia(cmd.media, itemID: items[p].id, subID: id, machine: machine))
             items[p].subagents[s].updatedAt = Date()

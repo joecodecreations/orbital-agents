@@ -308,7 +308,7 @@ class Settings:
 
 _OPS = {"start": "start", "add": "start", "sub": "sub", "update": "update", "note": "update",
         "done": "done", "complete": "done", "finish": "done"}
-COMMAND_KEYS = ("op", "id", "parent", "agent", "agentLabel", "machine", "title", "details", "appendDetails",
+COMMAND_KEYS = ("op", "id", "parent", "agent", "agentLabel", "origin", "model", "machine", "title", "details", "appendDetails",
                 "note", "summary", "workspace", "media", "progress", "usage", "sentAt")
 
 
@@ -356,7 +356,7 @@ def parse_command(obj: Any) -> dict:
     if not isinstance(obj.get("op"), str):
         raise CommandError("op is required")
     cmd: dict[str, Any] = {"op": obj["op"]}
-    for key in ("id", "parent", "agent", "agentLabel", "machine", "title", "details", "note", "summary", "workspace"):
+    for key in ("id", "parent", "agent", "agentLabel", "origin", "model", "machine", "title", "details", "note", "summary", "workspace"):
         v = _opt_str(obj, key)
         if v is not None:
             cmd[key] = v
@@ -610,7 +610,7 @@ def normalize_sub(s: Any) -> dict | None:
         "notes": [n for n in map(normalize_note, s.get("notes") or []) if n],
         "media": [m for m in map(_media_ref, s.get("media") or []) if m],
     }
-    for key in ("agentLabel", "machine", "summary"):
+    for key in ("agentLabel", "machine", "summary", "model"):
         _opt(out, s, key)
     _opt_progress(out, s)
     if norm_date(s.get("completedAt")):
@@ -639,8 +639,10 @@ def normalize_item(i: Any) -> dict | None:
         "media": [m for m in map(_media_ref, i.get("media") or []) if m],
         "subagents": [s for s in map(normalize_sub, i.get("subagents") or []) if s],
     }
-    for key in ("transcript", "agent", "agentLabel", "machine", "workspace", "completedBy", "summary"):
+    for key in ("transcript", "agent", "agentLabel", "origin", "model", "machine", "workspace", "completedBy", "summary"):
         _opt(out, i, key)
+    if out.get("origin") not in (None, "ios", "mac", "direct", "agent"):
+        out.pop("origin", None)
     _opt_progress(out, i)
     if norm_date(i.get("completedAt")):
         out["completedAt"] = norm_date(i.get("completedAt"))

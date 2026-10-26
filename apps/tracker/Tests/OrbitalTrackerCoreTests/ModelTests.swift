@@ -81,4 +81,33 @@ final class ModelTests: XCTestCase {
         XCTAssertEqual(Agents.detectFromEnvironment(["CLAUDECODE": "1"]), "claude")
         XCTAssertEqual(Agents.detectFromEnvironment(["GROK_API_KEY": "x"]), nil)
     }
+
+    func testOriginAndModelRoundTrip() throws {
+        var item = TrackedItem(id: "orig1234", title: "Desk Job", source: .agent, agent: "grok",
+                               origin: .ios, model: "grok-4.5", colorIndex: 1)
+        item.usage = TokenUsage(engine: "grok", inputTokens: 10, outputTokens: 2)
+        item.usage?.model = "grok-4.7-build-fast"
+        // Stored model wins over usage.model.
+        XCTAssertEqual(item.shownModel, "grok-4.5")
+        item.model = nil
+        XCTAssertEqual(item.shownModel, "grok-4.7-build-fast")
+
+        let data = try TrackerJSON.encoder().encode(item)
+        let json = String(decoding: data, as: UTF8.self)
+        XCTAssertTrue(json.contains("\"origin\":\"ios\""))
+        let back = try TrackerJSON.decoder().decode(TrackedItem.self, from: data)
+        XCTAssertEqual(back.origin, .ios)
+        XCTAssertEqual(ItemOrigin.parse("desktop"), .mac)
+        XCTAssertEqual(ItemOrigin.parse("iphone"), .ios)
+        XCTAssertEqual(ItemOrigin.direct.label, "Direct AI chat")
+        XCTAssertNil(ItemOrigin.parse("mystery"))
+    }
+
+    func testOlderItemsDecodeWithoutOrigin() throws {
+        let legacy = #"{"id":"old9","title":"Old","source":"agent","agent":"claude","colorIndex":0,"status":"active","createdAt":"2026-01-02T03:04:05Z"}"#
+        let item = try TrackerJSON.decoder().decode(TrackedItem.self, from: Data(legacy.utf8))
+        XCTAssertNil(item.origin)
+        XCTAssertNil(item.model)
+        XCTAssertNil(item.shownModel)
+    }
 }

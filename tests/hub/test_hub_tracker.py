@@ -19,7 +19,7 @@ def write_items(hub) -> None:
     (root / "media" / "2026-01" / "shot.jpg").write_bytes(PNG)
     items = [
         {"id": "a1", "title": "Fix login", "status": "active", "source": "agent", "agent": "claude", "workspace": "/srv/site",
-         "machine": "build-box",
+         "machine": "build-box", "origin": "ios", "model": "claude-opus-4",
          "createdAt": "2026-01-02T10:00:00Z", "updatedAt": "2026-01-02T10:05:00Z",
          "notes": [{"at": "2026-01-02T10:05:00Z", "text": "Found the bug"}],
          "media": [{"id": "m1", "kind": "image", "archivePath": "media/2026-01/shot.jpg", "caption": "Login page"}],
@@ -37,6 +37,9 @@ def test_items_detail_and_signed_media(ports):
     assert res["total"] == 2 and res["active"] == 1
     assert res["items"][0]["id"] == "a1" and res["items"][0]["agent_name"] == "Claude"
     assert res["items"][0]["machine"] == "build-box" and res["items"][1]["machine"] is None
+    assert res["items"][0]["origin"] == "ios" and res["items"][0]["origin_label"] == "iOS app"
+    assert res["items"][0]["model"] == "claude-opus-4"
+    assert res["items"][1].get("origin") is None and res["items"][1].get("model") is None
     assert client.get("/v1/tracker/items?who=ai", headers=AUTH).json()["total"] == 1
     assert client.get("/v1/tracker/items?status=done", headers=AUTH).json()["items"][0]["id"] == "b2"
     assert client.get("/v1/tracker/items?q=login", headers=AUTH).json()["total"] == 1
@@ -44,6 +47,7 @@ def test_items_detail_and_signed_media(ports):
     assert client.get("/v1/tracker/items").status_code == 401
     detail = client.get("/v1/tracker/items/a1", headers=AUTH).json()
     assert detail["notes"][0]["text"] == "Found the bug"
+    assert detail["origin"] == "ios" and detail["model"] == "claude-opus-4"
     assert detail["desk_task"] is None
     thumb = detail["media"][0]["thumb_url"]
     assert "sig=" in thumb

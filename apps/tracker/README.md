@@ -114,7 +114,7 @@ orbital-track help
 
 | Command | Does |
 |---|---|
-| `start --agent A --title T [--details MD] [--workspace DIR] [--label L] [--id ID] [--media F]...` | New item; prints its id (stdout is only the id). `add` is an alias. A title can also be given as trailing words. |
+| `start --agent A --title T [--details MD] [--workspace DIR] [--label L] [--origin ios\|mac\|direct\|agent] [--model NAME] [--id ID] [--media F]...` | New item; prints its id (stdout is only the id). `add` is an alias. A title can also be given as trailing words. Origin defaults to `direct` (typed into an AI CLI); desk/satellite jobs set `ios` / `mac` / `agent`. |
 | `sub <PARENT> --agent A --title T [--details MD] [--media F]...` | Subagent work inside the parent; prints the sub id. |
 | `update <ID> [--note N] [--details MD [--append]] [--title T] [--agent A] [--media F]...` | Progress; `note <ID> text…` is a shortcut. |
 | `done <ID> [--summary MD] [--media F]...` | Finish an item or sub (`complete`, `finish` are aliases). Prints `ok`. |
@@ -173,10 +173,16 @@ A TrackerCommand:
 
 ```json
 {"op": "start|sub|update|done", "id": "k7m2x9qa", "parent": "…", "agent": "claude", "agentLabel": "Claude Code",
+ "origin": "ios|mac|direct|agent", "model": "claude-opus-4",
  "machine": "studio-mac", "title": "…", "details": "markdown", "appendDetails": true, "note": "…", "summary": "…",
  "workspace": "/abs/dir", "sentAt": "2026-01-02T03:04:05Z",
  "media": [{"path": "/abs/shot.png", "caption": "…", "archived": {…MediaRef…}, "inlineArchive": "base64 JPEG"}]}
 ```
+
+`origin` is where the item started: **iOS app**, **Mac app**, **Direct AI chat**, or **Agent**. It is
+only set when something real recorded it (the Desk stamps `ios`/`mac` from the device; the
+satellite stamps `agent` for API jobs; the CLI defaults to `direct`). Older items leave it empty.
+`model` is the model name when known (also filled from measured `usage.model`).
 
 Ids (and parents) are 2–64 characters of `[A-Za-z0-9_-]`. A `start` for an id that already exists
 updates it, so retries are safe.

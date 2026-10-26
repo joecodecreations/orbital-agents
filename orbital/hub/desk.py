@@ -40,9 +40,28 @@ from orbital.core import get_logger
 from orbital.hub import echo_guard, reminders
 from orbital.hub.auth import bearer
 from orbital.hub.desk_model import ModelError, XAIProvider
-from orbital.hub.desk_tasks import TaskRunner, now_iso
+from orbital.hub.desk_tasks import TRACKER_ORIGINS, TaskRunner, _tracker_origin, now_iso
 from orbital.hub.tracker import _agent_name, first_sentence, shown_progress
-from orbital.hub.web import body_of, fail
+from orbital.hub.web import body_of, device_of, fail
+
+
+def resolve_client_platform(hub: Any, request: Request | None = None, body: dict | None = None) -> str | None:
+    """ios or mac when the Orbital Agents app (or desktop) told us; never invent."""
+    body = body or {}
+    # Explicit body field from the app (preferred).
+    parsed = _tracker_origin(str(body.get("platform") or body.get("client_platform") or ""))
+    if parsed in ("ios", "mac"):
+        return parsed
+    if request is None:
+        return None
+    device_id = device_of(request)
+    # Desktop Python app sends its product name, not a device UUID.
+    if device_id and "desktop" in device_id.lower():
+        return "mac"
+    for row in hub.store.load_devices():
+        if row.get("device_id") == device_id:
+            return _tracker_origin(row.get("platform"))
+    return None
 
 HISTORY_TURNS = 24
 THREAD_KEEP = 2000
@@ -928,9 +947,11 @@ class Desk:
 
     # Turns
 
-    def say(self, text: str, source: str = "text", client_id: str | None = None, interrupt: dict | None = None) -> asyncio.Queue:
+    def say(self, text: str, source: str = "text", client_id: str | None = None, interrupt: dict | None = None,
+            client_platform: str | None = None) -> asyncio.Queue:
         queue: asyncio.Queue = asyncio.Queue()
-        asyncio.get_running_loop().create_task(self._turn(queue, text, source, client_id, interrupt))
+        platform = client_platform if client_platform in TRACKER_ORIGINS else None
+        asyncio.get_running_loop().create_task(self._turn(queue, text, source, client_id, interrupt, platform))
         return queue
 
     async def _cut(self, reply_id: str | None) -> str | None:
@@ -950,9 +971,10 @@ class Desk:
             await asyncio.wait_for(turn.finished.wait(), 8)
         return turn.reply_id
 
-    async def _turn(self, queue: asyncio.Queue, text: str, source: str, client_id: str | None, interrupt: dict | None = None) -> None:
+    async def _turn(self, queue: asyncio.Queue, text: str, source: str, client_id: str | None,
+                    interrupt: dict | None = None, client_platform: str | None = None) -> None:
         try:
-            await self._turn_inner(queue, text, source, client_id, interrupt)
+            await self._turn_inner(queue, text, source, client_id, interrupt, client_platform)
         except Exception as exc:  # the app always gets an answer
             get_logger("hub").exception("desk turn failed")
             msg = await self._append(self._event("error", f"Something broke on the hub: {exc.__class__.__name__}", speak="Something broke on the hub."))
@@ -961,7 +983,8 @@ class Desk:
             await queue.put({"type": "done"})
             await queue.put(None)
 
-    async def _turn_inner(self, queue: asyncio.Queue, text: str, source: str, client_id: str | None, interrupt: dict | None = None) -> None:
+    async def _turn_inner(self, queue: asyncio.Queue, text: str, source: str, client_id: str | None,
+                          interrupt: dict | None = None, client_platform: str | None = None) -> None:
         text = text.strip()
         if client_id:
             existing = next((m for m in self.messages if m.get("client_id") == client_id), None)
@@ -989,7 +1012,7 @@ class Desk:
         turn = _Turn(reply_id)
         self._live[reply_id] = turn
         try:
-            await self._reply(queue, turn, user, text)
+            await self._reply(queue, turn, user, text, client_platform)
         finally:
             self._live.pop(reply_id, None)
             turn.finished.set()
@@ -1014,7 +1037,8 @@ class Desk:
         recent_user = previous if previous_at and _within(previous_at, 8) else None
         return echo_guard.voice_should_drop(text, " ".join(spoken[-4:]), recent_user)
 
-    async def _reply(self, queue: asyncio.Queue, turn: "_Turn", user: dict, text: str) -> None:
+    async def _reply(self, queue: asyncio.Queue, turn: "_Turn", user: dict, text: str,
+                     client_platform: str | None = None) -> None:
         reply_id = turn.reply_id
         await queue.put({"type": "start", "id": reply_id})
         started = time.time()
@@ -1085,7 +1109,7 @@ class Desk:
         events = []
         for action in actions[:8]:
             try:
-                event, did = await self._run_action(action, text)
+                event, did = await self._run_action(action, text, client_platform)
             except Exception as exc:
                 event, did = self._event("error", f"Couldn't do {action.get('type')}: {exc}", speak="One of those didn't go through."), None
             if did:
@@ -1108,7 +1132,8 @@ class Desk:
         msg.update({k: v for k, v in extra.items() if v is not None})
         return msg
 
-    async def _run_action(self, action: dict, origin: str) -> tuple[dict | None, str | None]:
+    async def _run_action(self, action: dict, origin: str,
+                          client_platform: str | None = None) -> tuple[dict | None, str | None]:
         kind = str(action.get("type") or "").lower()
         if kind in ("task", "followup") and self.settings()["dispatch"] == "off":
             return None, None
@@ -1124,6 +1149,7 @@ class Desk:
                 project["name"] if project else None, project["path"] if project else None, title, brief, origin,
                 effort=str(action.get("effort") or "high").lower(), agent=str(action.get("agent") or ""),
                 machine=str(action.get("machine") or ""),
+                client_platform=client_platform,
             )
             await self._task_changed(self.runner.public(task))
             if task["status"] == "failed":
@@ -1397,7 +1423,8 @@ def add_routes(app, hub) -> None:
         interrupt = None
         if isinstance(raw_cut, dict):
             interrupt = {"reply_id": str(raw_cut.get("reply_id") or "")[:80] or None, "heard": str(raw_cut.get("heard") or "")[:4000]}
-        queue = desk.say(text, source, client_id, interrupt)
+        platform = resolve_client_platform(hub, request, body)
+        queue = desk.say(text, source, client_id, interrupt, client_platform=platform)
 
         async def stream():
             while True:

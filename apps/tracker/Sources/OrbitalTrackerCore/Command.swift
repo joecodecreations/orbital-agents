@@ -27,6 +27,10 @@ public struct TrackerCommand: Codable, Sendable, Equatable {
     public var parent: String?
     public var agent: String?
     public var agentLabel: String?
+    /// Where the item was started: ios | mac | direct | agent.
+    public var origin: String?
+    /// Model name when known (e.g. claude-opus-4, grok-4.5).
+    public var model: String?
     /// The machine the command comes from (config `machine_name`).
     public var machine: String?
     public var title: String?

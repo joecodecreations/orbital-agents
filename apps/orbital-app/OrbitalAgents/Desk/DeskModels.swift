@@ -267,6 +267,11 @@ struct TrackerSummary: Identifiable, Equatable, Decodable {
     var title: String
     var status: String
     var source: String
+    /// Where the item started: ios | mac | direct | agent. Missing on older hubs/items.
+    var origin: String?
+    var originLabel: String?
+    /// Model name when known (also under usage.model).
+    var model: String?
     var agent: String?
     var agentName: String
     var agentLabel: String?
@@ -300,8 +305,9 @@ struct TrackerSummary: Identifiable, Equatable, Decodable {
     }
 
     enum CodingKeys: String, CodingKey {
-        case id, title, status, source, agent, machine, project, summary, cover, subagents, processing, progress, usage
+        case id, title, status, source, origin, model, agent, machine, project, summary, cover, subagents, processing, progress, usage
         case shown = "shown_progress"
+        case originLabel = "origin_label"
         case agentName = "agent_name"
         case agentLabel = "agent_label"
         case createdAt = "created_at"
@@ -316,6 +322,24 @@ struct TrackerSummary: Identifiable, Equatable, Decodable {
 
     var isActive: Bool { status == "active" }
     var isAI: Bool { source == "agent" }
+
+    /// Prefer the hub's origin_label, else a local label for known codes.
+    var shownOrigin: String? {
+        if let originLabel, !originLabel.isEmpty { return originLabel }
+        switch origin {
+        case "ios": return "iOS app"
+        case "mac": return "Mac app"
+        case "direct": return "Direct AI chat"
+        case "agent": return "Agent"
+        default: return nil
+        }
+    }
+
+    var shownModel: String? {
+        if let model, !model.isEmpty { return model }
+        if let m = usage?.model, !m.isEmpty { return m }
+        return nil
+    }
 }
 
 struct TrackerSub: Identifiable, Equatable, Decodable {
@@ -331,12 +355,19 @@ struct TrackerSub: Identifiable, Equatable, Decodable {
     var media: [TrackerMedia]
     var progress: Int?
     var usage: AIUsage?
+    var model: String?
 
     enum CodingKeys: String, CodingKey {
-        case id, title, status, details, summary, notes, media, progress, usage
+        case id, title, status, details, summary, notes, media, progress, usage, model
         case agentName = "agent_name"
         case createdAt = "created_at"
         case completedAt = "completed_at"
+    }
+
+    var shownModel: String? {
+        if let model, !model.isEmpty { return model }
+        if let m = usage?.model, !m.isEmpty { return m }
+        return nil
     }
 }
 
@@ -345,6 +376,9 @@ struct TrackerDetail: Identifiable, Equatable, Decodable {
     var title: String
     var status: String
     var source: String
+    var origin: String?
+    var originLabel: String?
+    var model: String?
     var agent: String?
     var agentName: String
     var agentLabel: String?
@@ -367,7 +401,8 @@ struct TrackerDetail: Identifiable, Equatable, Decodable {
     var colorIndex: Int?
 
     enum CodingKeys: String, CodingKey {
-        case id, title, status, source, agent, machine, project, details, transcript, summary, notes, media, subagents, progress, usage
+        case id, title, status, source, origin, model, agent, machine, project, details, transcript, summary, notes, media, subagents, progress, usage
+        case originLabel = "origin_label"
         case agentName = "agent_name"
         case agentLabel = "agent_label"
         case createdAt = "created_at"
@@ -381,6 +416,23 @@ struct TrackerDetail: Identifiable, Equatable, Decodable {
     var isActive: Bool { status == "active" }
     var shownProgress: TrackerProgress? {
         TrackerProgress.of(status: status, progress: progress, details: details, subagents: subagents.map { ($0.status, $0.progress) })
+    }
+
+    var shownOrigin: String? {
+        if let originLabel, !originLabel.isEmpty { return originLabel }
+        switch origin {
+        case "ios": return "iOS app"
+        case "mac": return "Mac app"
+        case "direct": return "Direct AI chat"
+        case "agent": return "Agent"
+        default: return nil
+        }
+    }
+
+    var shownModel: String? {
+        if let model, !model.isEmpty { return model }
+        if let m = usage?.model, !m.isEmpty { return m }
+        return nil
     }
 }
 

@@ -13,6 +13,7 @@ final class ConfigTests: TempDirTestCase {
         XCTAssertEqual(c.titles, .auto)
         XCTAssertEqual(c.historyRetentionDays, 365)
         XCTAssertEqual(c.mediaRetentionDays, 60)
+        XCTAssertEqual(c.staleHours, 24)
         XCTAssertEqual(c.logMaxBytes, 5_000_000)
         XCTAssertEqual(c.logBackups, 3)
         XCTAssertEqual(c.role, "hub")
@@ -30,7 +31,8 @@ final class ConfigTests: TempDirTestCase {
         {"system": {"name": "Orbital Agents", "role": "satellite", "machine_name": ""},
          "machine_name": "build-box", "hub_url": "http://hub.example:7700/",
          "tracker": {"enabled": true, "port": 17711, "stt_port": "17712", "voice": true, "titles": "none",
-                     "history_retention_days": 30, "media_retention_days": 7, "grok_model": "fast-model"},
+                     "history_retention_days": 30, "media_retention_days": 7, "stale_hours": 6,
+                     "grok_model": "fast-model"},
          "logging": {"level": "debug", "max_bytes": 2048, "backups": 5, "retention_days": 3},
          "apple": {"bundle_prefix": "org.sample"},
          "paths": {"home": "/opt/orbital", "tracker_data": "/opt/orbital/data/tracker", "logs": "/var/log/orbital",
@@ -49,6 +51,7 @@ final class ConfigTests: TempDirTestCase {
         XCTAssertEqual(c.grokModel, "fast-model")
         XCTAssertEqual(c.historyRetentionDays, 30)
         XCTAssertEqual(c.mediaRetentionDays, 7)
+        XCTAssertEqual(c.staleHours, 6)
         XCTAssertEqual(c.logLevel, "DEBUG")
         XCTAssertEqual(c.logMaxBytes, 2048)
         XCTAssertEqual(c.logBackups, 5)

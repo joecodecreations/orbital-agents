@@ -364,12 +364,12 @@ class Api:
                 "tasks": data.get("tasks") or [], "available": data.get("available", True)}
 
     @safe
-    def desk_say(self, text: str) -> dict:
+    def desk_say(self, text: str, platform: str = "mac") -> dict:
         text = (text or "").strip()
         if not text:
             raise HubError("Write a message")
         # The hub streams NDJSON while the model answers; the reply also arrives as a live desk_message.
-        raw = self._need().post("/v1/desk/say", {"text": text}, timeout=180)
+        raw = self._need().post("/v1/desk/say", {"text": text, "platform": platform or "mac"}, timeout=180)
         events = []
         for line in (raw if isinstance(raw, str) else json.dumps(raw)).splitlines():
             try:

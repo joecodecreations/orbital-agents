@@ -34,6 +34,21 @@ struct DeskScreen: View {
         .background(OrbitalTheme.background.ignoresSafeArea())
         .overlay(alignment: .top) { banner }
         .toolbar(.hidden, for: .navigationBar)
+        .toolbar {
+            ToolbarItemGroup(placement: .keyboard) {
+                Button("Sections") {
+                    composerFocused = false
+                    OrbitalKeyboard.dismiss()
+                    router.showDrawer = true
+                }
+                Spacer()
+                Button("Done") {
+                    composerFocused = false
+                    OrbitalKeyboard.dismiss()
+                }
+                .fontWeight(.semibold)
+            }
+        }
         .task {
             desk.attach(store)
             await desk.refresh()
@@ -268,6 +283,12 @@ struct DeskScreen: View {
             }
             .defaultScrollAnchor(.bottom)
             .scrollDismissesKeyboard(.interactively)
+            .onTapGesture {
+                // Tap the thread to leave the composer; the bottom bar comes back.
+                guard composerFocused else { return }
+                composerFocused = false
+                OrbitalKeyboard.dismiss()
+            }
             .refreshable { await desk.refresh() }
             .onChange(of: desk.loaded) {
                 // The first load lands at the newest message, after layout.
@@ -320,6 +341,29 @@ struct DeskScreen: View {
             if desk.conversation.isListening {
                 listeningLine
             }
+            if composerFocused {
+                HStack {
+                    Text("Typing to your agent")
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(OrbitalTheme.textTertiary)
+                    Spacer(minLength: 0)
+                    Button {
+                        composerFocused = false
+                        OrbitalKeyboard.dismiss()
+                    } label: {
+                        Text("Done")
+                            .font(.subheadline.weight(.semibold))
+                            .foregroundStyle(OrbitalTheme.accent)
+                            .padding(.horizontal, 10)
+                            .frame(minHeight: 36)
+                            .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel("Done")
+                    .accessibilityHint("Dismisses the keyboard and shows the tab bar")
+                }
+                .padding(.horizontal, 4)
+            }
             HStack(alignment: .bottom, spacing: 8) {
                 Button {
                     desk.toggleLive()
@@ -338,11 +382,13 @@ struct DeskScreen: View {
                     .foregroundStyle(OrbitalTheme.text)
                     .focused($composerFocused)
                     .submitLabel(.send)
-                    .onSubmit { desk.sendDraft() }
+                    .onSubmit { sendDraft() }
                     .padding(.horizontal, 14)
                     .padding(.vertical, 10)
                     .background(OrbitalTheme.backgroundDeep.opacity(0.8), in: RoundedRectangle(cornerRadius: 20, style: .continuous))
-                    .overlay(RoundedRectangle(cornerRadius: 20, style: .continuous).strokeBorder(OrbitalTheme.hairline))
+                    .overlay(RoundedRectangle(cornerRadius: 20, style: .continuous).strokeBorder(
+                        composerFocused ? OrbitalTheme.accent.opacity(0.55) : OrbitalTheme.hairline
+                    ))
 
                 if desk.draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
                     Button {
@@ -357,7 +403,7 @@ struct DeskScreen: View {
                     .accessibilityLabel(desk.conversation.isListening ? "Send what I said" : "Talk")
                 } else {
                     Button {
-                        desk.sendDraft()
+                        sendDraft()
                     } label: {
                         Image(systemName: "arrow.up")
                             .font(.system(size: 20, weight: .bold))
@@ -374,6 +420,12 @@ struct DeskScreen: View {
         .padding(.bottom, 8)
         .background(OrbitalTheme.backgroundDeep.opacity(0.94))
         .overlay(alignment: .top) { OrbitalTheme.hairline.frame(height: 1) }
+    }
+
+    private func sendDraft() {
+        composerFocused = false
+        OrbitalKeyboard.dismiss()
+        desk.sendDraft()
     }
 
     private var micSymbol: String {

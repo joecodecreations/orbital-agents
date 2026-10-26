@@ -117,6 +117,44 @@ def grok_plan(log: Path = GROK_LOG, before: int | None = None) -> dict | None:
     return None
 
 
+def _model_from_grok_line(line: dict) -> str | None:
+    """Model id from a grok unified.jsonl row when the log names one."""
+    ctx = line.get("ctx") or {}
+    for key in ("current_model_id", "model", "new_model", "model_id"):
+        for bag in (ctx, line):
+            value = bag.get(key)
+            if isinstance(value, str) and value.strip() and not value.startswith("grok-pager"):
+                return value.strip()[:120]
+    return None
+
+
+def _grok_model_at(log: Path, before: int | None = None) -> str | None:
+    """Latest model id recorded in the log at or before `before`."""
+    try:
+        size = log.stat().st_size
+    except OSError:
+        return None
+    end = size if before is None else min(before, size)
+    start = max(0, end - BILLING_LOOKBACK)
+    try:
+        with log.open("rb") as handle:
+            handle.seek(start)
+            chunk = handle.read(end - start).decode("utf-8", "replace")
+    except OSError:
+        return None
+    found = None
+    for raw in chunk.splitlines():
+        if "current_model_id" not in raw and '"model"' not in raw and "new_model" not in raw:
+            continue
+        try:
+            model = _model_from_grok_line(json.loads(raw))
+        except json.JSONDecodeError:
+            continue
+        if model:
+            found = model
+    return found
+
+
 class UsageMeter:
     """Follows one agent run. snapshot() returns the running totals as a tracker usage dict, or None."""
 
@@ -133,12 +171,14 @@ class UsageMeter:
         self._grok_totals = {"input": 0, "cached": 0, "output": 0, "reasoning": 0, "calls": 0}
         self._grok_plan_start: dict | None = None
         self._grok_plan_now: dict | None = None
+        self._grok_model: str | None = None
         if self.engine == "grok":
             try:
                 self._grok_offset = grok_log.stat().st_size
             except OSError:
                 self._grok_offset = 0
             self._grok_plan_start = grok_plan(grok_log, before=self._grok_offset)
+            self._grok_model = _grok_model_at(grok_log, before=self._grok_offset)
 
     # Grok
 
@@ -155,12 +195,16 @@ class UsageMeter:
             return
         self._grok_offset += cut + 1
         for raw in data[: cut + 1].decode("utf-8", "replace").splitlines():
-            if "inference_done" not in raw and "credits config" not in raw:
+            if ("inference_done" not in raw and "credits config" not in raw
+                    and "current_model_id" not in raw and '"model"' not in raw):
                 continue
             try:
                 line = json.loads(raw)
             except json.JSONDecodeError:
                 continue
+            model = _model_from_grok_line(line)
+            if model:
+                self._grok_model = model
             plan = _billing(line)
             if plan:
                 self._grok_plan_now = plan
@@ -183,6 +227,8 @@ class UsageMeter:
             return None
         out: dict[str, Any] = {"engine": "grok", "inputTokens": t["input"], "cachedTokens": t["cached"],
                                "outputTokens": t["output"], "reasoningTokens": t["reasoning"]}
+        if self._grok_model:
+            out["model"] = self._grok_model
         now = self._grok_plan_now or self._grok_plan_start
         if now:
             out["planUsedPercent"] = round(now["percent"], 2)

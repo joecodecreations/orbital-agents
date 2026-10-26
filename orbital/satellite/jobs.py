@@ -44,6 +44,24 @@ HEAD_BYTES = 64_000
 USAGE_EVERY = 20.0  # seconds between token measurements of a running agent
 TAIL_CHARS = 4_000
 DROP_ENV = ("CLAUDECODE", "CLAUDE_CODE_ENTRYPOINT")  # a nested agent CLI must not think it runs inside another
+TRACKER_ORIGINS = {"ios", "mac", "direct", "agent"}
+
+
+def _normalize_origin(raw: str | None) -> str | None:
+    if not raw:
+        return None
+    s = str(raw).strip().lower()
+    if s in TRACKER_ORIGINS:
+        return s
+    if s in ("iphone", "ipad"):
+        return "ios"
+    if s in ("macos", "os", "catalyst", "desktop", "app"):
+        return "mac"
+    if s in ("chat", "cli", "ai"):
+        return "direct"
+    if s in ("satellite", "automation", "api", "sub"):
+        return "agent"
+    return None
 
 
 DESK_ID_RE = re.compile(r"^[A-Za-z0-9_-]{1,40}$")
@@ -332,7 +350,8 @@ class JobManager:
     # ---- public API
 
     def submit(self, agent: str | None = None, prompt: str = "", cwd: str | None = None,
-               title: str | None = None, track: bool = True, by: str = "api", desk: dict | None = None) -> dict:
+               title: str | None = None, track: bool = True, by: str = "api",
+               origin: str | None = None, model: str | None = None, desk: dict | None = None) -> dict:
         name = (agent or self.cfg.get("satellite.default_agent") or "").strip()
         agents = configured_agents(self.cfg)
         if name not in agents:
@@ -347,6 +366,12 @@ class JobManager:
             raise JobError(413, f"prompt is longer than {MAX_PROMPT_CHARS:,} characters")
         workdir = self.check_cwd(cwd)
         title = (title or "").strip() or prompt.splitlines()[0][:60]
+        # Desk stamps ios/mac; an API/automation start without an origin is an agent sending work in.
+        by_s = str(by or "api")[:40]
+        origin_s = _normalize_origin(origin)
+        if origin_s is None and by_s != "desk":
+            origin_s = "agent"
+        model_s = (str(model).strip()[:120] if model else "") or None
         desk_task, desk_token = desk_channel(desk)
         with self._lock:
             if self._closing:
@@ -364,7 +389,9 @@ class JobManager:
                 "prompt": prompt,
                 "cwd": workdir,
                 "track": bool(track),
-                "by": str(by or "api")[:40],
+                "by": by_s,
+                "origin": origin_s,
+                "model": model_s,
                 "desk_task": desk_task,
                 "desk_token": desk_token,
                 "machine": self.machine,
@@ -588,7 +615,10 @@ class JobManager:
             if record.get("track"):
                 details = (f"{record['agent']} job `{job_id}` on {self.machine}, in `{record['cwd']}`.\n\n"
                            + (record.get("prompt") or "")[:600])
-                tracker_id = self.tracker.start(record["agent"], record["title"], details)
+                tracker_id = self.tracker.start(
+                    record["agent"], record["title"], details,
+                    origin=record.get("origin"), model=record.get("model"),
+                )
                 with self._lock:
                     record["tracker_id"] = tracker_id
             if active.cancel_requested:
@@ -608,6 +638,10 @@ class JobManager:
             })
             if record.get("tracker_id"):
                 env["ORBITAL_TRACK_ID"] = record["tracker_id"]
+            if record.get("origin"):
+                env["ORBITAL_TRACK_ORIGIN"] = record["origin"]
+            if record.get("model"):
+                env["ORBITAL_TRACK_MODEL"] = record["model"]
             env.update(self._desk_env(record))
             for key in DROP_ENV:
                 env.pop(key, None)

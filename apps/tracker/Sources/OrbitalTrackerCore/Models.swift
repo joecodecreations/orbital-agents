@@ -4,6 +4,39 @@ public enum ItemSource: String, Codable, Sendable { case voice, manual, agent }
 public enum ItemStatus: String, Codable, Sendable { case active, done }
 public enum MediaKind: String, Codable, Sendable { case image, video, file }
 
+/// Where a tracker item was started. Only set when something real recorded it; older items
+/// leave this nil rather than guessing.
+/// - ios: the user through the Orbital Agents iPhone app (Desk)
+/// - mac: the user through the Mac/OS Orbital Agents app (Catalyst or desktop) or the Mac tracker panel
+/// - direct: the user typing in a proprietary AI CLI (Claude, Codex, Grok, Gemini, …)
+/// - agent: an agent or automation started the item (satellite job, subagent, API)
+public enum ItemOrigin: String, Codable, Sendable {
+    case ios, mac, direct, agent
+
+    public static let known = ["ios", "mac", "direct", "agent"]
+
+    public static func parse(_ raw: String?) -> ItemOrigin? {
+        guard let raw else { return nil }
+        let s = raw.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        switch s {
+        case "ios", "iphone", "ipad": return .ios
+        case "mac", "macos", "os", "catalyst", "desktop", "app": return .mac
+        case "direct", "chat", "cli", "ai": return .direct
+        case "agent", "satellite", "automation", "api", "sub": return .agent
+        default: return nil
+        }
+    }
+
+    public var label: String {
+        switch self {
+        case .ios: return "iOS app"
+        case .mac: return "Mac app"
+        case .direct: return "Direct AI chat"
+        case .agent: return "Agent"
+        }
+    }
+}
+
 /// A screenshot, video or file attached to an item. `archivePath` is a small compressed copy
 /// (relative to the tracker data folder), so the record survives when the original temp file
 /// is deleted. Archives older than `tracker.media_retention_days` are removed.
@@ -95,9 +128,11 @@ public struct SubTask: Codable, Identifiable, Hashable, Sendable {
     /// Percent complete as the agent reports it (0–100).
     public var progress: Int?
     public var usage: TokenUsage?
+    /// Model this subagent used, when known.
+    public var model: String?
 
     public init(id: String, agent: String, agentLabel: String? = nil, machine: String? = nil, title: String,
-                details: String = "", createdAt: Date = Date()) {
+                details: String = "", createdAt: Date = Date(), model: String? = nil) {
         self.id = id
         self.agent = agent
         self.agentLabel = agentLabel
@@ -109,6 +144,7 @@ public struct SubTask: Codable, Identifiable, Hashable, Sendable {
         self.updatedAt = createdAt
         self.notes = []
         self.media = []
+        self.model = model
     }
 
     public init(from decoder: Decoder) throws {
@@ -128,6 +164,14 @@ public struct SubTask: Codable, Identifiable, Hashable, Sendable {
         media = try c.decodeIfPresent([MediaRef].self, forKey: .media) ?? []
         progress = try? c.decodeIfPresent(Int.self, forKey: .progress)
         usage = try? c.decodeIfPresent(TokenUsage.self, forKey: .usage)
+        model = try c.decodeIfPresent(String.self, forKey: .model)
+    }
+
+    /// Prefer the stored model, else the one measured in usage.
+    public var shownModel: String? {
+        if let model, !model.isEmpty { return model }
+        if let m = usage?.model, !m.isEmpty { return m }
+        return nil
     }
 }
 
@@ -139,6 +183,10 @@ public struct TrackedItem: Codable, Identifiable, Hashable, Sendable {
     public var source: ItemSource
     public var agent: String?
     public var agentLabel: String?
+    /// Where the item was started (ios / mac / direct / agent). Nil on older items.
+    public var origin: ItemOrigin?
+    /// Model name when known at start or reported later (also see usage.model).
+    public var model: String?
     /// Machine the work happens on (config `machine_name`). On the hub, items relayed from
     /// satellites carry the satellite's name.
     public var machine: String?
@@ -165,7 +213,8 @@ public struct TrackedItem: Codable, Identifiable, Hashable, Sendable {
 
     public init(id: String = IDGen.make(), title: String, details: String = "",
                 transcript: String? = nil, source: ItemSource, agent: String? = nil,
-                agentLabel: String? = nil, machine: String? = nil, workspace: String? = nil, colorIndex: Int,
+                agentLabel: String? = nil, origin: ItemOrigin? = nil, model: String? = nil,
+                machine: String? = nil, workspace: String? = nil, colorIndex: Int,
                 createdAt: Date = Date()) {
         self.id = id
         self.title = title
@@ -174,6 +223,8 @@ public struct TrackedItem: Codable, Identifiable, Hashable, Sendable {
         self.source = source
         self.agent = agent
         self.agentLabel = agentLabel
+        self.origin = origin
+        self.model = model
         self.machine = machine
         self.workspace = workspace
         self.colorIndex = colorIndex
@@ -189,6 +240,13 @@ public struct TrackedItem: Codable, Identifiable, Hashable, Sendable {
 
     public var isAI: Bool { source == .agent }
 
+    /// Prefer the stored model, else the one measured in usage.
+    public var shownModel: String? {
+        if let model, !model.isEmpty { return model }
+        if let m = usage?.model, !m.isEmpty { return m }
+        return nil
+    }
+
     /// When the item counts as finished for history and retention.
     public var finishedAt: Date { completedAt ?? updatedAt }
 
@@ -201,6 +259,8 @@ public struct TrackedItem: Codable, Identifiable, Hashable, Sendable {
         source = try c.decodeIfPresent(ItemSource.self, forKey: .source) ?? .manual
         agent = try c.decodeIfPresent(String.self, forKey: .agent)
         agentLabel = try c.decodeIfPresent(String.self, forKey: .agentLabel)
+        origin = try c.decodeIfPresent(ItemOrigin.self, forKey: .origin)
+        model = try c.decodeIfPresent(String.self, forKey: .model)
         machine = try c.decodeIfPresent(String.self, forKey: .machine)
         workspace = try c.decodeIfPresent(String.self, forKey: .workspace)
         colorIndex = try c.decodeIfPresent(Int.self, forKey: .colorIndex) ?? 0

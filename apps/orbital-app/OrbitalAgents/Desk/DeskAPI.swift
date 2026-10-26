@@ -91,6 +91,12 @@ struct DeskAPI {
             let task = Task {
                 do {
                     var body: [String: Any] = ["text": text, "source": source, "client_id": clientID]
+                    // So the hub can stamp desk-started tracker items with iOS vs Mac origin.
+                    #if targetEnvironment(macCatalyst) || os(macOS)
+                    body["platform"] = "mac"
+                    #else
+                    body["platform"] = "ios"
+                    #endif
                     if let interrupt {
                         var cut: [String: Any] = ["heard": interrupt.heard]
                         if let replyID = interrupt.replyID { cut["reply_id"] = replyID }

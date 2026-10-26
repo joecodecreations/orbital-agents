@@ -59,6 +59,8 @@ public struct OrbitalConfig: Sendable, Equatable {
     public var hotkeyModifiersValid: Bool
     public var historyRetentionDays: Int
     public var mediaRetentionDays: Int
+    /// `tracker.stale_hours`: agent items with no update for this long close themselves (0 = never).
+    public var staleHours: Int
 
     public var logLevel: String
     public var logMaxBytes: Int
@@ -143,6 +145,7 @@ public struct OrbitalConfig: Sendable, Equatable {
             hotkeyModifiersValid: hotkeyMods.valid,
             historyRetentionDays: r.int("tracker.history_retention_days") ?? 365,
             mediaRetentionDays: r.int("tracker.media_retention_days") ?? 60,
+            staleHours: r.int("tracker.stale_hours") ?? 24,
             logLevel: (r.string("logging.level") ?? "INFO").uppercased(),
             logMaxBytes: max(r.int("logging.max_bytes") ?? 5_000_000, 1024),
             logBackups: max(r.int("logging.backups") ?? 3, 0),

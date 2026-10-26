@@ -290,6 +290,22 @@ class CLI:
     def resolve_agent(self) -> str:
         return normalize_agent(self.p.value("agent") or detect_agent(self.env) or "other")
 
+    def resolve_origin(self, is_sub: bool) -> str | None:
+        raw = (self.p.value("origin") or self.env.get("ORBITAL_TRACK_ORIGIN") or "").strip().lower()
+        aliases = {
+            "ios": "ios", "iphone": "ios", "ipad": "ios",
+            "mac": "mac", "macos": "mac", "os": "mac", "catalyst": "mac", "desktop": "mac", "app": "mac",
+            "direct": "direct", "chat": "direct", "cli": "direct", "ai": "direct",
+            "agent": "agent", "satellite": "agent", "automation": "agent", "api": "agent", "sub": "agent",
+        }
+        if raw:
+            return aliases.get(raw)
+        return "agent" if is_sub else "direct"
+
+    def resolve_model(self) -> str | None:
+        raw = (self.p.value("model") or self.env.get("ORBITAL_TRACK_MODEL") or "").strip()
+        return raw[:120] if raw else None
+
     # Commands
 
     def run(self) -> int:
@@ -348,6 +364,12 @@ class CLI:
         progress = self.progress()
         if progress is not None:
             cmd["progress"] = progress
+        origin = self.resolve_origin(parent is not None)
+        if origin:
+            cmd["origin"] = origin
+        model = self.resolve_model()
+        if model:
+            cmd["model"] = model
         workspace = p.value("workspace")
         cmd["workspace"] = normalize_path(workspace) if workspace is not None else os.getcwd()
         media = self.media_inputs(parent or item_id, [details])
@@ -390,6 +412,20 @@ class CLI:
         progress = self.progress()
         if progress is not None:
             cmd["progress"] = progress
+        # Origin/model on update only when explicitly passed (do not invent a default).
+        if p.value("origin") or self.env.get("ORBITAL_TRACK_ORIGIN"):
+            raw = (p.value("origin") or self.env.get("ORBITAL_TRACK_ORIGIN") or "").strip().lower()
+            aliases = {
+                "ios": "ios", "iphone": "ios", "ipad": "ios",
+                "mac": "mac", "macos": "mac", "os": "mac", "catalyst": "mac", "desktop": "mac", "app": "mac",
+                "direct": "direct", "chat": "direct", "cli": "direct", "ai": "direct",
+                "agent": "agent", "satellite": "agent", "automation": "agent", "api": "agent", "sub": "agent",
+            }
+            if raw in aliases:
+                cmd["origin"] = aliases[raw]
+        model = self.resolve_model()
+        if model:
+            cmd["model"] = model
         raw = p.value("usage-json")
         if raw is not None:
             try:

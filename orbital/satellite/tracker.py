@@ -238,14 +238,28 @@ class TrackerReporter:
                 self._relayed.discard(item_id)
             return known
 
-    def start(self, agent: str, title: str, details: str = "") -> str | None:
+    def start(self, agent: str, title: str, details: str = "",
+              origin: str | None = None, model: str | None = None) -> str | None:
+        origin_s = (str(origin).strip().lower() if origin else "") or None
+        model_s = (str(model).strip()[:120] if model else "") or None
         if self._relay_ready():
             item_id = new_item_id()
             with self._lock:
                 self._relayed.add(item_id)
-            self._relay({"op": "start", "id": item_id, "agent": agent, "title": title[:120], "details": details[:2000]})
+            command: dict = {"op": "start", "id": item_id, "agent": agent, "title": title[:120],
+                             "details": details[:2000]}
+            if origin_s:
+                command["origin"] = origin_s
+            if model_s:
+                command["model"] = model_s
+            self._relay(command)
             return item_id
-        out = self._call(["start", "--agent", agent, "--title", title[:120], "--details", details[:2000]])
+        args = ["start", "--agent", agent, "--title", title[:120], "--details", details[:2000]]
+        if origin_s:
+            args += ["--origin", origin_s]
+        if model_s:
+            args += ["--model", model_s]
+        out = self._call(args)
         if not out:
             return None
         for line in reversed(out.strip().splitlines()):

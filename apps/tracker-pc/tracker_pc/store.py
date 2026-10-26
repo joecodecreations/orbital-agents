@@ -30,6 +30,23 @@ class StoreError(ValueError):
     pass
 
 
+def _normalize_origin(raw: Any) -> str | None:
+    if not isinstance(raw, str):
+        return None
+    s = raw.strip().lower()
+    if s in ("ios", "mac", "direct", "agent"):
+        return s
+    if s in ("iphone", "ipad"):
+        return "ios"
+    if s in ("macos", "os", "catalyst", "desktop", "app"):
+        return "mac"
+    if s in ("chat", "cli", "ai"):
+        return "direct"
+    if s in ("satellite", "automation", "api", "sub"):
+        return "agent"
+    return None
+
+
 def _clean(s: Any) -> str | None:
     if not isinstance(s, str):
         return None
@@ -171,15 +188,16 @@ class TrackerStore:
         self._next_color += 1
         return c
 
-    def add_personal(self, title: str, details: str = "") -> str:
+    def add_personal(self, title: str, details: str = "", source: str = "manual") -> str:
         with self.lock:
             now = now_iso()
-            item = {"id": make_id(), "title": title[:200], "details": details, "source": "manual",
-                    "machine": self.machine_name, "colorIndex": self._take_color(), "status": "active",
-                    "createdAt": now, "updatedAt": now, "dismissed": False, "processing": False,
-                    "notes": [], "media": [], "subagents": []}
+            src = source if source in ("voice", "manual") else "manual"
+            item = {"id": make_id(), "title": title[:200], "details": details, "source": src,
+                    "origin": "mac", "machine": self.machine_name, "colorIndex": self._take_color(),
+                    "status": "active", "createdAt": now, "updatedAt": now, "dismissed": False,
+                    "processing": False, "notes": [], "media": [], "subagents": []}
             self.items.append(item)
-            self._event("added", id=item["id"], title=title, source="manual")
+            self._event("added", id=item["id"], title=title, source=src, origin="mac")
             self._changed()
             return item["id"]
 
@@ -258,12 +276,22 @@ class TrackerStore:
                 item["agentLabel"] = cmd["agentLabel"]
             if cmd.get("workspace") is not None:
                 item["workspace"] = cmd["workspace"]
+            origin = _normalize_origin(cmd.get("origin"))
+            if origin:
+                item["origin"] = origin
+            model = _clean(cmd.get("model"))
+            if model:
+                item["model"] = model[:120]
             item["media"] = self._accept_media(cmd.get("media"), item_id, None, machine)
             if clamp_progress(cmd.get("progress")) is not None:
                 item["progress"] = clamp_progress(cmd.get("progress"))
+            if isinstance(cmd.get("usage"), dict):
+                item["usage"] = cmd["usage"]
+                if not item.get("model") and isinstance(cmd["usage"].get("model"), str) and cmd["usage"]["model"].strip():
+                    item["model"] = cmd["usage"]["model"].strip()[:120]
             self.items.append(item)
             self._event("added", id=item_id, title=title, source="agent", agent=agent, machine=machine,
-                        workspace=cmd.get("workspace"))
+                        workspace=cmd.get("workspace"), origin=origin, model=item.get("model"))
             self._archive_markdown(item_id, None, [cmd.get("details")], machine)
             self._changed()
             return item_id
@@ -285,9 +313,16 @@ class TrackerStore:
                                    "updatedAt": now, "notes": []}
             if cmd.get("agentLabel") is not None:
                 sub["agentLabel"] = cmd["agentLabel"]
+            model = _clean(cmd.get("model"))
+            if model:
+                sub["model"] = model[:120]
             sub["media"] = self._accept_media(cmd.get("media"), parent_id, sub_id, machine)
             if clamp_progress(cmd.get("progress")) is not None:
                 sub["progress"] = clamp_progress(cmd.get("progress"))
+            if isinstance(cmd.get("usage"), dict):
+                sub["usage"] = cmd["usage"]
+                if not sub.get("model") and isinstance(cmd["usage"].get("model"), str) and cmd["usage"]["model"].strip():
+                    sub["model"] = cmd["usage"]["model"].strip()[:120]
             parent["subagents"].append(sub)
             del parent["subagents"][:-MAX_SUBAGENTS]
             parent["updatedAt"] = now
@@ -358,9 +393,17 @@ class TrackerStore:
         progress = clamp_progress(cmd.get("progress"))
         if progress is not None:
             node["progress"] = progress
+        origin = _normalize_origin(cmd.get("origin"))
+        if origin and not node.get("origin"):
+            node["origin"] = origin
+        model = _clean(cmd.get("model"))
+        if model:
+            node["model"] = model[:120]
         usage = cmd.get("usage")
         if isinstance(usage, dict):
             node["usage"] = {**usage, "updatedAt": usage.get("updatedAt") or now_iso()}
+            if not node.get("model") and isinstance(usage.get("model"), str) and usage["model"].strip():
+                node["model"] = usage["model"].strip()[:120]
         node["media"] += self._accept_media(cmd.get("media"), parent_id, sub_id, machine)
         del node["media"][:-MAX_MEDIA]
         node["updatedAt"] = now_iso()

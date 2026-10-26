@@ -14,8 +14,11 @@ orbital-track — report AI work to Orbital Agents - Agent Satellite Tracker
 
 MAIN agents (talking to the user directly):
   orbital-track start --agent <claude|chatgpt|grok|gemini|NAME> --title "2-5 word title" \\
-                      [--details "markdown"] [--progress 0-100] [--workspace DIR] [--label "Claude Code"] [--media FILE]...
+                      [--details "markdown"] [--progress 0-100] [--workspace DIR] [--label "Claude Code"] \\
+                      [--origin ios|mac|direct|agent] [--model NAME] [--media FILE]...
       → prints the new ITEM ID. Remember it (shell variables don't survive between tool calls).
+      Origin defaults to `direct` (you typed into this AI CLI). Desk/satellite jobs set ios/mac/agent.
+      Model is optional; the satellite fills it from measured usage when it can.
   orbital-track update <ID> --progress 0-100 [--note "what just happened"] [--details "markdown" [--append]] [--title "..."] [--media FILE]...
       --progress is REQUIRED at every update: how far along the WHOLE job is, 0-100 (your honest
       estimate). It drives the bar on the tracker and the phone. Raise it as steps complete, e.g.
@@ -223,6 +226,23 @@ func resolveAgent() -> String {
     Agents.normalize(p.value("agent") ?? Agents.detectFromEnvironment(env) ?? "other")
 }
 
+/// Where this item came from. Explicit flag/env win; a subagent is always `agent`; otherwise
+/// a CLI start from the user AI chat is `direct`.
+func resolveOrigin(isSub: Bool) -> String? {
+    if let raw = p.value("origin") ?? env["ORBITAL_TRACK_ORIGIN"], let parsed = ItemOrigin.parse(raw) {
+        return parsed.rawValue
+    }
+    if isSub { return ItemOrigin.agent.rawValue }
+    return ItemOrigin.direct.rawValue
+}
+
+func resolveModel() -> String? {
+    let raw = (p.value("model") ?? env["ORBITAL_TRACK_MODEL"] ?? "")
+        .trimmingCharacters(in: .whitespacesAndNewlines)
+    guard !raw.isEmpty else { return nil }
+    return String(raw.prefix(120))
+}
+
 /// `--progress 40`, `--progress 40%`: how far along the whole job is.
 func progressOption() -> Int? {
     guard let raw = p.value("progress") else { return nil }
@@ -256,6 +276,8 @@ case "start", "add", "sub":
     cmd.details = text("details")
     cmd.workspace = p.value("workspace").map { MediaArchiver.normalizePath($0) } ?? FileManager.default.currentDirectoryPath
     cmd.progress = progressOption()
+    cmd.origin = resolveOrigin(isSub: parent != nil)
+    cmd.model = resolveModel()
     cmd.media = mediaInputs(itemID: parent ?? id, markdown: [cmd.details])
     deliver(cmd)
     print(id)
@@ -276,11 +298,16 @@ case "update", "note", "done", "complete", "finish":
     cmd.note = text("note") ?? (verb == "note" && p.positional.count > 2 ? p.positional[2...].joined(separator: " ") : nil)
     cmd.summary = text("summary")
     cmd.progress = progressOption()
+    if let origin = p.value("origin") ?? env["ORBITAL_TRACK_ORIGIN"] {
+        cmd.origin = ItemOrigin.parse(origin)?.rawValue
+    }
+    if let model = resolveModel() { cmd.model = model }
     if let raw = p.value("usage-json") {
         guard let usage = try? TrackerJSON.decoder().decode(TokenUsage.self, from: Data(raw.utf8)) else {
             fail("--usage-json must be a JSON object like {\"engine\":\"grok\",\"inputTokens\":1200,\"outputTokens\":300}")
         }
         cmd.usage = usage
+        if cmd.model == nil, let m = usage.model, !m.isEmpty { cmd.model = m }
     }
     cmd.media = mediaInputs(itemID: id, markdown: [cmd.details, cmd.note, cmd.summary])
     deliver(cmd)

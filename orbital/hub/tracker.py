@@ -97,6 +97,28 @@ def _agent_name(raw: str | None) -> str:
     return raw.title() if raw else "You"
 
 
+ORIGIN_LABELS = {"ios": "iOS app", "mac": "Mac app", "direct": "Direct AI chat", "agent": "Agent"}
+
+
+def _origin_of(item: dict) -> str | None:
+    raw = item.get("origin")
+    if isinstance(raw, str) and raw in ORIGIN_LABELS:
+        return raw
+    return None
+
+
+def _model_of(item: dict) -> str | None:
+    model = item.get("model")
+    if isinstance(model, str) and model.strip():
+        return model.strip()[:120]
+    usage = item.get("usage")
+    if isinstance(usage, dict):
+        m = usage.get("model")
+        if isinstance(m, str) and m.strip():
+            return m.strip()[:120]
+    return None
+
+
 class TrackerFeed:
     """items.json with an mtime cache, signed media URLs, and a change watcher."""
 
@@ -185,11 +207,16 @@ class TrackerFeed:
         cover = next((m for m in media if m.get("kind") in ("image", "video")), None)
         notes = item.get("notes") or []
         subs = item.get("subagents") or []
+        origin = _origin_of(item)
+        model = _model_of(item)
         return {
             "id": item.get("id"),
             "title": item.get("title") or "Untitled",
             "status": item.get("status") or "active",
             "source": item.get("source") or "manual",
+            "origin": origin,
+            "origin_label": ORIGIN_LABELS.get(origin) if origin else None,
+            "model": model,
             "agent": item.get("agent"),
             "agent_name": _agent_name(item.get("agent")) if item.get("source") == "agent" else "You",
             "agent_label": item.get("agentLabel"),
@@ -238,6 +265,7 @@ class TrackerFeed:
                         "media": [self._media_urls(item["id"], m, sub.get("id")) for m in sub.get("media") or [] if m.get("kind") in ("image", "video")],
                         "progress": sub.get("progress"),
                         "usage": sub.get("usage") if isinstance(sub.get("usage"), dict) else None,
+                        "model": _model_of(sub),
                     }
                     for sub in item.get("subagents") or []
                 ],
@@ -684,7 +712,14 @@ def add_routes(app, hub) -> None:
         if item is None:
             return fail("no such item", 404)
         detail = feed.detail(item)
-        detail["desk_task"] = hub.desk.task_for_tracker(item_id) if hub.desk is not None else None
+        desk_task = hub.desk.task_for_tracker(item_id) if hub.desk is not None else None
+        detail["desk_task"] = desk_task
+        # Desk tasks store the app platform; use it when the tracker item predates origin.
+        if not detail.get("origin") and isinstance(desk_task, dict):
+            platform = desk_task.get("client_platform")
+            if platform in ORIGIN_LABELS:
+                detail["origin"] = platform
+                detail["origin_label"] = ORIGIN_LABELS[platform]
         return JSONResponse(detail)
 
     def tracker_caller(request: Request) -> str | None:

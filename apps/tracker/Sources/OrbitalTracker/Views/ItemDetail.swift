@@ -81,6 +81,8 @@ struct ItemDetailBody: View {
     private var metaRow: some View {
         let who = item.isAI ? (item.agentLabel ?? Agents.displayName(item.agent)) : (item.source == .voice ? "You (voice)" : "You (typed)")
         var parts = [who]
+        if let origin = item.origin { parts.append(origin.label) }
+        if let model = item.shownModel { parts.append(model) }
         if let machine = item.machine, !machine.isEmpty { parts.append("on \(machine)") }
         parts.append("started \(Fmt.clock(item.createdAt))")
         if let done = item.completedAt {
@@ -93,6 +95,26 @@ struct ItemDetailBody: View {
             Text(parts.joined(separator: " · "))
                 .font(.system(size: 10.5, weight: .medium))
                 .foregroundStyle(.white.opacity(0.55))
+            if item.origin != nil || item.shownModel != nil {
+                HStack(spacing: 6) {
+                    if let origin = item.origin {
+                        Text(origin.label)
+                            .font(.system(size: 9.5, weight: .semibold))
+                            .foregroundStyle(.white.opacity(0.85))
+                            .padding(.horizontal, 7)
+                            .padding(.vertical, 2)
+                            .background(Capsule().fill(Color.white.opacity(0.12)))
+                            .help("Where this item started")
+                    }
+                    if let model = item.shownModel {
+                        Text(model)
+                            .font(.system(size: 9.5, weight: .medium).monospaced())
+                            .foregroundStyle(.white.opacity(0.7))
+                            .lineLimit(1)
+                            .help("Model used for this work")
+                    }
+                }
+            }
             if let ws = item.workspace, !ws.isEmpty {
                 Button {
                     NSWorkspace.shared.open(URL(fileURLWithPath: ws))
@@ -448,7 +470,13 @@ struct UsageSummary: View {
     }
 
     static func tokensLine(_ u: TokenUsage) -> String {
-        var parts = ["\(compact(u.totalTokens)) tokens"]
+        var parts: [String] = []
+        if let engine = u.engine {
+            parts.append(Agents.displayName(engine) + (u.model.map { " · \($0)" } ?? ""))
+        } else if let model = u.model, !model.isEmpty {
+            parts.append(model)
+        }
+        parts.append("\(compact(u.totalTokens)) tokens")
         var detail: [String] = []
         if let i = u.inputTokens { detail.append("\(compact(i)) in") }
         if let c = u.cachedTokens, c > 0 { detail.append("\(compact(c)) cached") }
