@@ -85,6 +85,7 @@ Tests never use 7700–7704: they take a free port from the OS (or 17700–17799
 | Hub → satellite | `Authorization: Bearer <satellite token sent at join>` (`ORBITAL_SATELLITE_TOKEN` on the satellite) |
 | Anyone → remote browser bridge | `Authorization: Bearer $ORBITAL_BROWSER_TOKEN` (loopback calls from the extension need none). There is one browser token for the whole fleet: the hub hands its `ORBITAL_BROWSER_TOKEN` to every satellite at join, and the hub relay sends it |
 | Agents → tracker | `orbital-track` → tracker loopback API (no token; loopback only). On a machine without a tracker it relays through the hub. |
+| Desk agent → hub (desk channel) | `Authorization: Bearer $ORBITAL_DESK_TOKEN`: a token the desk makes for one task and the satellite puts in that job's environment. It opens only that task's `/report` and `/inbox` (see "Desk channel") |
 
 Every server also checks the client IP against its allow list (`orbital/core/net.allowed`). The hub also accepts the token as `X-Orbital-Token: <token>`, and on the `/v1/live` websocket as `?token=`.
 
@@ -111,11 +112,35 @@ Other hub endpoints: `GET|POST /v1/pulse` (lightweight heartbeat metrics), `/v1/
 
 ## Satellite service API (base `http://<machine>:7704`, Bearer satellite token)
 
-`GET /v1/health` (no auth: `{"service":"orbital-satellite","machine","version","agents":[available agent names]}`), `GET /v1/agents` (every configured agent and whether it is installed here), `POST /v1/agents/run {agent, prompt, cwd?, title?, track?:true}` → `{job_id}`, `GET /v1/agents/jobs`, `GET /v1/agents/jobs/{id}` (status `queued|running|done|failed|cancelled`, exit_code, started/finished, output_tail), `GET /v1/agents/jobs/{id}/log`, `POST /v1/agents/jobs/{id}/cancel`.
+`GET /v1/health` (no auth: `{"service":"orbital-satellite","machine","version","agents":[available agent names]}`), `GET /v1/agents` (every configured agent and whether it is installed here), `POST /v1/agents/run {agent, prompt, cwd?, title?, track?:true, desk?:{task, token}}` → `{job_id}`, `GET /v1/agents/jobs`, `GET /v1/agents/jobs/{id}` (status `queued|running|done|failed|cancelled`, exit_code, started/finished, output_tail), `GET /v1/agents/jobs/{id}/log`, `POST /v1/agents/jobs/{id}/cancel`.
 
 Rules: argv from `[agents.<name>].command` with `{prompt}`/`{cwd}` substituted, never a shell; `cwd` must be inside `satellite.workdirs`; at most `satellite.max_concurrent_jobs`; killed after `job_timeout_minutes`; output kept under data/satellite with a size cap; each job reports to the tracker (`orbital-track start/done`, agent label = agent name, title = job title) when `track` is true. An agent whose executable isn't on PATH is not listed as available.
 
+A job the desk starts carries `desk: {task, token}`. The satellite keeps the token out of every job listing, the heartbeat and the relays, and gives the agent `ORBITAL_DESK_TASK`, `ORBITAL_DESK_TOKEN`, `ORBITAL_DESK_URL` (the hub as this machine reaches it, `hub_url()`) and `ORBITAL_CLI` (the `orbital` command beside the satellite's Python), besides `ORBITAL_JOB_ID`, `ORBITAL_AGENT`, `ORBITAL_MACHINE` and `ORBITAL_TRACK_ID`.
+
 Prompt limit: `orbital/core/limits.py` `MAX_PROMPT_CHARS = 100_000`, shared by the hub relay, the satellite's HTTP model and its job runner. A longer prompt gets 413; an empty one 400.
+
+## Desk channel (the Agent desk and the agents it starts)
+
+The desk model only talks; agents on the satellites do the work. What the desk can tell the user is what reached it, so every agent it starts gets a channel back to it, and the desk's live state (the prompt it answers from) carries all of it.
+
+Agent → desk, with `orbital desk` (`orbital/cli/commands/desk.py`), or `POST /v1/desk/tasks/{task}/report {kind, text, progress?}` with the channel token:
+
+| `orbital desk …` | kind | What the desk does with it |
+|---|---|---|
+| `note "<milestone>" --progress N` | note | progress bar and latest notes; also runs `orbital-track update $ORBITAL_TRACK_ID` so one command moves the tracker too |
+| `finding "<fact>"` | finding | kept (latest 20), listed under the task, so "what did it find?" is answered at once |
+| `answer "<answer>"` | answer | said in the thread with `speak` (the app reads it aloud while the user is talking to the desk) and raised as a time-sensitive alert; the finish then doesn't repeat it |
+| `ask "<question>" --wait 300` | question | said in the thread and raised; the live state marks it ASKS THE USER, and the user's reply goes back as a followup |
+| `blocked "<what it needs>"` | blocked | said and raised; shown under the task |
+
+Desk → agent: a followup on a running task goes to its inbox at once (`GET /v1/desk/tasks/{task}/inbox?wait=0..120`, long-poll). Every report's answer carries the unread inbox too, so the agent sees what the user added at its next `orbital desk` command, and the CLI prints it as part of the brief. A followup the agent read doesn't start another run; one it never read starts the next run when this one ends, as before. The app's sign-in may read an inbox without marking it read.
+
+Without a report, the desk still follows the job: `orbital-track update` notes and progress on the job's tracker item are merged into the task every tick (3 s), and the last printed line is the fallback. At the finish the report is read from the end of the job's whole log (`/log`, last 24,000 characters, kept up to 12,000), not the 4,000-character `output_tail`, so a long report isn't cut mid-word. The live state shows each running task's progress, latest notes, findings, answer, open question and unread followups, and for tasks finished in the last 12 hours their full reports (9,000 characters in all, 3,500 each; older ones get their first sentences).
+
+Effort `quick` is for questions that need a lookup: the worker is told to send `orbital desk answer` the moment it has the answer and change nothing.
+
+A warm desk session (the Grok or Claude subscription process kept open) is sent the whole live state on its first turn and afterwards only the blocks that changed (`desk_engines.LiveDiff`): a block is a header line and the "- " or indented lines under it.
 
 ## Discovery and joining (setup wizard, satellite role)
 

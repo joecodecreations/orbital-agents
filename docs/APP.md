@@ -144,6 +144,8 @@ Below the machines is every job, with a filter for **All**, **Running** or **Fai
 
 One running conversation with the hub's desk model. Type, or tap the microphone, talk, and tap it again to send. The **waveform** button turns on hands-free, which keeps listening for a back-and-forth. The speaker button turns spoken replies on and off. The desk answers in a sentence or two and hands real work to agents on your machines. Those tasks show in a strip along the top with their progress, and in the thread with a Stop button. Their results come back in the thread.
 
+The agents report back while they work. Ask "how's the login fix going?" and the desk answers from the agent's own progress and notes. Ask "read me the email it drafted" and it reads it from the agent's report. A quick question ("how many orders came in today?") goes to an agent told to look it up fast, and you hear the answer the moment it has it. When an agent needs you ("which account should I use?"), the desk asks you out loud, and your answer goes straight to that agent while it keeps working. Anything you add to a running task reaches it within seconds.
+
 The **…** menu has Run an agent, Voice settings, Refresh, and Clear context (starts the conversation fresh). **Voice settings** chooses:
 
 - speech to text: Apple's on-device recognizer, an on-device Whisper model downloaded from the hub (iOS 18), or OpenAI or Azure with your own key

@@ -55,6 +55,8 @@ class RunRequest(BaseModel):
     title: str | None = None
     track: bool = True
     by: str | None = None
+    # The desk channel for a job the Agent desk started: {"task": "t3", "token": "..."}.
+    desk: dict | None = None
 
 
 def allow_networks(cfg: Config) -> list[str]:
@@ -131,7 +133,7 @@ def create_app(cfg: Config, manager: JobManager, token: str | None = None) -> Fa
     def run(body: RunRequest) -> dict[str, Any]:
         try:
             job = manager.submit(agent=body.agent, prompt=body.prompt, cwd=body.cwd, title=body.title,
-                                 track=body.track, by=body.by or "api")
+                                 track=body.track, by=body.by or "api", desk=body.desk)
         except JobError as exc:
             raise HTTPException(exc.status, exc.message) from exc
         return {"job_id": job["id"], "status": job["status"], "agent": job["agent"], "machine": cfg.machine_name}

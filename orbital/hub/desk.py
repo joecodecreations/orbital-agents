@@ -38,13 +38,20 @@ from fastapi.responses import JSONResponse, StreamingResponse
 
 from orbital.core import get_logger
 from orbital.hub import echo_guard, reminders
+from orbital.hub.auth import bearer
 from orbital.hub.desk_model import ModelError, XAIProvider
 from orbital.hub.desk_tasks import TaskRunner, now_iso
-from orbital.hub.tracker import _agent_name, first_sentence
+from orbital.hub.tracker import _agent_name, first_sentence, shown_progress
 from orbital.hub.web import body_of, fail
 
 HISTORY_TURNS = 24
 THREAD_KEEP = 2000
+# Finished tasks in the live state, and how much of their reports the desk model sees, so "read me
+# the email it drafted" is answered from the report instead of "I don't have that".
+RECENT_TASKS = 8
+REPORT_BUDGET = 9000
+REPORT_EACH = 3500
+FULL_REPORT_AGE = 12 * 3600
 MARK = ">>>"
 MARK_LINE = re.compile(r"(^|\n)[ \t]*>>>")
 NOT_CONFIGURED = (
@@ -59,11 +66,13 @@ Your reply:
 - Sound like a quick, capable assistant. Confirm what you're doing in the user's terms ("On it, I've got two agents on it: one fixing the login bug, one checking the store listing.").
 - Never say work is finished unless the live state below shows it finished. Don't invent results.
 - If it's genuinely unclear which project or what they want, ask one short question instead of acting.
-- Status questions ("what's running", "is X done", "did the emails go out", "how's the server", "any alerts"): answer straight from the live state below, which already has every agent job, automation, alert, machine and page summary. Never start a task to look up something the live state already shows; dispatch only for details it doesn't have, and say that's what you're doing.
+- Status and result questions ("what's running", "is X done", "what did it find", "read me the email", "how many went out", "how's the server", "any alerts"): answer straight from the live state below. It has every agent job with its progress, latest notes, findings and answer, the full reports of tasks that finished recently, plus automations, alerts, machines and page summaries. When they ask for something a report or finding holds (a draft, a number, a list, a link, a quote), give it to them from there, read out in full if they ask for it. Never say you don't have something the live state shows. Dispatch only for what isn't there, and say that's what you're doing.
+- Before starting a task, check the running list. If the same job is already running, say how far along it is instead of starting another.
+- An agent waiting on the user (marked ASKS THE USER below): put its question to them plainly. Their answer goes back to it with a followup line, and the agent gets it within seconds.
 - The user can talk over you, like in a real conversation. When their message says they cut you off, deal with what they just said first (start the work if it's a request). Then, only if the part they missed still matters, come back to it in a few words. Never repeat what they already heard.
 
 Actions: after your reply, write zero or more lines that start with >>> and hold one JSON object each, on one line:
->>> {"type":"task","project":"<name from the project list, or empty>","title":"<2-5 word title>","brief":"<everything the agent needs>","effort":"high","agent":"<optional: an agent name from Machines>","machine":"<optional: a machine name from Machines>"}
+>>> {"type":"task","project":"<name from the project list, or empty>","title":"<2-5 word title>","brief":"<everything the agent needs>","effort":"<quick, medium, high or xhigh>","agent":"<optional: an agent name from Machines>","machine":"<optional: a machine name from Machines>"}
 >>> {"type":"followup","task":"<task id like t3>","message":"<what to add or change>"}
 >>> {"type":"cancel","task":"<task id>"}
 >>> {"type":"todo","title":"<short to-do for the user>","notes":"<optional>"}
@@ -71,8 +80,8 @@ Actions: after your reply, write zero or more lines that start with >>> and hold
 >>> {"type":"clear"}
 
 When to use which:
-- task: any ask that needs doing, finding out, or thinking through: code, fixes, features, builds, research, looking anything up (the web, files, accounts, numbers), writing, marketing, checking a site, or a question you can't answer from what you plainly know or the live state. Don't do the work or the research in your reply; dispatch it and say so. Split a request into one task per separate job so agents work in parallel: several jobs in one message means several task lines. The brief is the agent's only context: restate the request fully, name the project, say what done looks like, and include details from earlier in this conversation. effort: "medium" for small edits and lookups, "high" by default, "xhigh" for big multi-step builds. Leave agent and machine empty unless the user names one or a machine clearly fits the job (its agents and status are under Machines); the desk then picks the best agent that can run.
-- followup: the user adds to, corrects, or extends a task that already exists (running or finished). Prefer this over starting a duplicate.
+- task: any ask that needs doing, finding out, or thinking through: code, fixes, features, builds, research, looking anything up (the web, files, accounts, numbers), writing, marketing, checking a site, or a question you can't answer from what you plainly know or the live state. Don't do the work or the research in your reply; dispatch it and say so. Split a request into one task per separate job so agents work in parallel: several jobs in one message means several task lines. The brief is the agent's only context: restate the request fully, name the project, say what done looks like, say exactly what to report back (the number, the text, the link), and include details from earlier in this conversation. effort: "quick" for a question that needs a lookup (a count, a fact in a file or an account, something on the web): the agent sends the answer back the moment it has it, and it is read to the user. "medium" for small edits, "high" by default, "xhigh" for big multi-step builds. Leave agent and machine empty unless the user names one or a machine clearly fits the job (its agents and status are under Machines); the desk then picks the best agent that can run.
+- followup: the user adds to, corrects, or extends a task that already exists (running or finished), or answers an agent's question. A running agent gets it within seconds; a finished one starts again with it. Prefer this over starting a duplicate.
 - cancel: they want a running task stopped.
 - todo: something the user has to do personally, no time. reminder: there is a time ("tomorrow at 9", "in two hours"); resolve it against the current time below.
 - clear: the user asks you to clear or reset your context. Running work is not affected; say so.
@@ -152,6 +161,15 @@ def _clean_spoken(text: str) -> str:
     text = re.sub(r"[*_`#]+", "", text)
     text = re.sub(r"\s+\n", "\n", text)
     return text.strip()
+
+
+def _speakable(text: str, limit: int = 600) -> str:
+    """An agent's report as it should be heard: no markdown or links, at most a few sentences."""
+    text = re.sub(r"!?\[([^\]]*)\]\([^)]*\)", r"\1", text or "")
+    text = re.sub(r"`[^`]*`", lambda m: m.group(0).strip("`") if len(m.group(0)) < 40 else "", text)
+    text = re.sub(r"https?://\S+", "the link", text)
+    text = " ".join(_clean_spoken(text).split())
+    return _one_line(_sentences(text, 4), limit)
 
 
 # Some models put the first action on the same line as the reply ("On it. >>> {...}").
@@ -343,6 +361,7 @@ class Desk:
             choose=self.choose_worker,
             locate=self.locate_machine,
             engine_down=self.engine_down,
+            tracker=lambda item_id: hub.tracker.get(item_id),
         )
         self.add_reminder = add_reminder or reminders.add
         self.messages: list[dict] = self._load()
@@ -739,22 +758,92 @@ class Desk:
         carry = self._carried()
         if carry:
             lines.append("Notes from before your context was last cleared (still true unless the user changed it since):")
-            lines.append(carry)
+            lines.extend(_indent(carry))
+        lines.extend(self.task_lines())
+        lines.extend(self.tracker_lines())
+        return "\n".join(lines)
+
+    # The live state's task blocks. Each block is a header line, then lines starting "- " or
+    # indented, so a warm session can be sent only the blocks that changed (desk_engines.LiveDiff).
+
+    def task_lines(self) -> list[str]:
+        lines: list[str] = []
         running = self.runner.running()
         if running:
-            lines.append("Desk tasks running or queued:")
+            lines.append("Desk tasks running or queued (progress, what the agent reported so far):")
             for task in running:
-                note = f" — latest: {task['last_note']}" if task.get("last_note") else ""
-                where = f" in {task['project']}" if task.get("project") else ""
-                lines.append(f"- {task['id']} [{task['status']}] {task['title']}{where} (started {_ago(task.get('started_at') or task['created_at'])}){note}")
+                lines.extend(self._running_lines(task))
         else:
-            lines.append("Desk tasks running: none.")
-        finished = [t for t in self.runner.tasks if t["status"] in ("done", "failed", "stopped") and _age_s(t.get("finished_at")) < 2 * 86400][-8:]
+            lines.append("Desk tasks running or queued: none.")
+        finished = [t for t in self.runner.tasks if t["status"] in ("done", "failed", "stopped") and _age_s(t.get("finished_at")) < 2 * 86400]
+        finished.sort(key=lambda t: t.get("finished_at") or "")
+        finished = finished[-RECENT_TASKS:]
         if finished:
-            lines.append("Desk tasks finished recently:")
+            lines.append("Desk tasks finished recently, newest first. Their reports are what the agents found and wrote; answer from them:")
+            budget = REPORT_BUDGET
             for task in reversed(finished):
-                result = first_sentence(task.get("summary")) or task.get("error") or ""
-                lines.append(f"- {task['id']} [{task['status']}] {task['title']}, {_ago(task.get('finished_at'))}: {result}")
+                block, used = self._finished_lines(task, budget)
+                budget -= used
+                lines.extend(block)
+        return lines
+
+    def _running_lines(self, task: dict) -> list[str]:
+        where = f" in {task['project']}" if task.get("project") else ""
+        on = f" on {task['machine']}" if task.get("machine") else ""
+        who = f" ({task['agent']})" if task.get("agent") else ""
+        pct = f", {task['progress']}%" if task.get("progress") not in (None, 0) and task["status"] == "running" else ""
+        since = _ago(task.get("started_at") or task["created_at"])
+        out = [f"- {task['id']} [{task['status']}{pct}, started {since}] {task['title']}{where}{on}{who}"]
+        if task.get("waiting"):
+            out.append(f"  waiting: {task['waiting']}")
+        notes = [n["text"] for n in (task.get("notes") or [])][-3:]
+        if notes:
+            out.append("  latest notes: " + " | ".join(_one_line(n, 220) for n in notes))
+        elif task.get("last_note"):
+            out.append(f"  latest output: {_one_line(task['last_note'], 220)}")
+        findings = [f["text"] for f in (task.get("findings") or [])][-8:]
+        if findings:
+            out.append("  found so far: " + " | ".join(_one_line(f, 300) for f in findings))
+        if task.get("answer"):
+            out.append(f"  answer so far: {_one_line(task['answer'], 600)}")
+        if task.get("question"):
+            out.append(f"  ASKS THE USER: \"{_one_line(task['question'], 400)}\" (their reply goes back with a followup to {task['id']})")
+        if task.get("blocked"):
+            out.append(f"  blocked, needs the user: {_one_line(task['blocked'], 400)}")
+        queued = task.get("queue") or []
+        if queued:
+            out.append("  follow-ups not yet read by the agent: " + " | ".join(_one_line(q, 160) for q in queued[-3:]))
+        return out
+
+    def _finished_lines(self, task: dict, budget: int) -> tuple[list[str], int]:
+        """A finished task: the full report while the budget lasts, else its first sentences."""
+        where = f" in {task['project']}" if task.get("project") else ""
+        out = [f"- {task['id']} [{task['status']} {_ago(task.get('finished_at'))}] {task['title']}{where}"]
+        used = 0
+        if task.get("answer") and task.get("answer_run") == task.get("runs"):
+            out.append(f"  answer: {_one_line(task['answer'], 800)}")
+        if task["status"] != "done" and task.get("error"):
+            out.append(f"  why it stopped: {_one_line(task['error'], 300)}")
+        if task.get("blocked"):
+            out.append(f"  needed the user for: {_one_line(task['blocked'], 300)}")
+        findings = [f["text"] for f in (task.get("findings") or [])][-8:]
+        if findings:
+            out.append("  findings: " + " | ".join(_one_line(f, 300) for f in findings))
+        report = (task.get("summary") or "").strip()
+        if report:
+            fresh = _age_s(task.get("finished_at")) < FULL_REPORT_AGE
+            if fresh and budget >= 600:
+                text = _clip(report, min(REPORT_EACH, budget))
+                out.append("  report:")
+                out.extend(_indent(text, "    "))
+                used = len(text)
+            else:
+                out.append(f"  report starts: {_one_line(_sentences(report, 2), 320)}")
+        return out, used
+
+    def tracker_lines(self) -> list[str]:
+        """Work the desk didn't start: agents the user runs directly, and the user's own items."""
+        lines: list[str] = []
         desk_items = self.tracker_ids()
         items = self.hub.tracker.items()
         active = [i for i in items if i.get("status") == "active" and i.get("id") not in desk_items][:12]
@@ -763,20 +852,22 @@ class Desk:
             for item in active:
                 who = _agent_name(item.get("agent")) if item.get("source") == "agent" else "The user"
                 where = f" in {Path(item['workspace']).name}" if item.get("workspace") else ""
+                pct = shown_progress(item)["percent"]
                 notes = item.get("notes") or []
-                note = f" — latest: {notes[-1]['text'][:160]}" if notes else ""
-                lines.append(f"- {who}: {item.get('title')}{where}{note}")
+                note = f" — latest: {_one_line(notes[-1].get('text'), 300)}" if notes else ""
+                lines.append(f"- {who}: {item.get('title')}{where}{f' ({pct}%)' if pct else ''}{note}")
         done_other = [
             i for i in items
             if i.get("status") == "done" and i.get("id") not in desk_items and _age_s(i.get("completedAt")) < 86400
         ]
         done_other.sort(key=lambda i: i.get("completedAt") or "", reverse=True)
         if done_other:
-            lines.append("Finished in the tracker today:")
-            for item in done_other[:8]:
+            lines.append("Finished in the tracker today, newest first:")
+            for index, item in enumerate(done_other[:8]):
                 who = _agent_name(item.get("agent")) if item.get("source") == "agent" else "The user"
-                lines.append(f"- {who}: {item.get('title')} — {first_sentence(item.get('summary'), 160)}")
-        return "\n".join(lines)
+                size = 700 if index < 3 else 160
+                lines.append(f"- {who}: {item.get('title')} — {_one_line(_sentences(item.get('summary'), 4 if index < 3 else 1), size)}")
+        return lines
 
     def history(self, upto_id: str) -> list[dict]:
         rows: list[dict] = []
@@ -1052,8 +1143,11 @@ class Desk:
             if task is None:
                 return self._event("error", f"There's no task {task_id}.", speak="I couldn't find that task."), None
             await self._task_changed(self.runner.public(task))
-            verb = "Queued that for" if task["status"] == "running" else "Restarted"
-            return self._event("task_followup", f"{verb} {task['title']}: {message}", speak=f"{verb} the {task['title']} agent.", task_id=task["id"]), f"follow-up to {task['id']}"
+            if task["status"] == "running":
+                text, speak = f"Passed to {task['title']}: {message}", f"Passed that to the {task['title']} agent."
+            else:
+                text, speak = f"Restarted {task['title']}: {message}", f"Restarted the {task['title']} agent."
+            return self._event("task_followup", text, speak=speak, task_id=task["id"]), f"follow-up to {task['id']}"
         if kind == "cancel":
             task_id = str(action.get("task") or "")
             task = await self.runner.cancel(task_id)
@@ -1087,15 +1181,21 @@ class Desk:
 
     async def _task_finished(self, task: dict) -> None:
         ok = task["status"] == "done"
+        # The agent already sent its answer this run, and it was read out when it came in.
+        answered = ok and bool(task.get("answer")) and task.get("answer_run") == task.get("runs")
         spoken = first_sentence(task.get("summary")) if ok else ""
-        if ok:
+        if answered:
+            text = f"Done: {task['title']}. {first_sentence(task['answer'], 300)}".strip()
+            speak = None
+            spoken = task["answer"]
+        elif ok:
             text = f"Done: {task['title']}. {spoken}".strip()
             speak = f"{task['title']} is done. {spoken}".strip()
         else:
-            reason = task.get("error") or "no result"
+            reason = task.get("blocked") or task.get("error") or "no result"
             text = f"{task['title']} stopped without finishing: {reason}"
             speak = f"{task['title']} stopped without finishing."
-        task["spoken"] = speak
+        task["spoken"] = speak or task.get("spoken")
         await self._append(self._event("task_done" if ok else "task_failed", text, speak=speak, task_id=task["id"], tracker_id=task.get("tracker_id")))
         await self.hub.raise_alerts([{
             "schema": "orbital.alert.v1",
@@ -1105,7 +1205,40 @@ class Desk:
             "subtitle": task.get("project"),
             "body": (spoken or text)[:400],
             "thread_id": "agent-desk",
-            "interruption_level": "timeSensitive" if ok else "active",
+            # An answer already buzzed when it came in.
+            "interruption_level": "passive" if answered else "timeSensitive" if ok else "active",
+            "launch_url": f"orbital://agent?task={task['id']}",
+            "user_info": {"source": "agent-desk", "task_id": task["id"], "tracker_id": task.get("tracker_id")},
+        }])
+
+    async def on_report(self, task: dict, result: dict) -> None:
+        """An agent reported on its desk channel: the apps follow; an answer, a question or a block
+        is said out loud in the thread (the app speaks it while the user is talking to the desk) and
+        raised as an alert, so the user hears it without asking."""
+        await self._task_changed(self.runner.public(task))
+        if not result.get("announce"):
+            return
+        kind, text, title = result["kind"], result["text"], task["title"]
+        heard = _speakable(text)
+        if kind == "answer":
+            event = self._event("task_answer", f"{title}: {text}", speak=heard, task_id=task["id"], tracker_id=task.get("tracker_id"))
+            alert_title, level = f"Answer: {title}", "timeSensitive"
+        elif kind == "question":
+            event = self._event("task_question", f"{title} asks: {text}", speak=f"The {title} agent asks: {heard}", task_id=task["id"], tracker_id=task.get("tracker_id"))
+            alert_title, level = f"Question: {title}", "timeSensitive"
+        else:
+            event = self._event("task_blocked", f"{title} needs you: {text}", speak=f"{title} needs you. {heard}", task_id=task["id"], tracker_id=task.get("tracker_id"))
+            alert_title, level = f"Needs you: {title}", "active"
+        await self._append(event)
+        await self.hub.raise_alerts([{
+            "schema": "orbital.alert.v1",
+            "id": f"desk-{task['id']}-{kind}-{_new_id('')}",
+            "kind": "event",
+            "title": alert_title,
+            "subtitle": task.get("project"),
+            "body": text[:400],
+            "thread_id": "agent-desk",
+            "interruption_level": level,
             "launch_url": f"orbital://agent?task={task['id']}",
             "user_info": {"source": "agent-desk", "task_id": task["id"], "tracker_id": task.get("tracker_id")},
         }])
@@ -1129,6 +1262,37 @@ class _Turn:
         self.consumer: asyncio.Task | None = None
         self.cut = False
         self.finished = asyncio.Event()
+
+
+def _one_line(text: object, limit: int) -> str:
+    """Whitespace folded to single spaces, cut at a word near `limit`."""
+    flat = " ".join(str(text or "").split())
+    if len(flat) <= limit:
+        return flat
+    cut = flat[:limit]
+    return (cut[: cut.rfind(" ")] if " " in cut[limit // 2 :] else cut) + "…"
+
+
+def _sentences(text: object, count: int) -> str:
+    flat = " ".join(str(text or "").split())
+    parts = re.split(r"(?<=[.!?])\s+(?=[A-Z0-9\"'(])", flat)
+    return " ".join(parts[:count])
+
+
+def _clip(text: str, limit: int) -> str:
+    """At most `limit` characters, ending at a line or sentence, saying when there's more."""
+    text = text.strip()
+    if len(text) <= limit:
+        return text
+    cut = text[:limit]
+    end = max(cut.rfind("\n"), cut.rfind(". "))
+    if end > limit * 0.6:
+        cut = cut[: end + 1]
+    return cut.rstrip() + "\n[…the report goes on; send the agent a followup if the user needs the rest]"
+
+
+def _indent(text: str, prefix: str = "  ") -> list[str]:
+    return [prefix + line if line.strip() else prefix.rstrip() for line in str(text).strip().splitlines()]
 
 
 def _words(text: str) -> list[str]:
@@ -1268,6 +1432,51 @@ def add_routes(app, hub) -> None:
         if task is None:
             return fail("no such task", 404)
         return JSONResponse(desk.runner.public(task))
+
+    # The desk channel: an agent the desk started reports here and reads what the person added.
+    # Its own task's channel token (ORBITAL_DESK_TOKEN) or the hub's usual sign-in.
+
+    def channel(request: Request, task_id: str) -> tuple[dict | None, bool, JSONResponse | None]:
+        """(task, is_the_agent, denied)."""
+        agent = desk.runner.by_token(task_id, bearer(request))
+        if agent is None and not hub.auth.authorized(request):
+            return None, False, fail("unauthorized", 401, code="unauthorized")
+        task = agent or desk.runner.get(task_id)
+        if task is None:
+            return None, False, fail("no such task", 404)
+        return task, agent is not None, None
+
+    @app.post("/v1/desk/tasks/{task_id}/report")
+    async def desk_task_report(task_id: str, request: Request) -> JSONResponse:
+        """{kind: note|finding|answer|question|blocked, text, progress?} → {ok, status, inbox: [...]}."""
+        task, is_agent, denied = channel(request, task_id)
+        if denied:
+            return denied
+        body = await body_of(request)
+        try:
+            result = desk.runner.report(task, body.get("kind"), body.get("text"), body.get("progress"))
+        except ValueError as exc:
+            return fail(str(exc), 400)
+        get_logger("hub").info("desk report", extra={"fields": {"task": task_id, "kind": result["kind"], "chars": len(result["text"])}})
+        await desk.on_report(task, result)
+        # Whatever the person added rides back on every report, so the agent sees it at its next step.
+        inbox = desk.runner.take_inbox(task) if is_agent else []
+        if inbox:
+            await desk._task_changed(desk.runner.public(task))
+        return JSONResponse({"ok": True, "task": task_id, "status": task["status"], "progress": task.get("progress"), "inbox": inbox})
+
+    @app.get("/v1/desk/tasks/{task_id}/inbox")
+    async def desk_task_inbox(task_id: str, request: Request, wait: float = 0) -> JSONResponse:
+        """What the person added since the agent last looked; `wait` (≤ 120 s) holds until something comes."""
+        task, is_agent, denied = channel(request, task_id)
+        if denied:
+            return denied
+        if not is_agent:  # the app or a person looking: show it without marking it read
+            return JSONResponse({"task": task_id, "status": task["status"], "messages": task.get("inbox") or []})
+        messages = await desk.runner.wait_inbox(task, min(max(float(wait or 0), 0.0), 120.0))
+        if messages:
+            await desk._task_changed(desk.runner.public(task))
+        return JSONResponse({"task": task_id, "status": task["status"], "messages": messages})
 
     @app.post("/v1/desk/tasks/{task_id}/cancel")
     async def desk_cancel(task_id: str, request: Request) -> JSONResponse:

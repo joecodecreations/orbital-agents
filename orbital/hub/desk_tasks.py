@@ -6,17 +6,24 @@ agent in desk.worker_agent. The satellite owns the process, the time limit, the 
 tracker item (track: true), so a hub restart does not lose a job: the runner picks it back up
 from tasks.json by job id.
 
-A follow-up on a running task waits for that run to end; a follow-up on a finished task starts
-a new run told what the last one reported. A satellite that is busy (or not up yet) leaves the
-task queued, and it starts on a later tick.
+The desk channel (docs/ARCHITECTURE.md, "Desk channel"): every run gets a token for its own task.
+The agent reports through `orbital desk` (note, finding, answer, ask, blocked) and reads what the
+person adds (inbox). An answer is spoken to the person as soon as it arrives; a follow-up on a
+running task reaches the agent at its next report instead of waiting for the run to end. A
+follow-up the agent never read still starts a new run when this one ends, told what the last one
+reported. A satellite that is busy (or not up yet) leaves the task queued, and it starts on a
+later tick.
 """
 
 from __future__ import annotations
 
 import asyncio
+import contextlib
+import hmac
 import json
 import os
 import re
+import secrets
 import threading
 from datetime import datetime, timezone
 from pathlib import Path
@@ -27,24 +34,46 @@ from orbital.hub.satellites import RelayError, call
 
 MAX_WAIT = 24 * 3600
 FINISHED = {"done", "failed", "cancelled"}
-EFFORTS = {"medium", "high", "xhigh"}
+EFFORTS = {"quick", "medium", "high", "xhigh"}
 EFFORT_NOTES = {
+    "quick": ("Effort: quick. This is a question that needs a lookup, not a build. Look only where you need to and "
+              "change nothing. Send the answer with `orbital desk answer` the moment you have it (the person is waiting "
+              "to hear it), then finish with the same answer as your report."),
     "medium": "Effort: medium. A small edit or lookup; keep it quick.",
     "high": "Effort: high. Do it properly and check your work.",
     "xhigh": "Effort: extra high. A big multi-step job: plan it, build it fully, test it, and verify the result end to end.",
 }
+# What an agent may send the desk, and the words agents reach for instead.
+REPORT_KINDS = ("note", "finding", "answer", "question", "blocked")
+REPORT_ALIASES = {"ask": "question", "progress": "note", "update": "note", "fact": "finding", "find": "finding",
+                  "block": "blocked", "needs": "blocked", "result": "answer"}
+MAX_REPORT_CHARS = 4000
+KEEP_REPORTS = 60
+KEEP_FINDINGS = 20
+KEEP_INBOX = 50
+# At the finish the report is read from this much of the job's log, so a long one is not cut mid-word.
+REPORT_LOG_CHARS = 24_000
+REPORT_KEEP_CHARS = 12_000
 MAX_ENGINE_SWITCHES = 3
 
-WORKER_HEADER = """You were started from the Orbital Agents app's Desk (desk task {task_id}). The person who asked is away from this machine and hears about your work only through the desk.
+WORKER_HEADER = """You were started from the Orbital Agents app's Desk (desk task {task_id}). The person who asked is away from this machine. They talk to the desk, often by voice, and the desk knows only what you report to it.
 
 How to work:
 - Follow the project's own instructions (CLAUDE.md, AGENTS.md, README) if it has them.
-- Do the whole job end to end. Do not stop to ask questions; nobody can answer mid-run. Make the sensible call and say what you assumed.
-- If something truly needs the person (a password, a payment, an account login, a decision only they can make), stop there and say exactly what.
+- Do the whole job end to end. Make the sensible call and say what you assumed; ask only when you truly can't go on.
 - Deploys, store uploads, emails and public posts only when they asked for them.
 - Do only the job in your brief; other agents may be working on other parts of the same request.
-- The person watches a progress bar for this job. If `orbital-track` is installed and `ORBITAL_TRACK_ID` is set, report at each milestone: `orbital-track update "$ORBITAL_TRACK_ID" --note "<what just happened>" --progress <0-100>` (how much of the whole job is done). Never start a new tracker item.
-- Finish with a short report, starting on a new paragraph. Its first sentence is read aloud, so make it one plain sentence that says the result. Then the details: what changed, where, and anything only the person can do.
+
+Report to the desk with `orbital desk` (already set up for this task; if `orbital` isn't found, use "$ORBITAL_CLI" in its place):
+- `orbital desk note "<what just happened>" --progress <0-100>` at each milestone: how much of the whole job is done. It moves the progress bar the person watches and updates the tracker item too, so use it instead of `orbital-track update`. Never start a new tracker item.
+- `orbital desk finding "<fact>"` for each fact they may ask about: a number, a name, a link, a file path, an exact quote. One short, self-contained fact each.
+- `orbital desk answer "<answer>"` the moment you have the answer to what they asked. It is read aloud to them right away, so give the actual result (the number, the name, the text they asked for) in one to three plain spoken sentences.
+- `orbital desk ask "<question>" --wait 300` only when you can't go on without them (which account, which of two options). It is read to them and prints their reply. With no reply, carry on with your best call and say so.
+- `orbital desk blocked "<what you need>"` when only they can unblock it (a password, a payment, a login). Then stop.
+- Every desk command prints anything new the person said. Treat it as part of your brief. On a long job, run `orbital desk inbox` between steps.
+- If a desk command fails, carry on: reporting never blocks the work.
+
+Finish with a short report, starting on a new paragraph. Its first sentence is read aloud, so make it one plain sentence that says the result. Then the details: what changed, where, every fact or piece of text they asked for in full, and anything only they can do.
 """
 
 
@@ -83,6 +112,31 @@ def _tail(text: str | None, limit: int = 6000) -> str:
     return text[-limit:]
 
 
+def _set_tracker(task: dict, item_id: object) -> bool:
+    """Point the task at its current run's tracker item, keeping the earlier runs' ones."""
+    if not item_id or item_id == task.get("tracker_id"):
+        return False
+    known = task.setdefault("tracker_ids", [])
+    for ident in (task.get("tracker_id"), item_id):
+        if ident and ident not in known:
+            known.append(ident)
+    task["tracker_id"] = str(item_id)
+    return True
+
+
+def _norm(text: object) -> str:
+    return " ".join(str(text or "").lower().split())
+
+
+def _percent(value: Any) -> int | None:
+    if value is None or isinstance(value, bool):
+        return None
+    try:
+        return min(100, max(0, int(round(float(str(value).strip().rstrip("%"))))))
+    except (TypeError, ValueError):
+        return None
+
+
 class TaskRunner:
     def __init__(
         self,
@@ -95,6 +149,7 @@ class TaskRunner:
         choose: Callable[[dict], dict] | None = None,
         locate: Callable[[str], tuple[str, str] | None] | None = None,
         engine_down: Callable[[str, str], bool] | None = None,
+        tracker: Callable[[str], dict | None] | None = None,
     ) -> None:
         self.dir = root / "desk"
         self.dir.mkdir(parents=True, exist_ok=True)
@@ -109,7 +164,10 @@ class TaskRunner:
         self.choose = choose
         self.locate = locate
         self.engine_down = engine_down
+        # The task's tracker item, so `orbital-track update` notes and progress reach the desk too.
+        self.tracker = tracker
         self._lock = threading.Lock()
+        self._inbox_ready: dict[str, asyncio.Event] = {}
         self.tasks: list[dict] = self._load()
 
     # Persistence
@@ -147,13 +205,17 @@ class TaskRunner:
 
     @staticmethod
     def public(task: dict) -> dict:
+        """What the apps see. Never the channel token."""
         keys = (
             "id", "title", "project", "status", "agent", "job_id", "tracker_id", "created_at", "started_at",
             "finished_at", "last_note", "summary", "spoken", "error", "followups", "runs", "brief", "waiting",
-            "effort", "machine",
+            "effort", "machine", "progress", "answer", "question", "blocked",
         )
         out = {k: task.get(k) for k in keys}
         out["pending_followups"] = len(task.get("queue") or [])
+        out["findings"] = [f["text"] for f in (task.get("findings") or [])[-8:]]
+        out["notes"] = [{"at": n.get("at"), "text": n.get("text")} for n in (task.get("notes") or [])[-5:]]
+        out["inbox_unread"] = sum(1 for m in task.get("inbox") or [] if not m.get("delivered_at"))
         return out
 
     # Dispatch
@@ -173,6 +235,8 @@ class TaskRunner:
             "satellite": None,
             "effort": effort if effort in EFFORTS else "high",
             "engines_down": [],
+            # The agent's own key to this task's desk channel (report, inbox); nothing else.
+            "channel_token": secrets.token_urlsafe(24),
             "status": "queued",
             "created_at": now_iso(),
             "started_at": None,
@@ -198,6 +262,9 @@ class TaskRunner:
             return None
         task.setdefault("followups", []).append({"at": now_iso(), "text": message})
         task.setdefault("queue", []).append(message)
+        if task["status"] == "running":
+            # A running agent gets it at its next desk command; unread, it starts the next run.
+            self._post_inbox(task, message, "reply" if task.get("question") else "followup")
         if task["status"] not in ("queued", "running"):
             task["status"] = "queued"
             task["job_id"] = None
@@ -273,7 +340,10 @@ class TaskRunner:
         if not token:
             self._fail(task, "ORBITAL_SATELLITE_TOKEN is not set, so the hub can't start agents on this machine")
             return
-        body: dict = {"agent": task["agent"], "prompt": self._prompt(task), "title": task["title"], "track": True, "by": "desk"}
+        if not task.get("channel_token"):
+            task["channel_token"] = secrets.token_urlsafe(24)  # a task saved before the desk channel
+        body: dict = {"agent": task["agent"], "prompt": self._prompt(task), "title": task["title"], "track": True, "by": "desk",
+                      "desk": {"task": task["id"], "token": task["channel_token"]}}
         if task.get("cwd"):
             body["cwd"] = task["cwd"]
         try:
@@ -303,8 +373,16 @@ class TaskRunner:
                 "waiting": None,
                 "waiting_since": None,
                 "queue": [],
+                # Asked and blocked belong to a run; findings and the answer stay until replaced.
+                "question": None,
+                "blocked": None,
+                "progress": 0 if not task.get("runs") else task.get("progress"),
             }
         )
+        # Everything in the inbox went into this run's prompt.
+        for message in task.get("inbox") or []:
+            if not message.get("delivered_at"):
+                message["delivered_at"] = now_iso()
         if str(task.get("last_note") or "").startswith("Waiting for"):
             task["last_note"] = None
         self._save()
@@ -343,22 +421,44 @@ class TaskRunner:
             if not isinstance(job, dict):
                 continue
             job = job.get("job") if isinstance(job.get("job"), dict) else job
-            if job.get("tracker_id") and not task.get("tracker_id"):
-                task["tracker_id"] = job["tracker_id"]
-            tail = _tail(job.get("output_tail"), 400)
-            note = tail.splitlines()[-1][:400] if tail else None
+            # Each run is its own satellite job with its own tracker item.
+            moved = _set_tracker(task, job.get("tracker_id"))
             if job.get("status") in FINISHED:
                 await self._finish(task, job)
-            elif note and note != task.get("last_note"):
-                task["last_note"] = note
+                continue
+            changed = self._merge_tracker(task) or moved
+            if not task.get("notes"):
+                # An agent that reports nothing: the last line it printed.
+                tail = _tail(job.get("output_tail"), 400)
+                note = tail.splitlines()[-1][:400] if tail else None
+                if note and note != task.get("last_note"):
+                    task["last_note"] = note
+                    changed = True
+            if changed:
                 self._save()
                 await self.on_change(self.public(task))
+
+    async def _report_text(self, task: dict) -> str:
+        """The end of the job's whole log: `output_tail` is only the last 4,000 characters."""
+        if not task.get("job_id"):
+            return ""
+        try:
+            url, token = self._where(task)
+            answer = await call(url, "GET", f"/v1/agents/jobs/{task['job_id']}/log", token, timeout=10)
+        except RelayError:
+            return ""
+        log = answer.get("log") if isinstance(answer, dict) else None
+        return _tail(log, REPORT_LOG_CHARS) if isinstance(log, str) else ""
 
     async def _finish(self, task: dict, job: dict) -> None:
         status = job.get("status")
         output = _tail(job.get("output_tail"))
+        fuller = await self._report_text(task)
+        if len(fuller) > len(output):
+            output = fuller
         if output:
-            task["summary"] = final_report(output)
+            task["summary"] = final_report(output, REPORT_KEEP_CHARS)
+        task["question"] = None
         if task.get("queue") and status == "done":
             # More was asked while it ran: a new run picks it up with this report.
             task["status"] = "queued"
@@ -382,6 +482,7 @@ class TaskRunner:
             return
         if status == "done":
             task["status"] = "done"
+            task["progress"] = 100
         elif status == "cancelled":
             task["status"] = "stopped"
         else:
@@ -403,9 +504,133 @@ class TaskRunner:
                 get_logger("hub").warning("desk supervisor error", extra={"fields": {"error": str(exc)[:200]}})
             await asyncio.sleep(interval)
 
+    # The desk channel: what the agent reports, and what the person adds while it runs
+
+    def by_token(self, task_id: str, token: str | None) -> dict | None:
+        """The task, when `token` is its channel token (constant time); None otherwise."""
+        task = self.get(task_id)
+        want = (task or {}).get("channel_token")
+        if not task or not token or not want:
+            return None
+        return task if hmac.compare_digest(str(token).encode(), str(want).encode()) else None
+
+    def _add_note(self, task: dict, text: str, at: str, source: str) -> bool:
+        notes = task.setdefault("notes", [])
+        key = _norm(text)
+        if any(_norm(n.get("text")) == key for n in notes[-KEEP_REPORTS:]):
+            return False
+        notes.append({"at": at, "text": text[:MAX_REPORT_CHARS], "source": source})
+        notes.sort(key=lambda n: n.get("at") or "")
+        del notes[:-KEEP_REPORTS]
+        task["last_note"] = notes[-1]["text"][:400]
+        return True
+
+    def _merge_tracker(self, task: dict) -> bool:
+        """`orbital-track update` notes and progress on the task's tracker item, this run only."""
+        if not self.tracker or not task.get("tracker_id"):
+            return False
+        try:
+            item = self.tracker(task["tracker_id"])
+        except Exception:  # noqa: BLE001 - a bad items.json must not stop supervision
+            return False
+        if not isinstance(item, dict):
+            return False
+        since = task.get("run_started_at") or ""
+        changed = False
+        for note in item.get("notes") or []:
+            text = str((note or {}).get("text") or "").strip()
+            at = str((note or {}).get("at") or "")
+            if text and (not since or not at or at >= since):
+                changed = self._add_note(task, text, at or now_iso(), "tracker") or changed
+        progress = _percent(item.get("progress"))
+        updated = str(item.get("updatedAt") or "")
+        if progress is not None and progress != task.get("progress") and updated >= (task.get("progress_at") or ""):
+            task["progress"] = progress
+            task["progress_at"] = updated or now_iso()
+            changed = True
+        return changed
+
+    def report(self, task: dict, kind: str, text: str, progress: Any = None) -> dict:
+        """One report from the task's agent: {"kind", "text", "announce"}. ValueError for a bad one."""
+        kind = REPORT_ALIASES.get(str(kind or "").strip().lower(), str(kind or "").strip().lower())
+        if kind not in REPORT_KINDS:
+            raise ValueError(f"kind must be one of {', '.join(REPORT_KINDS)}")
+        text = re.sub(r"[ \t]+\n", "\n", str(text or "")).strip()[:MAX_REPORT_CHARS]
+        pct = _percent(progress)
+        if not text and not (kind == "note" and pct is not None):
+            raise ValueError("text is required")
+        at = now_iso()
+        running = task.get("status") == "running"
+        if pct is not None:
+            task["progress"] = pct
+            task["progress_at"] = at
+        reports = task.setdefault("reports", [])
+        reports.append({"at": at, "kind": kind, "text": text[:600], "run": task.get("runs")})
+        del reports[:-KEEP_REPORTS]
+        announce = False
+        if kind == "note" and text:
+            self._add_note(task, text, at, "desk")
+        elif kind == "finding":
+            findings = task.setdefault("findings", [])
+            if all(_norm(f.get("text")) != _norm(text) for f in findings):
+                findings.append({"at": at, "text": text})
+                del findings[:-KEEP_FINDINGS]
+        elif kind == "answer":
+            announce = _norm(text) != _norm(task.get("answer"))
+            task.update({"answer": text, "answer_at": at, "answer_run": task.get("runs")})
+        elif kind == "question":
+            announce = running
+            task.update({"question": text, "question_at": at})
+        elif kind == "blocked":
+            announce = running
+            task.update({"blocked": text, "blocked_at": at})
+        self._save()
+        return {"kind": kind, "text": text, "announce": announce}
+
+    def _post_inbox(self, task: dict, text: str, kind: str = "followup") -> dict:
+        inbox = task.setdefault("inbox", [])
+        message = {"n": (inbox[-1]["n"] + 1) if inbox else 1, "at": now_iso(), "kind": kind, "text": text, "delivered_at": None}
+        inbox.append(message)
+        del inbox[:-KEEP_INBOX]
+        ready = self._inbox_ready.get(task["id"])
+        if ready is not None:
+            ready.set()
+        return message
+
+    def take_inbox(self, task: dict) -> list[dict]:
+        """What the person added since the agent last looked. Read ones won't start another run."""
+        fresh = [m for m in task.get("inbox") or [] if not m.get("delivered_at")]
+        if not fresh:
+            return []
+        at = now_iso()
+        queue = task.setdefault("queue", [])
+        for message in fresh:
+            message["delivered_at"] = at
+            if message["text"] in queue:
+                queue.remove(message["text"])
+        if task.get("question"):
+            task["question"] = None  # the person's reply is on its way to the agent
+        self._save()
+        return [{"n": m["n"], "at": m["at"], "kind": m["kind"], "text": m["text"]} for m in fresh]
+
+    async def wait_inbox(self, task: dict, timeout: float) -> list[dict]:
+        """take_inbox, waiting up to `timeout` seconds for something to arrive."""
+        loop = asyncio.get_running_loop()
+        deadline = loop.time() + max(0.0, timeout)
+        ready = self._inbox_ready.setdefault(task["id"], asyncio.Event())
+        while True:
+            ready.clear()
+            got = self.take_inbox(task)
+            remaining = deadline - loop.time()
+            if got or remaining <= 0 or task.get("status") != "running":
+                return got
+            with contextlib.suppress(asyncio.TimeoutError):
+                await asyncio.wait_for(ready.wait(), remaining)
+
     def tracker_ids(self) -> set[str]:
-        return {t["tracker_id"] for t in self.tasks if t.get("tracker_id")}
+        """Every tracker item a desk task made, one per run."""
+        return {tid for t in self.tasks for tid in (t.get("tracker_id"), *(t.get("tracker_ids") or [])) if tid}
 
     def for_tracker(self, item_id: str) -> Any:
-        task = next((t for t in self.tasks if t.get("tracker_id") == item_id), None)
+        task = next((t for t in self.tasks if item_id == t.get("tracker_id") or item_id in (t.get("tracker_ids") or [])), None)
         return self.public(task) if task else None

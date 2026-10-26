@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
 import os
 import stat
@@ -241,3 +242,23 @@ def test_trim_job_records(home):
     assert removed["records"] == 5
     assert not orphan.exists()
     assert all((base / "out" / f"{stem}.log").exists() for stem in left if stem != "jrun")
+
+
+def test_a_desk_job_gets_its_channel_and_the_token_stays_private(home):
+    cfg = make_cfg(home)
+    m = manager(cfg)
+    token = "desk-channel-token-0123456789"
+    digest = hashlib.sha256(token.encode()).hexdigest()
+    show = (f"import hashlib, os; print(os.environ.get('ORBITAL_DESK_TASK'), "
+            f"hashlib.sha256(os.environ.get('ORBITAL_DESK_TOKEN', '').encode()).hexdigest() == '{digest}', "
+            "os.environ.get('ORBITAL_DESK_URL'), bool(os.environ.get('ORBITAL_CLI')))")
+    job = m.submit(agent="py", prompt=show, by="desk", desk={"task": "t7", "token": token})
+    done = m.wait(job["id"], 10)
+    task, same_token, url, has_cli = done["output_tail"].split()
+    assert (task, same_token, has_cli) == ("t7", "True", "True")
+    assert url == (cfg.hub_url() or "None"), "the hub as this machine reaches it, when it knows one"
+    for listing in (json.dumps(done), json.dumps(m.list()), json.dumps(m.get(job["id"])), json.dumps(m.running_summary())):
+        assert token not in listing, "the channel token is never in a job listing or the heartbeat"
+    # A bad channel is dropped, never passed on half-formed.
+    plain = m.wait(m.submit(agent="py", prompt=show, desk={"task": "t8", "token": "short"})["id"], 10)
+    assert plain["output_tail"].split()[:2] == ["None", "False"]

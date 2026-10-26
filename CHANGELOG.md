@@ -8,8 +8,15 @@ All notable changes to Orbital Agents are listed here. The format follows [Keep 
 
 - **Money tab:** a built-in Money tab on iPhone (and in the iPad and Mac sidebar) adds up every ledger: today, this week, this month, this year and all time, a chart, and a row per business. Tap a business for its products and sources, a product for its sources and categories, and on down to every entry. Filter by business, product, source, category, date range (or custom dates), and income, refunds or payouts.
 - **`subscriptions` block:** a product's subscriptions (status, plan, start, trial end, renewal, cancellation, failed payments). The app shows subscribers, MRR, trials and when they end, new, cancelled and churned, and every subscription, from Money and the product and space pages. `orbital.feeds.blocks.subscriptions()` builds one.
+- **Desk channel:** every agent the Agent desk starts gets a channel back to it (`orbital desk note | finding | answer | ask | blocked | inbox`, or `POST /v1/desk/tasks/{task}/report` with its own task token). Answers are read aloud the moment an agent has them, questions are put to you and your reply goes straight to the running agent, and anything you add to a running task reaches it within seconds instead of waiting for the run to end. The desk now answers from each task's progress, notes, findings and full report (up to 9,000 characters of recent reports), and from `orbital-track` updates while a job runs, so "read me the draft" or "what did it find?" no longer gets "I don't have that". New effort `quick` for lookups. Contract: `docs/ARCHITECTURE.md`, "Desk channel".
+
+### Changed
+
+- **Agent:** a warm Grok or Claude desk session is sent the whole live state once, then only what changed, so each turn sends about 100 characters of status instead of several thousand.
 
 ### Fixed
+
+- **Agent:** a finished task's report is read from the end of the job's whole log, so a long report is no longer cut mid-word ("Done: … r section 5.") in the spoken result and the alert.
 
 - **Home Lab, Projects and System data:** the machine-health daily chart shows today's load and memory instead of adding 30 daily averages together (series metrics take `level`, and `blocks.series_metric(level=True)` sets it). The GitHub example feed reads private repositories through the GitHub CLI sign-in when `GITHUB_TOKEN` is unset, and shows commits per day, the latest commits and the last push; stars and forks only for public repositories.
 - **Agent:** an action written on the same line as the reply (`On it. >>> {"type":"task",…}`) is now run instead of being shown and read aloud as text.

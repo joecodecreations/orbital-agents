@@ -46,6 +46,31 @@ TAIL_CHARS = 4_000
 DROP_ENV = ("CLAUDECODE", "CLAUDE_CODE_ENTRYPOINT")  # a nested agent CLI must not think it runs inside another
 
 
+DESK_ID_RE = re.compile(r"^[A-Za-z0-9_-]{1,40}$")
+DESK_TOKEN_RE = re.compile(r"^[A-Za-z0-9_-]{16,128}$")
+# Never in a job listing, the heartbeat or a relay to the apps.
+PRIVATE_KEYS = ("prompt", "executable", "desk_token")
+
+
+def desk_channel(raw: object) -> tuple[str | None, str | None]:
+    """(task id, token) from the hub's {"task", "token"}; (None, None) when it isn't one."""
+    if not isinstance(raw, dict):
+        return None, None
+    task, token = str(raw.get("task") or ""), str(raw.get("token") or "")
+    if not DESK_ID_RE.match(task) or not DESK_TOKEN_RE.match(token):
+        return None, None
+    return task, token
+
+
+def orbital_cli() -> str | None:
+    """The `orbital` command next to the Python running this satellite (its venv), else on PATH."""
+    from orbital.satellite.agents import resolve_executable
+
+    name = "orbital.exe" if sys.platform == "win32" else "orbital"
+    beside = Path(sys.executable).with_name(name)
+    return str(beside) if beside.is_file() else resolve_executable("orbital")
+
+
 class JobError(Exception):
     """A request the satellite refuses. `status` is the HTTP status the API answers with."""
 
@@ -307,7 +332,7 @@ class JobManager:
     # ---- public API
 
     def submit(self, agent: str | None = None, prompt: str = "", cwd: str | None = None,
-               title: str | None = None, track: bool = True, by: str = "api") -> dict:
+               title: str | None = None, track: bool = True, by: str = "api", desk: dict | None = None) -> dict:
         name = (agent or self.cfg.get("satellite.default_agent") or "").strip()
         agents = configured_agents(self.cfg)
         if name not in agents:
@@ -322,6 +347,7 @@ class JobManager:
             raise JobError(413, f"prompt is longer than {MAX_PROMPT_CHARS:,} characters")
         workdir = self.check_cwd(cwd)
         title = (title or "").strip() or prompt.splitlines()[0][:60]
+        desk_task, desk_token = desk_channel(desk)
         with self._lock:
             if self._closing:
                 raise JobError(503, "the satellite is shutting down")
@@ -339,6 +365,8 @@ class JobManager:
                 "cwd": workdir,
                 "track": bool(track),
                 "by": str(by or "api")[:40],
+                "desk_task": desk_task,
+                "desk_token": desk_token,
                 "machine": self.machine,
                 "executable": spec.path,
                 "status": "queued",
@@ -476,7 +504,7 @@ class JobManager:
 
     @staticmethod
     def public(record: dict, brief: bool = False) -> dict:
-        out = {k: v for k, v in record.items() if k not in ("prompt", "executable")}
+        out = {k: v for k, v in record.items() if k not in PRIVATE_KEYS}
         prompt = record.get("prompt") or ""
         limit = 200 if brief else 2000
         out["prompt"] = prompt if len(prompt) <= limit else prompt[:limit] + "…"
@@ -533,6 +561,22 @@ class JobManager:
         if record.get("tracker_id") and comparable != previous:
             self.tracker.usage(record["tracker_id"], usage)
 
+    def _desk_env(self, record: dict) -> dict[str, str]:
+        """How an agent the desk started reports back: its task, its own token, and the hub."""
+        if not record.get("desk_task") or not record.get("desk_token"):
+            return {}
+        env = {"ORBITAL_DESK_TASK": record["desk_task"], "ORBITAL_DESK_TOKEN": record["desk_token"]}
+        try:
+            url = self.cfg.hub_url()
+        except Exception:  # noqa: BLE001 - a broken config must not stop the job
+            url = ""
+        if url:
+            env["ORBITAL_DESK_URL"] = url
+        cli = orbital_cli()
+        if cli:
+            env["ORBITAL_CLI"] = cli
+        return env
+
     def _run(self, job_id: str) -> None:
         with self._lock:
             record = self._records[job_id]
@@ -564,6 +608,7 @@ class JobManager:
             })
             if record.get("tracker_id"):
                 env["ORBITAL_TRACK_ID"] = record["tracker_id"]
+            env.update(self._desk_env(record))
             for key in DROP_ENV:
                 env.pop(key, None)
             sink = OutputSink(self.out_path(job_id), self.output_cap)

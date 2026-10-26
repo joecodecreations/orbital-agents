@@ -62,9 +62,15 @@ struct DeskTask: Identifiable, Equatable, Decodable {
     var runs: Int?
     var brief: String?
     var pendingFollowups: Int?
+    /// How much of the job the agent says is done, 0-100 (`orbital desk note` or `orbital-track`).
+    var progress: Int?
+    /// A question the agent is waiting on you for; your reply goes back to it.
+    var question: String?
+    /// What only you can do before it can go on (a login, a payment).
+    var blocked: String?
 
     enum CodingKeys: String, CodingKey {
-        case id, title, project, status, effort, model, summary, spoken, error, runs, brief
+        case id, title, project, status, effort, model, summary, spoken, error, runs, brief, progress, question, blocked
         case trackerId = "tracker_id"
         case projectLabel = "project_name"
         case createdAt = "created_at"

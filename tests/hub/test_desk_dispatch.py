@@ -74,6 +74,8 @@ def test_a_job_its_engine_cut_off_moves_to_the_next_agent(tmp_path, monkeypatch)
     started: list[dict] = []
 
     async def fake_call(url, method, path, token, *, json_body=None, timeout=10.0):
+        if not path.endswith("/run"):
+            return {"log": ""}  # the finish reads the job's log for the full report
         started.append({"url": url, "path": path, **(json_body or {})})
         return {"job_id": f"j{len(started)}"}
 

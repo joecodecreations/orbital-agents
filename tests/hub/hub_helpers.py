@@ -175,7 +175,8 @@ def fake_satellite(token: str = SATELLITE) -> tuple[FastAPI, dict]:
     async def log(job_id: str, request: Request):
         if not ok(request):
             return JSONResponse({"error": "unauthorized"}, status_code=401)
-        return {"job_id": job_id, "status": state["jobs"][job_id]["status"], "log": "line one\nline two\n"}
+        log = state.get("logs", {}).get(job_id, "line one\nline two\n")
+        return {"job_id": job_id, "status": state["jobs"][job_id]["status"], "log": log}
 
     @app.post("/v1/agents/jobs/{job_id}/cancel")
     async def cancel(job_id: str, request: Request):

@@ -57,6 +57,19 @@ Never run `start` as a subagent. A subagent whose prompt has no `ORBITAL_TRACK_P
 
 Jobs the hub starts on a satellite are tracked by the satellite itself; such an agent gets `ORBITAL_TRACK_ID` in its environment and must report its progress on that item: `orbital-track update "$ORBITAL_TRACK_ID" --note "..." --progress 50` at each milestone (don't `start` a second item).
 
+**Started from the Agent desk** (`ORBITAL_DESK_TASK` is set): the user is talking to the desk, often by voice, and it knows only what you send it. Report with `orbital desk` instead of `orbital-track update`; `note` moves the tracker item too:
+
+```bash
+orbital desk note "Found the failing test; fixing it" --progress 40   # each milestone
+orbital desk finding "The checkout test fails on an expired fixture date"  # facts they may ask about
+orbital desk answer "Two tests failed; both are fixed and the suite passes."  # read aloud at once
+orbital desk ask "Use the staging or the live account?" --wait 300     # prints their reply
+orbital desk blocked "Needs the store account's two-factor code"        # then stop
+orbital desk inbox                                                     # anything they added
+```
+
+Every desk command prints what the user added since your last one: treat it as part of your brief. If `orbital` isn't on PATH, use `"$ORBITAL_CLI"`. A failed desk command never stops the work.
+
 **Progress and cost.** `--progress <0-100>` is how far along the whole job is; send it with every update (done sets 100). With no figure yet, the bar is estimated from `- [x]` checkboxes in your details, then from your subagents, and shows as "~40%". You don't report tokens: the satellite that runs an agent measures them (Grok from its CLI log, Claude from its session transcript) along with the share of the subscription plan used, and the tracker, the app's Tracker tab and System → Automations show them. Scripts can send totals themselves with `--usage-json '{"engine":"grok","inputTokens":1200,"outputTokens":300}'`.
 
 ## Media

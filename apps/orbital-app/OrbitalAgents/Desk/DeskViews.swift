@@ -172,6 +172,9 @@ struct DeskEventRow: View {
         case "task_stopped": return "stop.circle.fill"
         case "engine": return "lifepreserver.fill"
         case "context": return "eraser"
+        case "task_answer": return "text.bubble.fill"
+        case "task_question": return "questionmark.bubble.fill"
+        case "task_blocked": return "hand.raised.fill"
         case "error", "task_failed": return "exclamationmark.triangle.fill"
         default: return "sparkles"
         }
@@ -179,7 +182,7 @@ struct DeskEventRow: View {
 
     private var tint: Color {
         switch message.kind {
-        case "error", "task_failed": return OrbitalTheme.warning
+        case "error", "task_failed", "task_question", "task_blocked": return OrbitalTheme.warning
         case "todo", "reminder": return OrbitalTheme.success
         default: return OrbitalTheme.accent
         }
@@ -218,6 +221,13 @@ struct DeskTaskCard: View {
                     .font(.footnote)
                     .foregroundStyle(OrbitalTheme.textSecondary)
                     .lineLimit(3)
+            }
+            if task.isActive, let ask = task.question ?? task.blocked {
+                Label(task.question != nil ? "Asks you: \(ask)" : "Needs you: \(ask)",
+                      systemImage: task.question != nil ? "questionmark.bubble.fill" : "hand.raised.fill")
+                    .font(.footnote.weight(.semibold))
+                    .foregroundStyle(OrbitalTheme.warning)
+                    .fixedSize(horizontal: false, vertical: true)
             }
             HStack(spacing: 14) {
                 if let tracker = task.trackerId {
@@ -268,7 +278,9 @@ struct DeskTaskCard: View {
 
     private var statusLine: String {
         switch task.status {
-        case "running": return "working \(DeskTime.elapsed(since: task.startedAt))"
+        case "running":
+            let pct = (task.progress ?? 0) > 0 ? " · \(task.progress!)%" : ""
+            return "working \(DeskTime.elapsed(since: task.startedAt))\(pct)"
         case "queued": return (task.pendingFollowups ?? 0) > 0 ? "follow-up queued" : "queued"
         case "done": return "done \(DeskTime.short(task.finishedAt))"
         case "stopped": return "stopped"

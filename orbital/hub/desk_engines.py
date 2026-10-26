@@ -444,7 +444,7 @@ CLI_SCHEMA = {
                 "project": _s("Exact path from the project list, e.g. my-app"),
                 "title": _s("2-5 word title"),
                 "brief": _s("Everything the agent needs: the request restated in full, where, what done looks like"),
-                "effort": {"type": "string", "enum": ["medium", "high", "xhigh"]},
+                "effort": {"type": "string", "enum": ["quick", "medium", "high", "xhigh"]},
             },
             ["project", "title", "brief", "effort"],
         ),
@@ -587,9 +587,55 @@ def since_last_reply(messages: list[dict]) -> list[dict]:
     return []
 
 
-def turn_prompt(live: str, messages: list[dict], fresh: bool) -> str:
+def live_blocks(live: str) -> list[tuple[str, str]]:
+    """The live state as (key, text) blocks: a header line, then the lines under it that start
+    with "- " or are indented. The key is the header up to its first "(" or ":", so "Unread
+    alerts (12)" and "Unread alerts (13)" are the same block."""
+    blocks: list[tuple[str, str]] = []
+    seen: dict[str, int] = {}
+    for line in (live or "").strip().splitlines():
+        if not line.strip():
+            continue
+        if blocks and (line.startswith("- ") or line[:1] in (" ", "\t")):
+            key, text = blocks[-1]
+            blocks[-1] = (key, f"{text}\n{line}")
+            continue
+        key = re.split(r"[(:]", line, maxsplit=1)[0].strip().lower() or line
+        seen[key] = seen.get(key, 0) + 1
+        blocks.append((key if seen[key] == 1 else f"{key}#{seen[key]}", line))
+    return blocks
+
+
+class LiveDiff:
+    """What a warm session has already been shown of the live state. After the first turn it gets
+    only the blocks that changed (a task moved, an alert came in), not the whole state again: fewer
+    tokens before the first word, and a session context that grows far more slowly."""
+
+    def __init__(self) -> None:
+        self.seen: dict[str, str] | None = None
+
+    def reset(self) -> None:
+        self.seen = None
+
+    def render(self, live: str) -> str:
+        blocks = live_blocks(live)
+        current = dict(blocks)
+        before, self.seen = self.seen, current
+        if before is None:
+            return "Live state right now (answer status questions from this):\n" + "\n".join(t for _, t in blocks)
+        changed = [text for key, text in blocks if before.get(key) != text]
+        gone = [key for key in before if key not in current]
+        lines = ["Live state: only what changed since your last turn is below; everything else is as it was."]
+        lines += changed or ["(nothing changed)"]
+        if gone:
+            lines.append("No longer in the live state: " + "; ".join(gone) + ".")
+        return "\n".join(lines)
+
+
+def turn_prompt(live: str, messages: list[dict], fresh: bool, diff: LiveDiff | None = None) -> str:
     """One turn for a warm session: the transcript when the session is new, else only what it
-    hasn't seen (desk updates), then the live state and what the user just said."""
+    hasn't seen (desk updates), then the live state (only its changes, with a `diff`) and what the
+    user just said."""
     parts = []
     if fresh and len(messages) > 1:
         lines = [f"{'User' if m['role'] == 'user' else 'You'}: {m['content']}" for m in messages[:-1]]
@@ -598,7 +644,11 @@ def turn_prompt(live: str, messages: list[dict], fresh: bool) -> str:
         updates = [m["content"] for m in since_last_reply(messages) if m["role"] == "assistant"]
         if updates:
             parts.append("Since your last reply:\n" + "\n".join(updates))
-    if live:
+    if diff is not None and fresh:
+        diff.reset()
+    if live and diff is not None:
+        parts.append(diff.render(live))
+    elif live:
         parts.append("Live state right now (answer status questions from this):\n" + live.strip())
     last = messages[-1]["content"] if messages else ""
     parts.append(f"The user just said: {last}")
@@ -638,6 +688,7 @@ class GrokSessionProvider:
         self._start_lock = asyncio.Lock()
         self._prompt_id: int | None = None
         self._last_used = 0.0
+        self.live = LiveDiff()
 
     @property
     def label(self) -> str:
@@ -716,6 +767,7 @@ class GrokSessionProvider:
         self._profile_hash = digest
         self.turns = 0
         self.stale = False
+        self.live.reset()
 
     async def _stop(self) -> None:
         proc, self.proc = self.proc, None
@@ -803,7 +855,7 @@ class GrokSessionProvider:
         return since_last_reply(messages)
 
     def _prompt(self, live: str, messages: list[dict], fresh: bool) -> str:
-        return turn_prompt(live, messages, fresh)
+        return turn_prompt(live, messages, fresh, self.live)
 
     async def stream(self, system: str, messages: list[dict]) -> AsyncIterator[str]:
         head, _, live = system.partition("\nLive state\n")
@@ -1149,6 +1201,7 @@ class ClaudeSessionProvider(ClaudeRouting):
         self._lock = asyncio.Lock()
         self._last_used = 0.0
         self._requests = 0
+        self.live = LiveDiff()
 
     @property
     def running(self) -> bool:
@@ -1195,6 +1248,7 @@ class ClaudeSessionProvider(ClaudeRouting):
         self._cost_seen = 0.0
         self.turns = 0
         self.stale = False
+        self.live.reset()
 
     async def _set_model(self, model: str) -> None:
         """Switch the running session to another model; the conversation stays."""
@@ -1317,7 +1371,7 @@ class ClaudeSessionProvider(ClaudeRouting):
         except ModelError:
             self.stale = True
             raise
-        text = turn_prompt(live, messages, self.turns == 0)
+        text = turn_prompt(live, messages, self.turns == 0, self.live)
         ok = False
         try:
             async for chunk in self._turn(text, usage):
