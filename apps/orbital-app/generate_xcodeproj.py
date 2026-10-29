@@ -44,6 +44,8 @@ PROJECT = ROOT / "OrbitalAgents.xcodeproj"
 TARGET = "OrbitalAgents"
 TEST_TARGET = "OrbitalAgentsTests"
 ENTITLEMENTS = SOURCE / "OrbitalAgents.entitlements"
+# The Mac (Catalyst) build runs under the hardened runtime, which needs its own microphone entitlement.
+MAC_ENTITLEMENTS = SOURCE / "OrbitalAgents-Mac.entitlements"
 ASSETS = SOURCE / "Assets.xcassets"
 
 DEFAULTS = {
@@ -180,12 +182,16 @@ def write_entitlements(s: dict) -> None:
         print("note: push (notifications.apns) needs an Apple Team ID; leaving the push entitlement out", file=sys.stderr)
     elif s["apns"]:
         body = f"\t<key>aps-environment</key>\n\t<string>{s['apns_environment']}</string>\n"
-    ENTITLEMENTS.write_text(
-        '<?xml version="1.0" encoding="UTF-8"?>\n'
-        '<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">\n'
-        '<plist version="1.0">\n<dict>\n' + body + "</dict>\n</plist>\n",
-        encoding="utf-8",
-    )
+    def plist(inner: str) -> str:
+        return ('<?xml version="1.0" encoding="UTF-8"?>\n'
+                '<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">\n'
+                '<plist version="1.0">\n<dict>\n' + inner + "</dict>\n</plist>\n")
+
+    ENTITLEMENTS.write_text(plist(body), encoding="utf-8")
+    # Without audio-input the hardened runtime refuses the microphone silently: no prompt, and the
+    # app never appears under System Settings > Privacy > Microphone.
+    MAC_ENTITLEMENTS.write_text(plist(body + "\t<key>com.apple.security.device.audio-input</key>\n\t<true/>\n"),
+                                encoding="utf-8")
 
 
 # ---------------------------------------------------------------- project
@@ -302,6 +308,7 @@ def project(s: dict) -> str:
         "ASSETCATALOG_COMPILER_APPICON_NAME": "AppIcon",
         "ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME": "AccentColor",
         "CODE_SIGN_ENTITLEMENTS": "OrbitalAgents/OrbitalAgents.entitlements",
+        "CODE_SIGN_ENTITLEMENTS[sdk=macosx*]": "OrbitalAgents/OrbitalAgents-Mac.entitlements",
         "CODE_SIGN_STYLE": "Automatic",
         "CURRENT_PROJECT_VERSION": "1",
         "DEVELOPMENT_TEAM": team,
