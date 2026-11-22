@@ -145,9 +145,11 @@ struct DeskSnapshot: Decodable {
     var configured: Bool?
     /// What to do about it, in the hub's words.
     var setup: String?
+    /// Live voice (OpenAI Realtime through the hub): whether it's on and which voice.
+    var realtime: DeskRealtimeInfo?
 
     enum CodingKeys: String, CodingKey {
-        case messages, tasks, model, configured, setup, reason
+        case messages, tasks, model, configured, setup, reason, realtime
         case trackerActive = "tracker_active"
     }
 
@@ -159,6 +161,49 @@ struct DeskSnapshot: Decodable {
         trackerActive = c.lenientInt(.trackerActive)
         configured = c.lenientBool(.configured)
         setup = c.lenientString(.setup) ?? c.lenientString(.reason)
+        realtime = try? c.decodeIfPresent(DeskRealtimeInfo.self, forKey: .realtime)
+    }
+}
+
+/// `GET /v1/desk/realtime` (also in the desk snapshot): live voice through the hub's OpenAI key.
+struct DeskRealtimeInfo: Decodable, Equatable {
+    /// The hub has OPENAI_API_KEY.
+    var available: Bool
+    /// "realtime" (live voice) or "classic" (speech to text, the desk model, Fish voices).
+    var engine: String
+    var model: String
+    var voice: String
+    var eagerness: String
+    /// How to turn it on, when it's off.
+    var note: String?
+
+    static let voices = ["marin", "cedar", "alloy", "ash", "ballad", "coral", "echo", "sage", "shimmer", "verse"]
+    static let models = ["gpt-realtime-2.1", "gpt-realtime-2.1-mini"]
+    static let eagernessChoices: [(id: String, title: String)] = [
+        ("high", "Quick (default)"), ("auto", "Normal"), ("low", "Patient: waits longer"),
+    ]
+
+    var usesLive: Bool { available && engine != "classic" }
+
+    enum CodingKeys: String, CodingKey { case available, engine, model, voice, eagerness, note }
+
+    init(available: Bool, engine: String, model: String, voice: String, eagerness: String, note: String?) {
+        self.available = available
+        self.engine = engine
+        self.model = model
+        self.voice = voice
+        self.eagerness = eagerness
+        self.note = note
+    }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        available = c.lenientBool(.available) ?? false
+        engine = c.lenientString(.engine) ?? "realtime"
+        model = c.lenientString(.model) ?? Self.models[0]
+        voice = c.lenientString(.voice) ?? "marin"
+        eagerness = c.lenientString(.eagerness) ?? "high"
+        note = c.lenientString(.note)
     }
 }
 

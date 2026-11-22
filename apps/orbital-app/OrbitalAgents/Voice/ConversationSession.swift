@@ -19,11 +19,15 @@ final class VoiceDebug: ObservableObject {
     /// Sends batched lines to the hub's logs when diagnostics are on in Voice settings, so they can
     /// be read without a cable. Set by DeskState.
     var sink: (([String]) async -> Void)?
+    /// A live voice call: each line also goes to the hub through the call, so the phone's audio
+    /// engine can be read in the hub log without a cable or the diagnostics switch.
+    var liveSink: ((String) -> Void)?
     private var pending: [String] = []
     private var flushing = false
 
     func log(_ text: String) {
         print("[voice] \(text)")
+        liveSink?(text)
         let stamp = Date().formatted(.dateTime.hour(.twoDigits(amPM: .omitted)).minute(.twoDigits).second(.twoDigits))
         pending.append("\(stamp) \(text)")
         if pending.count > 300 { pending.removeFirst(pending.count - 300) }
@@ -121,6 +125,10 @@ final class ConversationSession: ObservableObject {
     var onTTSMuteChanged: ((Bool) -> Void)?
     /// Temple tap while continuous talk is off and the app is on screen. The desk starts hands-free.
     var onRequestLiveConversation: (() -> Void)?
+
+    /// A live voice call (RealtimeVoiceSession) is using the mic engine and the audio session.
+    /// Nothing here may switch the session to playback, tear the engine down, or re-arm glasses.
+    var liveCallHoldsAudio = false
 
     /// Allow the flush that happens at the same moment as a mic pause to still send.
     private var allowFinalWhilePaused = false
@@ -226,6 +234,16 @@ final class ConversationSession: ObservableObject {
     /// The screen locked or the app went to the background. An open conversation
     /// keeps the mic engine (muted or not), its playback, and the glasses button.
     private func phoneWillLeaveForeground() {
+        if liveCallHoldsAudio {
+            // The call keeps going on the lock screen: hold the engine while iOS moves us off screen.
+            beginLockTask()
+            capture.ensureEngineRunning()
+            Task { @MainActor [weak self] in
+                try? await Task.sleep(nanoseconds: 3_000_000_000)
+                self?.endLockTask()
+            }
+            return
+        }
         guard isListening, !oneShot else { return }
         VoiceDebug.shared.log("phone left foreground; holding conversation paused=\(isPaused)")
         beginLockTask()
@@ -239,6 +257,10 @@ final class ConversationSession: ObservableObject {
     /// Back on screen. Re-check the route and the engine if conversation is still on.
     private func phoneDidBecomeActive() {
         endLockTask()
+        if liveCallHoldsAudio {
+            capture.ensureEngineRunning()
+            return
+        }
         if isListening, !oneShot {
             holdConversationAudio()
         } else {
@@ -273,6 +295,7 @@ final class ConversationSession: ObservableObject {
     /// Hold the glasses button so a temple tap can start continuous talk.
     /// No-op on the Mac app: there are no glasses, and it must not take the audio session.
     func armGlassesClick() {
+        guard !liveCallHoldsAudio else { return }
         #if !targetEnvironment(macCatalyst)
         glasses.enableRemoteControls(idleSession: !capture.isRunning && !isListening)
         if !isListening {
@@ -484,7 +507,7 @@ final class ConversationSession: ObservableObject {
 
     /// Drop the mic engine. On iPhone, stay Now Playing so the next temple tap can start talk again.
     private func finishListenTeardown() {
-        guard !isListening else { return }
+        guard !isListening, !liveCallHoldsAudio else { return }
         capture.mutePCMForSTT = false
         capture.stop()
         #if targetEnvironment(macCatalyst)
@@ -921,7 +944,7 @@ final class ConversationSession: ObservableObject {
                 stt.resetUtterance()
                 partialText = ""
             }
-        } else {
+        } else if !liveCallHoldsAudio {
             #if targetEnvironment(macCatalyst)
             AudioCaptureService.releaseSession()
             #else

@@ -338,7 +338,9 @@ struct DeskScreen: View {
 
     private var composer: some View {
         VStack(spacing: 6) {
-            if desk.conversation.isListening {
+            if desk.live.isActive {
+                LiveVoiceBar(live: desk.live)
+            } else if desk.conversation.isListening {
                 listeningLine
             }
             if composerFocused {
@@ -374,7 +376,9 @@ struct DeskScreen: View {
                         .frame(width: 44, height: 44)
                 }
                 .foregroundStyle(desk.liveConversationOn ? OrbitalTheme.success : OrbitalTheme.textSecondary)
-                .accessibilityLabel(desk.liveConversationOn ? "Hands-free on" : "Hands-free off")
+                .accessibilityLabel(desk.usesLiveVoice
+                    ? (desk.live.isActive ? "End live voice" : "Start live voice")
+                    : (desk.liveConversationOn ? "Hands-free on" : "Hands-free off"))
 
                 TextField("Talk or type to your agent", text: $desk.draft, axis: .vertical)
                     .lineLimit(1 ... 5)
@@ -398,9 +402,9 @@ struct DeskScreen: View {
                             .font(.system(size: 20, weight: .bold))
                             .foregroundStyle(OrbitalTheme.backgroundDeep)
                             .frame(width: 44, height: 44)
-                            .background(desk.conversation.isListening ? OrbitalTheme.danger : OrbitalTheme.accent, in: Circle())
+                            .background(micIsRed ? OrbitalTheme.danger : OrbitalTheme.accent, in: Circle())
                     }
-                    .accessibilityLabel(desk.conversation.isListening ? "Send what I said" : "Talk")
+                    .accessibilityLabel(micLabel)
                 } else {
                     Button {
                         sendDraft()
@@ -429,7 +433,18 @@ struct DeskScreen: View {
     }
 
     private var micSymbol: String {
-        desk.conversation.isListening && !desk.liveConversationOn ? "paperplane.fill" : "mic.fill"
+        if desk.live.isActive { return desk.live.isMuted ? "mic.slash.fill" : "mic.fill" }
+        return desk.conversation.isListening && !desk.liveConversationOn ? "paperplane.fill" : "mic.fill"
+    }
+
+    private var micIsRed: Bool {
+        desk.live.isActive ? desk.live.isMuted : desk.conversation.isListening
+    }
+
+    private var micLabel: String {
+        if desk.live.isActive { return desk.live.isMuted ? "Unmute" : "Mute" }
+        if desk.usesLiveVoice { return "Start live voice" }
+        return desk.conversation.isListening ? "Send what I said" : "Talk"
     }
 
     private var listeningText: String {

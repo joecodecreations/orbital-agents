@@ -44,6 +44,9 @@ final class AudioCaptureService: NSObject, ObservableObject {
     }
 
     var preferVoiceProcessing = true
+    /// A live voice call: echo cancelling matters more than a fast start, so wait longer for the
+    /// first mic audio and never fall back to running without it.
+    var patientVoiceProcessing = false
 
     private let noiseGate = SpeechNoiseGate()
     private let targetSampleRate: Double = 16_000
@@ -76,6 +79,13 @@ final class AudioCaptureService: NSObject, ObservableObject {
     private var playDuration: TimeInterval = 0
     /// A reply is playing through the engine right now.
     @Published private(set) var isPlaying = false
+    /// When the current clip's first audio was scheduled (after its pre-buffer): playback's zero point.
+    var playbackStartedAt: Date? { playStartedAt }
+
+    /// Turn the reply down or back up without stopping it (live voice's echo test).
+    func setReplyVolume(_ volume: Float) {
+        player?.volume = volume
+    }
 
     /// How much of the current clip has played, 0...1, for "what did you hear before you cut in".
     var playbackFraction: Double {
@@ -150,6 +160,15 @@ final class AudioCaptureService: NSObject, ObservableObject {
         if sessionAlreadyMatches(preferGlassesOutput: preferGlassesOutput) {
             // The session may have been released after the last reply; make sure it's live.
             try session.setActive(true, options: [])
+            // Voice processing can flip speaker → earpiece without changing category/mode.
+            // sessionAlreadyMatches requires builtInSpeaker, so a pure earpiece route does
+            // not early-return — but a stale override still needs a push after VP starts.
+            if !preferGlassesOutput, phoneBodyOutput(session) {
+                let onSpeaker = session.currentRoute.outputs.contains { $0.portType == .builtInSpeaker }
+                if !onSpeaker {
+                    try? session.overrideOutputAudioPort(.speaker)
+                }
+            }
             SpeakerBoost.shared.refresh()
             return
         }
@@ -641,8 +660,9 @@ final class AudioCaptureService: NSObject, ObservableObject {
         let why = skipForRoute ? " reason=headset-route" : ""
         VoiceDebug.shared.log("engine started vp=\(vpOn) agc=\(vpOn ? "off" : "n/a")\(why) in=\(inputFormat.sampleRate)Hz/\(inputFormat.channelCount)ch out=\(playFormat.sampleRate)Hz")
         watchdog?.cancel()
+        let patience: UInt64 = patientVoiceProcessing && vpOn ? 3_500_000_000 : 1_500_000_000
         watchdog = Task { @MainActor [weak self] in
-            try? await Task.sleep(nanoseconds: 1_500_000_000)
+            try? await Task.sleep(nanoseconds: patience)
             self?.checkAudioArrived()
         }
         isRunning = true
@@ -683,7 +703,7 @@ final class AudioCaptureService: NSObject, ObservableObject {
         silentStarts += 1
         VoiceDebug.shared.log("no mic audio after start (running=\(engine?.isRunning ?? false)), attempt \(silentStarts)")
         guard silentStarts <= 3 else { return }
-        if silentStarts >= 2 { skipVoiceProcessing = true }
+        if silentStarts >= (patientVoiceProcessing ? 3 : 2) { skipVoiceProcessing = true }
         do {
             try startEngine(input: lastInput)
         } catch {

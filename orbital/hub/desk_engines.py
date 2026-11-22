@@ -874,6 +874,7 @@ class GrokSessionProvider:
                      "params": {"sessionId": self.session_id, "prompt": [{"type": "text", "text": text}]}}
                 )
                 deadline = time.time() + 90
+                said = gap = False
                 while True:
                     if fut.done() and self._updates.empty():
                         break
@@ -883,10 +884,18 @@ class GrokSessionProvider:
                         update = await asyncio.wait_for(self._updates.get(), 0.25)
                     except asyncio.TimeoutError:
                         continue
-                    if update.get("sessionUpdate") == "agent_message_chunk":
+                    kind = update.get("sessionUpdate")
+                    if kind == "agent_message_chunk":
                         chunk = (update.get("content") or {}).get("text") or ""
                         if chunk:
+                            if gap and said and not chunk[:1].isspace():
+                                # Text after a refused tool attempt is a new sentence, not the old one's tail.
+                                chunk = "\n" + chunk
+                            gap = False
+                            said = True
                             yield chunk
+                    elif kind in ("tool_call", "tool_call_update"):
+                        gap = True
                 result = fut.result()
                 self.turns += 1
                 self._last_used = time.time()
@@ -1402,6 +1411,7 @@ ONDEVICE_RULES = """You are the user's backup front-desk assistant in their Orbi
 Answer what The user just said in one or two short, plain sentences that will be read aloud.
 You can't look anything up, read files, or do work yourself. Agents can't run until {engines} is back; work the user asks for is saved and starts by itself then, so say that.
 Never say work is finished unless the status below says so. Never make up results.
+You can't see the user's files, documents, cases, accounts or numbers. When they ask about any of that, say plainly that you can't see it right now and it's saved for an agent. Never give a general, guessed or generic answer to a question about their own things.
 Only fill todos, reminders or work when the user explicitly asks for them in their latest message.
 
 Now: {now}.

@@ -69,6 +69,27 @@ struct RootView: View {
             if let route = OrbitalPreview.launchRoute {
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) { router.handle(route) }
             }
+            if ProcessInfo.processInfo.environment["ORBITAL_LIVE_VOICE_SELFTEST"] == "1" {
+                Task { @MainActor in
+                    try? await Task.sleep(nanoseconds: 3_000_000_000)
+                    let docs = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
+                        .appendingPathComponent("evidence-live-voice", isDirectory: true)
+                    try? FileManager.default.createDirectory(at: docs, withIntermediateDirectories: true)
+                    let report: String
+                    if store.isLoggedIn, let token = store.imageToken {
+                        report = await desk.live.selfTest(baseURL: store.baseURL, token: token)
+                    } else {
+                        report = "not signed in"
+                    }
+                    try? report.write(to: docs.appendingPathComponent("selftest.txt"), atomically: true, encoding: .utf8)
+                }
+            }
+            if ProcessInfo.processInfo.environment["ORBITAL_LIVE_VOICE_EVIDENCE"] == "1" {
+                Task { @MainActor in
+                    try? await Task.sleep(nanoseconds: 2_500_000_000)
+                    await LiveVoiceEvidence.save(desk: desk)
+                }
+            }
             #endif
         }
         .onChange(of: scenePhase) { _, phase in

@@ -181,7 +181,16 @@ struct DeskAPI {
         var json: [String: Any] = ["text": text, "speed": speed]
         if !voiceID.isEmpty { json["reference_id"] = voiceID }
         if !model.isEmpty { json["model"] = model }
-        var req = try request("/v1/speech/tts/stream", method: "POST", json: json)
+        return try await pcmStream("/v1/speech/tts/stream", json: json)
+    }
+
+    /// Text in the live voice (OpenAI, the voice chosen for live voice), streamed by the hub.
+    func liveSpeechStream(text: String) async throws -> (sampleRate: Double, chunks: AsyncThrowingStream<Data, Error>) {
+        try await pcmStream("/v1/speech/live/stream", json: ["text": text])
+    }
+
+    private func pcmStream(_ path: String, json: [String: Any]) async throws -> (sampleRate: Double, chunks: AsyncThrowingStream<Data, Error>) {
+        var req = try request(path, method: "POST", json: json)
         req.setValue("audio/pcm", forHTTPHeaderField: "Accept")
         req.timeoutInterval = 20
         let (bytes, response) = try await Self.streamSession.bytes(for: req)
@@ -272,6 +281,17 @@ struct DeskAPI {
         if OrbitalPreview.isActive { return TrackerSettings(evidence: level, updatedBy: "app") }
         #endif
         return try await decode(TrackerSettings.self, request("/v1/tracker/settings", method: "POST", json: ["evidence": level.rawValue]))
+    }
+
+    // MARK: Live voice
+
+    func realtimeInfo() async throws -> DeskRealtimeInfo {
+        try await decode(DeskRealtimeInfo.self, request("/v1/desk/realtime"))
+    }
+
+    /// Voice settings live on the hub, so the hub opens the call with them. Only the keys sent change.
+    func saveVoiceSettings(_ changes: [String: String]) async throws {
+        _ = try await data(request("/v1/desk/settings", method: "PUT", json: ["voice": changes]))
     }
 
     // MARK: Agent settings (System → Settings)

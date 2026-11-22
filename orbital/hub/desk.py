@@ -17,8 +17,12 @@ next words: a reply still being written is cut (its actions never run), and the 
 what was heard and what was missed, so it handles the new words first and then picks the old
 point back up.
 
-Without XAI_API_KEY the desk is "not configured": the thread still loads, and every message
-gets one clear answer saying what to add.
+A reply may ask for lookups (`>>> {"type":"lookup",...}`, desk_lookup.py): the hub reads pages,
+reports or files, and the model answers again from the results in the same turn. A reply that
+promises work with no action behind it is acted on anyway.
+
+Live voice (desk_realtime.py) talks to the same thread: OpenAI Realtime through the hub, with the
+lookups and agents as its tools.
 """
 
 from __future__ import annotations
@@ -33,13 +37,15 @@ from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any
 
-from fastapi import Request
+from fastapi import Request, WebSocket
 from fastapi.responses import JSONResponse, StreamingResponse
 
 from orbital.core import get_logger
 from orbital.hub import echo_guard, reminders
 from orbital.hub.auth import bearer
+from orbital.hub.desk_lookup import Lookup, clip as _cut_text, words as _key_words
 from orbital.hub.desk_model import ModelError, XAIProvider
+from orbital.hub import desk_realtime
 from orbital.hub.desk_tasks import TRACKER_ORIGINS, TaskRunner, _tracker_origin, now_iso
 from orbital.hub.tracker import _agent_name, first_sentence, shown_progress
 from orbital.hub.web import body_of, device_of, fail
@@ -72,6 +78,20 @@ REPORT_BUDGET = 9000
 REPORT_EACH = 3500
 FULL_REPORT_AGE = 12 * 3600
 MARK = ">>>"
+# Lookups the typed desk may chain in one turn before it must answer.
+LOOKUP_ROUNDS = 2
+# A reply that says it is getting something ("I'm pulling the notes", "On it") with no action line
+# behind it: the desk acts on it anyway, so a promise is never empty.
+PROMISE_RE = re.compile(
+    r"(?:^|[.!?]\s+)on it\b|\b(?:i'?m|i am|i'?ll|i will|let me|i'?ve|i have|i just|i'?m now)\s+"
+    r"(?:also\s+|now\s+|just\s+|going to\s+|gonna\s+|still\s+)?"
+    r"(?:pull|pulling|send|sending|sent|check|checking|look|looking|start|starting|started|get|getting|grab|grabbing|"
+    r"find|finding|dig|digging|read|reading|fetch|fetching|search|searching|dispatch|dispatching|dispatched|"
+    r"having someone|put an agent|putting an agent|kick|kicking|kicked)\b",
+    re.I,
+)
+LIVE_UPDATE_KINDS = ("task_started", "task_done", "task_failed", "task_answer", "task_question", "task_blocked",
+                     "task_followup", "task_stopped", "reminder", "todo", "lookup")
 MARK_LINE = re.compile(r"(^|\n)[ \t]*>>>")
 NOT_CONFIGURED = (
     "The Desk isn't set up yet: add XAI_API_KEY to ~/.orbital-agents/secrets.env on the hub (it is picked up "
@@ -88,10 +108,12 @@ Your reply:
 - Status and result questions ("what's running", "is X done", "what did it find", "read me the email", "how many went out", "how's the server", "any alerts"): answer straight from the live state below. It has every agent job with its progress, latest notes, findings and answer, the full reports of tasks that finished recently, plus automations, alerts, machines and page summaries. When they ask for something a report or finding holds (a draft, a number, a list, a link, a quote), give it to them from there, read out in full if they ask for it. Never say you don't have something the live state shows. Dispatch only for what isn't there, and say that's what you're doing.
 - Before starting a task, check the running list. If the same job is already running, say how far along it is instead of starting another.
 - An agent waiting on the user (marked ASKS THE USER below): put its question to them plainly. Their answer goes back to it with a followup line, and the agent gets it within seconds.
+- Never say you're checking, pulling, looking, sending or starting something unless this same reply has the >>> line that does it (a lookup or a task). Saying it without the line means nothing happens.
 - The user can talk over you, like in a real conversation. When their message says they cut you off, deal with what they just said first (start the work if it's a request). Then, only if the part they missed still matters, come back to it in a few words. Never repeat what they already heard.
 
 Actions: after your reply, write zero or more lines that start with >>> and hold one JSON object each, on one line:
 >>> {"type":"task","project":"<name from the project list, or empty>","title":"<2-5 word title>","brief":"<everything the agent needs>","effort":"<quick, medium, high or xhigh>","agent":"<optional: an agent name from Machines>","machine":"<optional: a machine name from Machines>"}
+>>> {"type":"lookup","tool":"<search_my_data | read_page | agent_task_details | find_files | list_folder | read_file>", ...that tool's arguments}
 >>> {"type":"followup","task":"<task id like t3>","message":"<what to add or change>"}
 >>> {"type":"cancel","task":"<task id>"}
 >>> {"type":"todo","title":"<short to-do for the user>","notes":"<optional>"}
@@ -99,12 +121,15 @@ Actions: after your reply, write zero or more lines that start with >>> and hold
 >>> {"type":"clear"}
 
 When to use which:
+- lookup: the fastest way to answer from the user's data or files. The results come back to you within a second or two and you answer again from them in this same turn, so your reply before a lookup is only a few words ("Checking on that."). Tools: search_my_data {"query"} searches every page in the app, every agent report and finding, the tracker and alerts; read_page {"name"}; agent_task_details {"task"}; find_files {"query","project"} searches documents on the hub Mac (contents and names) under ~/projects, Documents, Desktop and Downloads, and with only a project lists its newest files; list_folder {"path"} (a project name or a path); read_file {"path","query"?} reads text, notes, PDFs and Word files. Look up first whenever the answer is probably in a file, a page or a report; start a task only when lookups can't get it (the web, other machines, real work) or come up empty.
 - task: any ask that needs doing, finding out, or thinking through: code, fixes, features, builds, research, looking anything up (the web, files, accounts, numbers), writing, marketing, checking a site, or a question you can't answer from what you plainly know or the live state. Don't do the work or the research in your reply; dispatch it and say so. Split a request into one task per separate job so agents work in parallel: several jobs in one message means several task lines. The brief is the agent's only context: restate the request fully, name the project, say what done looks like, say exactly what to report back (the number, the text, the link), and include details from earlier in this conversation. effort: "quick" for a question that needs a lookup (a count, a fact in a file or an account, something on the web): the agent sends the answer back the moment it has it, and it is read to the user. "medium" for small edits, "high" by default, "xhigh" for big multi-step builds. Leave agent and machine empty unless the user names one or a machine clearly fits the job (its agents and status are under Machines); the desk then picks the best agent that can run.
 - followup: the user adds to, corrects, or extends a task that already exists (running or finished), or answers an agent's question. A running agent gets it within seconds; a finished one starts again with it. Prefer this over starting a duplicate.
 - cancel: they want a running task stopped.
 - todo: something the user has to do personally, no time. reminder: there is a time ("tomorrow at 9", "in two hours"); resolve it against the current time below.
 - clear: the user asks you to clear or reset your context. Running work is not affected; say so.
 - No action only for chat, a quick fact you plainly know, or questions the live state answers.
+
+Lookup results arrive as a message that starts "(Lookup results". Answer the user from them, specifically, in one to three spoken sentences (read things out in full if they asked). Don't repeat what you already said. If the results don't have it, say so and start a task to find it.
 """
 
 DISPATCH_NOTES = {
@@ -152,7 +177,8 @@ def clean_settings(raw: object, *, default_chat: str = "auto", strict: bool = Fa
         if strict:
             raise ValueError(f"at most {MAX_RULES} rules")
         rules = rules[:MAX_RULES]
-    return {"chat": chat, "model": model, "dispatch": dispatch, "rules": rules}
+    voice = desk_realtime.clean_voice_settings(raw.get("voice"), strict=strict)
+    return {"chat": chat, "model": model, "dispatch": dispatch, "rules": rules, "voice": voice}
 
 
 # Clearing the model's context. The thread in the app stays; the model only sees what came after
@@ -357,6 +383,12 @@ class Projects:
         for row in self.rows:
             if want in (row["name"].lower(), row["path"].lower(), Path(row["path"]).name.lower(), *(a.lower() for a in row["aliases"])):
                 return row
+        # Spoken names have spaces where folders have dashes or underscores ("orbital agents", "jane smith").
+        squashed = _squash(want)
+        if squashed:
+            for row in self.rows:
+                if squashed in (_squash(row["name"]), _squash(Path(row["path"]).name), *(_squash(a) for a in row["aliases"])):
+                    return row
         return None
 
 
@@ -388,6 +420,13 @@ class Desk:
         self._clear_lock = asyncio.Lock()
         # Replies still being written, by reply id, so the user's next words can cut them off.
         self._live: dict[str, _Turn] = {}
+        # Fast read-only answers (pages, reports, files on this Mac) for typed turns and live voice.
+        self.lookup = Lookup(hub, self)
+        # Live voice calls (desk_realtime.RealtimeBridge): each hears agent results the moment they land.
+        self.voice_listeners: set = set()
+        self.voice_sessions = 0
+        # Bumped whenever a task changes, so a live voice call refreshes what it knows.
+        self.state_version = 0
 
     # The model
 
@@ -442,7 +481,10 @@ class Desk:
 
     def save_settings(self, raw: dict) -> dict:
         current = self.settings()
-        merged = {**current, **{k: v for k, v in raw.items() if k in ("chat", "model", "dispatch", "rules")}}
+        changes = {k: v for k, v in raw.items() if k in ("chat", "model", "dispatch", "rules", "voice")}
+        if isinstance(changes.get("voice"), dict):
+            changes["voice"] = {**current["voice"], **changes["voice"]}
+        merged = {**current, **changes}
         clean = clean_settings(merged, strict=True)
         tmp = self.settings_path.with_suffix(".tmp")
         tmp.write_text(json.dumps(clean, indent=1, ensure_ascii=False), encoding="utf-8")
@@ -474,6 +516,30 @@ class Desk:
             "machines": machines,
             "agents": agents,
             "xai_key": bool(self.hub.auth.get("XAI_API_KEY")),
+            "voice": {
+                "engines": [
+                    {"id": "realtime", "title": "Live voice (OpenAI)", "detail": "Talk like a phone call: interrupt any time; it looks things up itself. Needs OPENAI_API_KEY"},
+                    {"id": "classic", "title": "Classic", "detail": "Speech to text on the phone, the desk model, Fish voices"},
+                ],
+                "models": desk_realtime.REALTIME_MODELS,
+                "voices": desk_realtime.REALTIME_VOICES,
+                "eagerness": desk_realtime.EAGERNESS,
+                "openai_key": bool(self.hub.auth.get("OPENAI_API_KEY")),
+            },
+        }
+
+    def realtime_info(self) -> dict:
+        """What the app needs to pick its voice: live (OpenAI Realtime through the hub) or classic."""
+        voice = self.settings()["voice"]
+        key = bool(self.hub.auth.get("OPENAI_API_KEY"))
+        return {
+            "available": key,
+            "engine": voice["engine"],
+            "model": voice["model"],
+            "voice": voice["voice"],
+            "eagerness": voice["eagerness"],
+            "note": None if key else desk_realtime.NO_KEY,
+            "sessions": self.voice_sessions,
         }
 
     def rules_block(self) -> str:
@@ -684,6 +750,7 @@ class Desk:
             "model": self.model_info(),
             "projects": [{"name": r["name"], "about": r["about"]} for r in self.projects().rows],
             "tracker_active": sum(1 for row in self.hub.tracker.items() if row.get("status") == "active"),
+            "realtime": self.realtime_info(),
         }
 
     async def warm(self) -> None:
@@ -768,7 +835,13 @@ class Desk:
         if rules:
             lines += ["", "The user's routing rules. Follow them when you set agent and machine on a task (they override your own pick):", rules]
         lines += ["", "Projects (name: about):", self.projects().prompt_block(), "", "Live state"]
-        lines.append(f"Now: {now.strftime('%A %Y-%m-%d %H:%M')} ({now.tzname()}).")
+        lines.extend(self.live_state_lines(now))
+        return "\n".join(lines)
+
+    def live_state_lines(self, now: datetime | None = None) -> list[str]:
+        """The live state: what the desk model and the live voice answer status questions from."""
+        now = now or datetime.now().astimezone()
+        lines = [f"Now: {now.strftime('%A %Y-%m-%d %H:%M')} ({now.tzname()})."]
         machines = self.machines_block()
         if machines:
             lines.append("Machines (name [status]: agents that can run there):")
@@ -780,7 +853,72 @@ class Desk:
             lines.extend(_indent(carry))
         lines.extend(self.task_lines())
         lines.extend(self.tracker_lines())
-        return "\n".join(lines)
+        return lines
+
+    def carried_notes(self) -> str:
+        return self._carried()
+
+    def recent_turns(self, count: int = 14) -> list[str]:
+        """The talk since the last clear as short lines, typed and spoken, for the live voice."""
+        out: list[str] = []
+        for msg in self._since_clear():
+            if msg["role"] == "user" and msg.get("text"):
+                out.append(f"User: {_one_line(msg['text'], 400)}")
+            elif msg["role"] == "assistant" and msg.get("text") and not msg.get("error") and msg["text"] not in DEAD_REPLIES:
+                out.append(f"You: {_one_line(msg['text'], 400)}")
+            elif msg["role"] == "event" and msg.get("kind") in LIVE_UPDATE_KINDS:
+                out.append(f"[update] {_one_line(msg.get('text'), 300)}")
+        return out[-count:]
+
+    # Live voice (desk_realtime): both sides of the call go into the one thread.
+
+    async def record_voice(self, role: str, text: str, source: str = "voice", model: str | None = None,
+                           interrupted: bool | None = None) -> dict:
+        msg: dict = {"id": _new_id(), "role": role, "text": text.strip(), "at": now_iso(), "source": source, "via": "live"}
+        if role == "assistant":
+            msg["model"] = model or "live voice"
+            msg["did"] = []
+        if interrupted:
+            msg["interrupted"] = True
+        return await self._append(msg)
+
+    async def record_voice_event(self, kind: str, text: str) -> dict:
+        return await self._append(self._event(kind, text))
+
+    def _notify_voice(self, text: str, kind: str = "agent") -> None:
+        for listener in list(self.voice_listeners):
+            with contextlib.suppress(Exception):
+                listener(text, kind)
+
+    def brain_label(self) -> str | None:
+        provider = self.provider
+        if provider is None:
+            return None
+        return str(getattr(provider, "label", "") or "the desk model")
+
+    async def ask_brain(self, question: str) -> str:
+        """The live voice hands a hard question to the user's chosen desk model (Claude, Grok)."""
+        provider = self.provider
+        if provider is None:
+            return "The desk model isn't set up on the hub."
+        history = [{"role": "user", "content": (
+            f"{question}\n\n(Asked by the live voice assistant, which reads your answer to the user. Answer the question "
+            "itself, specifically, from the live state and what you know, in plain sentences. No >>> action lines.)")}]
+        splitter = ReplySplitter()
+
+        async def collect() -> None:
+            async for chunk in provider.stream(self.system_prompt(), history):
+                splitter.feed(chunk)
+
+        try:
+            await asyncio.wait_for(collect(), 120)
+        except Exception as exc:
+            return f"The desk model couldn't answer ({str(exc)[:160] or type(exc).__name__})."
+        reply, _ = splitter.finish()
+        answering = getattr(provider, "answering", None)
+        if answering is not None and getattr(answering, "family", "") == "ondevice":
+            return "Only the Mac's small on-device model could answer, so there's no reliable answer. Start an agent instead."
+        return reply or "The desk model gave no answer."
 
     # The live state's task blocks. Each block is a header line, then lines starting "- " or
     # indented, so a warm session can be sent only the blocks that changed (desk_engines.LiveDiff).
@@ -1014,7 +1152,8 @@ class Desk:
         try:
             await self._reply(queue, turn, user, text, client_platform)
         finally:
-            self._live.pop(reply_id, None)
+            for key in [k for k, v in self._live.items() if v is turn]:
+                self._live.pop(key, None)
             turn.finished.set()
 
     def _voice_is_echo(self, text: str) -> bool:
@@ -1039,12 +1178,49 @@ class Desk:
 
     async def _reply(self, queue: asyncio.Queue, turn: "_Turn", user: dict, text: str,
                      client_platform: str | None = None) -> None:
+        """One turn: a reply, and while it asked for lookups, their results and another reply."""
+        history = self.history(user["id"])
+        for round_no in range(LOOKUP_ROUNDS + 1):
+            if round_no:
+                turn.reply_id = _new_id()
+                self._live[turn.reply_id] = turn
+            reply, lookups, stop = await self._pass(queue, turn, history, text, client_platform, round_no)
+            if stop or not lookups:
+                return
+            results = await self._run_lookups(lookups, text)
+            history = [
+                *history,
+                {"role": "assistant", "content": reply or "(looking it up)"},
+                {"role": "user", "content": "(Lookup results, not from the user. Answer the user's last message from them now.)\n\n" + results},
+            ]
+
+    async def _run_lookups(self, lookups: list[dict], text: str) -> str:
+        async def one(action: dict) -> str:
+            tool = str(action.get("tool") or "").strip()
+            if tool not in desk_realtime.READ_TOOLS:
+                return f"[{tool or 'lookup'}] not a lookup tool; use one of {', '.join(sorted(desk_realtime.READ_TOOLS))}."
+            args = {k: v for k, v in action.items() if k not in ("type", "tool")}
+            out = await desk_realtime.run_tool(self, tool, args, origin=text)
+            return f"[{desk_realtime.describe_call(tool, args)}]\n{out}"
+
+        results = await asyncio.gather(*[one(a) for a in lookups[:5]])
+        return _cut_text("\n\n".join(results), 14000)
+
+    def _already_on_it(self, text: str) -> bool:
+        said = set(_key_words(text))
+        for task in self.runner.running():
+            if len(said & set(_key_words(f"{task.get('title')} {task.get('brief')}"))) >= 2:
+                return True
+        return False
+
+    async def _pass(self, queue: asyncio.Queue, turn: "_Turn", history: list[dict], text: str,
+                    client_platform: str | None, round_no: int) -> tuple[str, list[dict], bool]:
+        """Stream one reply, save it, run its actions. Returns (reply, lookups asked for, stop)."""
         reply_id = turn.reply_id
         await queue.put({"type": "start", "id": reply_id})
         started = time.time()
         provider = self.provider
         system = self.system_prompt()
-        history = self.history(user["id"])
         splitter = ReplySplitter()
         first_token: float | None = None
         error: str | None = None
@@ -1088,9 +1264,23 @@ class Desk:
             # The user talked over a reply still being written: keep what was said, run none of it.
             actions = []
             error = None
+        lookups = [a for a in actions if str(a.get("type") or "").lower() == "lookup"]
+        actions = [a for a in actions if str(a.get("type") or "").lower() != "lookup"]
+        if round_no >= LOOKUP_ROUNDS:
+            lookups = []
+        promised = False
+        if not cut_short and not error and reply and self.settings()["dispatch"] != "off":
+            acting = lookups or any(str(a.get("type") or "").lower() in ("task", "followup") for a in actions)
+            if not acting and PROMISE_RE.search(reply) and not self._already_on_it(text):
+                promised = True
+                if round_no == 0:
+                    lookups = [{"type": "lookup", "tool": "search_my_data", "query": text}]
+                else:
+                    actions.append(self._promised_task(text))
+                get_logger("hub").info("desk reply promised work without an action", extra={"fields": {"round": round_no}})
         if error and not reply:
             reply = "I can't reach the desk model right now. Try again in a moment."
-        if not reply and not actions:
+        if not reply and not actions and not lookups:
             reply = "…" if cut_short else "Sorry, say that again?"
         assistant = {
             "id": reply_id,
@@ -1105,6 +1295,12 @@ class Desk:
             assistant["error"] = error[:300]
         if cut_short:
             assistant["interrupted"] = True
+        if promised:
+            assistant["promised"] = True
+        for lookup in lookups:
+            tool = str(lookup.get("tool") or "lookup")
+            args = {k: v for k, v in lookup.items() if k not in ("type", "tool")}
+            assistant["did"].append(desk_realtime.describe_call(tool, args).lower() if tool in desk_realtime.READ_TOOLS else f"lookup {tool}")
         # Run the actions before saving, so the history records what was done.
         events = []
         for action in actions[:8]:
@@ -1124,6 +1320,15 @@ class Desk:
         if any(str(a.get("type") or "").lower() == "clear" for a in actions[:8]):
             # After the reply is saved, so the notes include this exchange.
             asyncio.get_running_loop().create_task(self.clear_context("asked in the thread"))
+        return reply, lookups, bool(cut_short or error)
+
+    def _promised_task(self, text: str) -> dict:
+        title = " ".join(_key_words(text)[:5]).capitalize() or "Look it up"
+        recent = "\n".join(self.recent_turns(8))
+        brief = (f"The user asked: {text}\n\nThe conversation just before:\n{recent}\n\n"
+                 "Find the answer (their files on this Mac are under ~/projects; their pages and agent reports are on the hub). "
+                 "Send it back with orbital desk answer the moment you have it, specifically, and change nothing.")
+        return {"type": "task", "title": title[:60], "brief": brief, "effort": "quick", "project": ""}
 
     def _event(self, kind: str, text: str, speak: str | None = None, **extra: Any) -> dict:
         msg = {"id": _new_id(), "role": "event", "kind": kind, "text": text, "at": now_iso()}
@@ -1203,6 +1408,7 @@ class Desk:
     # Workers
 
     async def _task_changed(self, task: dict) -> None:
+        self.state_version += 1
         await self.hub.live.broadcast({"type": "desk_task", "task": task})
 
     async def _task_finished(self, task: dict) -> None:
@@ -1222,6 +1428,14 @@ class Desk:
             text = f"{task['title']} stopped without finishing: {reason}"
             speak = f"{task['title']} stopped without finishing."
         task["spoken"] = speak or task.get("spoken")
+        self.state_version += 1
+        if not answered:
+            if ok:
+                report = _clip(task.get("summary") or "", 2500) or "no report"
+                self._notify_voice(f"[agent update] Agent {task['id']} “{task['title']}” finished. Its report: {report}")
+            else:
+                self._notify_voice(f"[agent update] Agent {task['id']} “{task['title']}” stopped without finishing: "
+                                   f"{_one_line(task.get('blocked') or task.get('error') or 'no result', 400)}")
         await self._append(self._event("task_done" if ok else "task_failed", text, speak=speak, task_id=task["id"], tracker_id=task.get("tracker_id")))
         await self.hub.raise_alerts([{
             "schema": "orbital.alert.v1",
@@ -1255,6 +1469,13 @@ class Desk:
         else:
             event = self._event("task_blocked", f"{title} needs you: {text}", speak=f"{title} needs you. {heard}", task_id=task["id"], tracker_id=task.get("tracker_id"))
             alert_title, level = f"Needs you: {title}", "active"
+        if kind == "answer":
+            self._notify_voice(f"[agent update] Agent {task['id']} “{title}” answered: {_clip(text, 3000)}")
+        elif kind == "question":
+            self._notify_voice(f"[agent update] Agent {task['id']} “{title}” asks the user: {text} "
+                               f"(put it to them; pass their answer back with message_agent {task['id']})")
+        else:
+            self._notify_voice(f"[agent update] Agent {task['id']} “{title}” is blocked and needs the user: {text}")
         await self._append(event)
         await self.hub.raise_alerts([{
             "schema": "orbital.alert.v1",
@@ -1319,6 +1540,10 @@ def _clip(text: str, limit: int) -> str:
 
 def _indent(text: str, prefix: str = "  ") -> list[str]:
     return [prefix + line if line.strip() else prefix.rstrip() for line in str(text).strip().splitlines()]
+
+
+def _squash(text: str) -> str:
+    return re.sub(r"[^a-z0-9]+", "", str(text or "").lower())
 
 
 def _words(text: str) -> list[str]:
@@ -1449,6 +1674,76 @@ def add_routes(app, hub) -> None:
             return denied
         await desk.warm()
         return JSONResponse({"ok": True, "configured": desk.provider is not None})
+
+    @app.post("/v1/speech/live/stream")
+    async def speech_live_stream(request: Request):
+        """Text spoken in the live voice (OpenAI's speech API, the voice chosen for live voice), as raw
+        PCM while it is made, so announcements outside a call sound like the call."""
+        denied = hub.require(request)
+        if denied:
+            return denied
+        body = await body_of(request)
+        text = str(body.get("text") or "").strip()
+        if not text:
+            return fail("text is required", 400)
+        key = hub.auth.get("OPENAI_API_KEY") or ""
+        if not key:
+            return fail(desk_realtime.NO_KEY, 503, code="not_configured")
+        voice = desk.settings()["voice"]["voice"]
+        import httpx  # noqa: PLC0415
+        client = httpx.AsyncClient(timeout=httpx.Timeout(30, connect=10))
+        req = client.build_request("POST", "https://api.openai.com/v1/audio/speech", headers={"Authorization": f"Bearer {key}"}, json={
+            "model": desk_realtime.SPEECH_MODEL, "voice": voice, "input": text[:4000], "response_format": "pcm",
+            "instructions": "Speak naturally: warm, quick and clear, like a capable assistant on a phone call.",
+        })
+        try:
+            resp = await client.send(req, stream=True)
+        except httpx.HTTPError as exc:
+            await client.aclose()
+            return fail(f"OpenAI unreachable: {exc.__class__.__name__}", 502, code="unavailable")
+        if resp.status_code != 200:
+            detail = (await resp.aread()).decode("utf-8", "replace")[:300]
+            await resp.aclose()
+            await client.aclose()
+            return fail(f"OpenAI speech refused ({resp.status_code}): {detail}", 502, code="unavailable")
+
+        async def chunks():
+            try:
+                async for piece in resp.aiter_bytes():
+                    yield piece
+            finally:
+                await resp.aclose()
+                await client.aclose()
+
+        return StreamingResponse(chunks(), media_type="audio/pcm",
+                                 headers={"Cache-Control": "no-store", "X-Sample-Rate": "24000", "X-Channels": "1", "X-Voice": voice})
+
+    @app.get("/v1/desk/realtime")
+    async def desk_realtime_status(request: Request) -> JSONResponse:
+        denied = hub.require(request)
+        if denied:
+            return denied
+        return JSONResponse(desk.realtime_info())
+
+    @app.websocket("/v1/desk/realtime")
+    async def desk_realtime_socket(websocket: WebSocket) -> None:
+        """Live voice: the phone's mic and speaker, relayed to OpenAI Realtime (desk_realtime.py)."""
+        if not hub.auth.is_user(bearer(websocket)):
+            await websocket.close(code=4401)
+            return
+        await websocket.accept()
+        key = hub.auth.get("OPENAI_API_KEY") or ""
+        if not key:
+            await websocket.send_text(json.dumps({"type": "error", "message": desk_realtime.NO_KEY, "fatal": True}))
+            await websocket.close(code=1000)
+            return
+        platform = _tracker_origin(websocket.query_params.get("platform") or "") or "ios"
+        bridge = desk_realtime.RealtimeBridge(desk, websocket, key, platform=platform)
+        try:
+            await bridge.run()
+        finally:
+            with contextlib.suppress(Exception):
+                await websocket.close(code=1000)
 
     @app.get("/v1/desk/tasks/{task_id}")
     async def desk_task(task_id: str, request: Request) -> JSONResponse:

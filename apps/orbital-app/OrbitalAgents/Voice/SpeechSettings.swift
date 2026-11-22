@@ -88,6 +88,12 @@ final class SpeechSettings: ObservableObject {
         didSet { defaults.set(voiceProcessingEnabled, forKey: Keys.voiceProcessing) }
     }
 
+    /// Live voice: how much louder than its own voice (coming back from the speaker) you must be to cut in.
+    /// "easy", "normal" or "firm" (loud speakerphone, a car).
+    @Published var liveTalkOver: String {
+        didSet { defaults.set(liveTalkOver, forKey: Keys.liveTalkOver) }
+    }
+
     @Published var speechNoiseGateEnabled: Bool {
         didSet { defaults.set(speechNoiseGateEnabled, forKey: Keys.speechGate) }
     }
@@ -165,6 +171,7 @@ final class SpeechSettings: ObservableObject {
         static let silenceSeconds = "orbital.speech.silence"
         static let maxUtterance = "orbital.speech.maxUtterance"
         static let voiceProcessing = "orbital.speech.voiceProcessing"
+        static let liveTalkOver = "orbital.speech.liveTalkOver"
         static let speechGate = "orbital.speech.speechGate"
         static let pauseCueStyle = "orbital.speech.pauseCueStyle"
         static let pauseCueWords = "orbital.speech.pauseCueWords"
@@ -225,6 +232,7 @@ final class SpeechSettings: ObservableObject {
         silenceSeconds = Self.clamped(defaults.object(forKey: Keys.silenceSeconds) as? Double ?? 2.0, 0.4, 10)
         maxUtteranceSeconds = Self.clamped(defaults.object(forKey: Keys.maxUtterance) as? Double ?? 90, 10, 180)
         voiceProcessingEnabled = defaults.object(forKey: Keys.voiceProcessing) as? Bool ?? true
+        liveTalkOver = defaults.string(forKey: Keys.liveTalkOver) ?? "normal"
         speechNoiseGateEnabled = defaults.object(forKey: Keys.speechGate) as? Bool ?? true
         pauseCueStyle = PauseCueStyle(rawValue: defaults.string(forKey: Keys.pauseCueStyle) ?? "") ?? .tones
         pauseCueWords = PauseCueWords(rawValue: defaults.string(forKey: Keys.pauseCueWords) ?? "") ?? .listening

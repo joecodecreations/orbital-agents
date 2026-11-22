@@ -11,7 +11,9 @@ def test_defaults_then_save_rules_and_engine(ports):
         "name": "test-hub", "machine": "test-hub", "ip": "127.0.0.1", "port": 17777, "os": "macos",
         "satellite_token": SATELLITE, "capabilities": {"agents": ["grok", "claude", "echo"]}})
     got = client.get("/v1/desk/settings", headers=AUTH).json()
-    assert got["settings"] == {"chat": "auto", "model": "", "dispatch": "parallel", "rules": []}
+    assert got["settings"] == {"chat": "auto", "model": "", "dispatch": "parallel", "rules": [],
+                               "voice": {"engine": "realtime", "model": "gpt-realtime-2.1", "voice": "marin", "eagerness": "high"}}
+    assert "marin" in got["options"]["voice"]["voices"] and got["options"]["voice"]["openai_key"] is False
     assert {c["id"] for c in got["options"]["chats"]} == {"auto", "grok", "claude", "xai", "ondevice"}
     assert got["options"]["agents"] == ["grok", "claude"], "echo is a test agent, never offered"
     assert got["options"]["machines"][0]["name"] == "test-hub"
@@ -38,6 +40,17 @@ def test_bad_settings_are_refused(ports):
     assert client.put("/v1/desk/settings", headers=AUTH, json={"chat": "gpt"}).status_code == 400
     assert client.put("/v1/desk/settings", headers=AUTH, json={"dispatch": "sometimes"}).status_code == 400
     assert client.put("/v1/desk/settings", headers=AUTH, json={"model": "bad model; rm"}).status_code == 400
+    assert client.put("/v1/desk/settings", headers=AUTH, json={"voice": {"voice": "robot"}}).status_code == 400
+
+
+def test_voice_settings_merge_and_show_in_snapshot(ports):
+    client, hub = make_client()
+    saved = client.put("/v1/desk/settings", headers=AUTH, json={"voice": {"voice": "cedar"}}).json()["settings"]
+    assert saved["voice"] == {"engine": "realtime", "model": "gpt-realtime-2.1", "voice": "cedar", "eagerness": "high"}
+    saved = client.put("/v1/desk/settings", headers=AUTH, json={"voice": {"engine": "classic"}}).json()["settings"]
+    assert saved["voice"]["voice"] == "cedar" and saved["voice"]["engine"] == "classic", "voice keys merge"
+    live = client.get("/v1/desk", headers=AUTH).json()["realtime"]
+    assert live["available"] is False and "OPENAI_API_KEY" in live["note"] and live["engine"] == "classic"
     assert client.put("/v1/desk/settings", headers=AUTH, json={"rules": ["x" * 401]}).status_code == 400
     assert client.get("/v1/desk/settings").status_code == 401
 

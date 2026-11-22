@@ -21,6 +21,15 @@ final class SpeechStream {
 
     /// Seconds of audio received so far.
     var seconds: Double { Double(frames) / format.sampleRate }
+    /// Seconds of this clip the speaker has actually finished playing (buffer completions), and when
+    /// the last one finished: where playback really is, even when it stalled waiting for audio.
+    private(set) var playedSeconds: Double = 0
+    private(set) var lastPlayedAt: Date?
+
+    func markPlayed(_ seconds: Double) {
+        playedSeconds += seconds
+        lastPlayedAt = Date()
+    }
 
     init?(sampleRate: Double) {
         guard sampleRate > 0,
@@ -115,8 +124,11 @@ final class SpeechStream {
             let piece = converter.map { Self.convert(next, with: $0, to: format) } ?? next
             guard let piece else { continue }
             if !player.isPlaying, player.engine?.isRunning == true { player.play() }
-            player.scheduleBuffer(piece, completionCallbackType: .dataPlayedBack) { _ in }
-            added(Double(piece.frameLength) / format.sampleRate)
+            let length = Double(piece.frameLength) / format.sampleRate
+            player.scheduleBuffer(piece, completionCallbackType: .dataPlayedBack) { [weak self] _ in
+                Task { @MainActor in self?.markPlayed(length) }
+            }
+            added(length)
         }
         guard isCurrent() else { return }
         // The resampler holds a few frames back until it is told the clip is over.

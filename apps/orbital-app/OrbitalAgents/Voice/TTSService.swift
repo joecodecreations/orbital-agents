@@ -16,6 +16,10 @@ final class TTSService: NSObject, ObservableObject {
     var hubSynthesize: ((String, String, Double, String) async throws -> Data)?
     /// The same Fish voice, played while the hub is still making it. Args as above.
     var hubStream: (@MainActor (String, String, Double, String) async throws -> SpeechStream)?
+    /// Live voice is the engine: announcements and spoken replies use its OpenAI voice too.
+    var preferLiveVoice: (() -> Bool)?
+    /// That voice, streamed by the hub (`/v1/speech/live/stream`). Arg: text.
+    var liveVoiceStream: (@MainActor (String) async throws -> SpeechStream)?
     /// The hub couldn't stream (an older hub, Fish refused): use whole clips until then.
     private var streamPausedUntil = Date.distantPast
     /// How the last Fish clip was made ("Fish stream via hub · Narrator").
@@ -62,6 +66,18 @@ final class TTSService: NSObject, ObservableObject {
         let cleaned = text.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !cleaned.isEmpty else { throw TTSError.http("empty text") }
         guard force || settings.ttsEnabled else { throw TTSError.http("TTS disabled") }
+
+        // One voice everywhere: with live voice on, announcements sound like the call.
+        if preferLiveVoice?() == true, let liveVoiceStream {
+            let plain = Self.stripFishEmotionTags(cleaned)
+            do {
+                let stream = try await liveVoiceStream(plain)
+                noteRoute("Live voice (OpenAI) via hub")
+                return PreparedClip(kind: .stream(stream), language: language, text: plain)
+            } catch {
+                VoiceDebug.shared.log("live voice speech failed, using \(settings.ttsProvider.title): \(error.localizedDescription)")
+            }
+        }
 
         switch settings.ttsProvider {
         case .fishAudio:

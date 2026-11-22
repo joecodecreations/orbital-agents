@@ -663,6 +663,11 @@ class TrackerEvents:
             if row.get("id") in desk_items or row.get("completedBy") == "user":
                 continue
             who = _agent_name(row.get("agent"))
+            if self.hub.desk is not None:
+                # A live voice call mentions it in passing (when the phone's "say when something finishes" is on).
+                where = f" in {Path(row['workspace']).name}" if row.get("workspace") else ""
+                summary = first_sentence(row.get("summary"), 500) or "no summary"
+                self.hub.desk._notify_voice(f"[tracker update] {who} finished “{row.get('title') or 'a task'}”{where}: {summary}", "tracker")
             await self.hub.raise_alerts([{
                 "schema": "orbital.alert.v1",
                 "id": f"tracker-{row['id']}-done",

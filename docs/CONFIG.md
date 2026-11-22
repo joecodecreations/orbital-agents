@@ -182,6 +182,9 @@ See [LOGGING.md](LOGGING.md).
 | `worker_agent` | `"claude"` | agent the desk starts for real work | your main agent is another CLI |
 | `projects` | `[]` | folders the desk may start work in: `[[desk.projects]]` tables with `name`, `path`, optional `about` and `aliases` | you want to say "work on the website" and have it pick the folder |
 | `reminders_list` | `""` | macOS Reminders list for "remind me…" (empty = the default list) | |
+| `read_roots` | `["~/projects", "~/Documents", "~/Desktop", "~/Downloads"]` | folders on the hub the desk and live voice may read files from, read-only (plus `projects_root` and every `[[desk.projects]]` path). Hidden folders, `~/Library` and secret-looking files (`.env`, keys, certificates, names with secret or credential) are always refused | you keep documents somewhere else, or want the desk to read less |
+
+Live voice (the app's phone-call mode) needs `OPENAI_API_KEY` in `secrets.env` on the hub; it is picked up without a restart. Its voice, model (`gpt-realtime-2.1` or `gpt-realtime-2.1-mini`) and turn-taking are chosen in the app (Voice settings → Live voice) and kept on the hub in `data/hub/desk/settings.json`.
 
 ```toml
 [[desk.projects]]

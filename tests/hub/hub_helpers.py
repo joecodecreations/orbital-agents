@@ -19,7 +19,7 @@ JOIN = "test-join-token-0123456789"
 SATELLITE = "test-satellite-token-0123456789"
 BROWSER = "test-browser-token-0123456789"
 SECRET_ENV = ("ORBITAL_SATELLITE_TOKEN", "ORBITAL_HUB_TOKEN", "ORBITAL_JOIN_TOKEN", "ORBITAL_AUTOMATION_TOKEN",
-              "ORBITAL_HUB_USERNAME", "ORBITAL_HUB_PASSWORD", "ORBITAL_BROWSER_TOKEN", "XAI_API_KEY", "FISH_API_KEY",
+              "ORBITAL_HUB_USERNAME", "ORBITAL_HUB_PASSWORD", "ORBITAL_BROWSER_TOKEN", "XAI_API_KEY", "FISH_API_KEY", "OPENAI_API_KEY",
               "APNS_KEY_ID", "APNS_TEAM_ID", "ORBITAL_HUB_URL", "ORBITAL_STARTUP_WAIT")
 AUTH = {"Authorization": f"Bearer {AUTOMATION}"}
 LOCAL = ("127.0.0.1", 50000)
@@ -37,7 +37,8 @@ def free_port() -> int:
 
 def desk_section(home: Path, extra: str) -> str:
     """The desk's project catalog reads a folder of projects; point it at the temp home, never the real ~/projects."""
-    root = f'projects_root = "{home / "projects"}"'
+    # read_roots too: the desk's file lookups must never touch the real ~/Documents or ~/projects.
+    root = f'projects_root = "{home / "projects"}"\nread_roots = ["{home / "projects"}"]'
     if "[desk]" in extra:
         return extra.replace("[desk]", f"[desk]\n{root}", 1)
     return f"{extra}\n[desk]\n{root}\n"

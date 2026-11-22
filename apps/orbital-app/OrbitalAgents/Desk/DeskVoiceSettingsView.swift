@@ -15,7 +15,11 @@ struct DeskVoiceSettingsView: View {
         NavigationStack {
             ScrollView {
                 VStack(alignment: .leading, spacing: 16) {
-                    group("Talking to the desk", symbol: "waveform") {
+                    group("Live voice", symbol: "phone.and.waveform") {
+                        LiveVoiceSettingsSection()
+                    }
+
+                    group(desk.usesLiveVoice ? "Classic voice" : "Talking to the desk", symbol: "waveform") {
                         Text("Tap Talk for one phrase; it sends when you pause. Hands-free (the waveform on the left) keeps the mic open: every phrase goes to the desk, replies are spoken, and finished agents are announced. With glasses, start hands-free, then lock the phone: each temple tap turns your mic off or on. A rising chime plays only after the mic is actually listening — that is when you can talk. A low tone means your mic is off.")
                             .font(.footnote)
                             .foregroundStyle(OrbitalTheme.textSecondary)

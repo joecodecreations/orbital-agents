@@ -49,7 +49,10 @@ final class DeskState: ObservableObject {
     @Published var announceTrackerDone: Bool {
         didSet {
             UserDefaults.standard.set(announceTrackerDone, forKey: Keys.announceDone)
-            if announceTrackerDone, !oldValue {
+            if live.isActive {
+                // On a call the voice itself brings finished items up; tell the hub.
+                live.sendPrefs()
+            } else if announceTrackerDone, !oldValue {
                 conversation.enqueueSpeak("Okay. I'll tell you when something finishes.", force: true)
             }
         }
@@ -66,6 +69,10 @@ final class DeskState: ObservableObject {
     // MARK: Voice
 
     let conversation = ConversationSession()
+    /// Live voice: a phone call with the desk through the hub's OpenAI Realtime relay.
+    let live = RealtimeVoiceSession()
+    /// Whether the hub offers live voice, and with which voice. From the desk snapshot.
+    @Published private(set) var realtime: DeskRealtimeInfo?
     let speechSettings = SpeechSettings.shared
     /// What the hub can do for speech (Fish voices with its key). Refreshed with the thread.
     @Published private(set) var speechStatus = SpeechStatus()
@@ -98,6 +105,7 @@ final class DeskState: ObservableObject {
 
     private weak var store: OrbitalStore?
     private var conversationSink: AnyCancellable?
+    private var liveSink: AnyCancellable?
     private var eventObserver: NSObjectProtocol?
     /// What has been handed to TTS for each streaming reply.
     private var spokenUpTo: [String: Int] = [:]
@@ -158,6 +166,17 @@ final class DeskState: ObservableObject {
         conversationSink = conversation.objectWillChange.sink { [weak self] _ in
             self?.objectWillChange.send()
         }
+        liveSink = live.objectWillChange.sink { [weak self] _ in
+            self?.objectWillChange.send()
+        }
+        live.capture = conversation.capture
+        live.onFatal = { [weak self] why in
+            guard let self else { return }
+            self.liveConversationOn = false
+            self.conversation.liveCallHoldsAudio = false
+            self.conversation.armGlassesClick()
+            self.banner = why
+        }
         eventObserver = NotificationCenter.default.addObserver(forName: .orbitalDeskEvent, object: nil, queue: .main) { [weak self] note in
             guard let event = note.userInfo as? [String: Any] else { return }
             MainActor.assumeIsolated { self?.handleLive(event) }
@@ -172,6 +191,15 @@ final class DeskState: ObservableObject {
             guard let api = await self?.api else { throw OrbitalAPIError.unauthorized }
             return try await api.fishSpeech(text: text, voiceID: voiceID, speed: speed, model: model)
         }
+        conversation.tts.preferLiveVoice = { [weak self] in self?.usesLiveVoice == true }
+        conversation.tts.liveVoiceStream = { [weak self] text in
+            guard let api = self?.api else { throw OrbitalAPIError.unauthorized }
+            let (rate, chunks) = try await api.liveSpeechStream(text: text)
+            guard let stream = SpeechStream(sampleRate: rate) else { throw OrbitalAPIError.http(502, "bad sample rate \(rate)") }
+            stream.start(chunks)
+            return stream
+        }
+        live.announceTrackerDone = { [weak self] in self?.announceTrackerDone ?? false }
         conversation.tts.hubStream = { [weak self] text, voiceID, speed, model in
             guard let api = self?.api else { throw OrbitalAPIError.unauthorized }
             let (rate, chunks) = try await api.fishSpeechStream(text: text, voiceID: voiceID, speed: speed, model: model)
@@ -212,6 +240,7 @@ final class DeskState: ObservableObject {
             model = snap.model
             trackerActive = snap.trackerActive ?? trackerActive
             configured = snap.configured ?? snap.model?.configured
+            realtime = snap.realtime ?? realtime
             setupNote = snap.setup ?? (configured == false ? snap.model?.note : nil)
             loadError = nil
             loaded = true
@@ -355,9 +384,14 @@ final class DeskState: ObservableObject {
             banner = "The desk is not set up on your hub"
             return
         }
+        if live.isActive, source == "text" {
+            // On a live call the voice answers typed words too, out loud, in the same conversation.
+            live.sendText(text)
+            return
+        }
         let clientID = UUID().uuidString.lowercased()
         if source == "voice" { lastVoiceAt = Date() }
-        let speak = source == "voice" || liveConversationOn || speakRepliesOn
+        let speak = (source == "voice" || liveConversationOn || speakRepliesOn) && !live.isActive
         let interrupt = takeInterrupt()
         replyPendingStart = true
         if source == "voice" { VoiceDebug.shared.log("send voice (\(text.count) chars) interrupt=\(interrupt.map { "\($0.replyID ?? "pending") heard \($0.heard.count) chars" } ?? "none")") }
@@ -483,7 +517,7 @@ final class DeskState: ObservableObject {
             if isNew, msg.kind == "engine" { Task { await refreshModel() } }
             // A desk task's done report also answers the Tracker's "say when it finishes".
             let announce = announceTrackerDone && (msg.kind == "task_done" || msg.kind == "task_failed")
-            if isNew, msg.role == .event, let line = msg.speak, shouldSpeakUpdates || announce, !spokenEventIDs.contains(msg.id) {
+            if isNew, msg.role == .event, let line = msg.speak, !live.isActive, shouldSpeakUpdates || announce, !spokenEventIDs.contains(msg.id) {
                 spokenEventIDs.insert(msg.id)
                 conversation.enqueueSpeak(line, force: announce)
             }
@@ -509,7 +543,7 @@ final class DeskState: ObservableObject {
                 let finished = Set(event["finished"] as? [String] ?? [])
                 // Desk tasks are left to their own done report above, which says more.
                 let deskTrackers = Set(tasks.values.compactMap(\.trackerId))
-                for row in changed where finished.contains(row.id) && !deskTrackers.contains(row.id) {
+                for row in changed where finished.contains(row.id) && !deskTrackers.contains(row.id) && !live.isActive {
                     conversation.enqueueSpeak(TrackerSpeech.finished(row), force: true)
                 }
             }
@@ -568,7 +602,58 @@ final class DeskState: ObservableObject {
 
     /// Tap: one phrase, sent when you pause. Tap again while talking to send now.
     /// Tapping while the desk is talking stops it, and what you say next picks up from there.
+    /// Live voice is on for this hub (it has an OpenAI key and the engine isn't set to classic).
+    var usesLiveVoice: Bool { realtime?.usesLive == true }
+
+    /// Start or end a live voice call. Falls back to classic hands-free when the hub can't.
+    func toggleLiveVoice() {
+        if live.isActive {
+            live.stop()
+            liveConversationOn = false
+            conversation.liveCallHoldsAudio = false
+            conversation.armGlassesClick()
+            banner = "Call ended"
+            return
+        }
+        guard !isUnavailable, let store, store.isLoggedIn, let token = store.imageToken else {
+            banner = "Sign in to your hub first"
+            return
+        }
+        // The call takes the mic engine and the audio session; the classic voice keeps its hands off.
+        conversation.liveCallHoldsAudio = true
+        if conversation.isListening { conversation.stopListening() }
+        conversation.cancelPendingSpeech()
+        conversation.tts.stop()
+        liveConversationOn = true
+        lastVoiceAt = Date()
+        live.start(baseURL: store.baseURL, token: token)
+    }
+
+    /// Voice settings kept on the hub (System → Voice settings → Live voice).
+    func setVoice(_ changes: [String: String]) async {
+        guard let api else { return }
+        do {
+            try await api.saveVoiceSettings(changes)
+            realtime = try await api.realtimeInfo()
+        } catch {
+            banner = "Voice settings not saved: \((error as? OrbitalAPIError)?.shortReason ?? error.localizedDescription)"
+        }
+    }
+
+    #if DEBUG
+    func debugSetRealtime(_ info: DeskRealtimeInfo?) { realtime = info }
+    #endif
+
+    func refreshRealtime() async {
+        guard let api, let info = try? await api.realtimeInfo() else { return }
+        realtime = info
+    }
+
     func tapMic() {
+        if usesLiveVoice || live.isActive {
+            if live.isActive { live.toggleMute() } else { toggleLiveVoice() }
+            return
+        }
         VoiceDebug.shared.log("tap mic listening=\(conversation.isListening) speaking=\(conversation.isAssistantSpeaking) stt=\(speechSettings.sttProvider.rawValue)")
         if conversation.isAssistantSpeaking {
             conversation.bargeIn()
@@ -591,6 +676,10 @@ final class DeskState: ObservableObject {
 
     /// Hands-free: the mic stays open, every phrase goes to the desk, replies and updates are spoken.
     func toggleLive() {
+        if usesLiveVoice || live.isActive {
+            toggleLiveVoice()
+            return
+        }
         VoiceDebug.shared.log("hands-free \(liveConversationOn ? "off" : "on") stt=\(speechSettings.sttProvider.rawValue)")
         if liveConversationOn {
             liveGeneration += 1
@@ -605,6 +694,10 @@ final class DeskState: ObservableObject {
 
     /// Glasses temple tap, or the waveform button. Continuous talk, not one phrase.
     func beginLiveFromGlasses() {
+        if usesLiveVoice {
+            if !live.isActive { toggleLiveVoice() }
+            return
+        }
         guard !liveConversationOn, !startingLive, !isUnavailable else { return }
         startingLive = true
         liveGeneration += 1
@@ -700,6 +793,8 @@ final class DeskState: ObservableObject {
 
     /// Signed out of the hub: stop talking and forget the thread on this device.
     func logout() {
+        live.stop()
+        conversation.liveCallHoldsAudio = false
         liveConversationOn = false
         conversation.stopAll()
         messages = []
